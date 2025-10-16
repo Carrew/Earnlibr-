@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EarnLibr — Provider Dashboard</title>
+  <style>
+    :root{
+      --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#bfc7d6;
+      --glass: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#eef2f7}
+    .wrap{display:flex;min-height:100vh}
+    .sidebar{width:240px;background:#0f1724;border-right:1px solid rgba(255,255,255,0.03);padding:20px;box-sizing:border-box}
+    .brand{font-size:20px;font-weight:700;background:linear-gradient(90deg,var(--accent1),var(--accent2));-webkit-background-clip:text;color:transparent;margin-bottom:16px}
+    .nav a{display:block;color:var(--muted);text-decoration:none;padding:10px;border-radius:8px;margin-bottom:6px}
+    .nav a:hover{background:rgba(74,144,226,0.12);color:#fff}
+    .main{flex:1;padding:24px;box-sizing:border-box;overflow:auto}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .userinfo{display:flex;gap:12px;align-items:center}
+    .avatar{width:44px;height:44px;border-radius:8px;background:linear-gradient(90deg,var(--accent1),var(--accent2));display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#041018}
+    h1{margin:0;font-size:20px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:18px 0}
+    .card{background:var(--glass);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .card h3{margin:0;color:var(--muted);font-size:13px}
+    .card p{margin:6px 0 0;font-size:18px;font-weight:700}
+    .table-wrap{background:rgba(255,255,255,0.02);border-radius:10px;padding:8px;margin-top:10px}
+    table{width:100%;border-collapse:collapse;color:#fff}
+    th,td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px}
+    th{color:var(--muted);font-weight:600}
+    tr:hover{background:rgba(255,255,255,0.015)}
+    .actions button{margin-right:6px;padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+    .btn-primary{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#041018}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .search{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#071427;color:#fff}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:2000}
+    .panel{width:100%;max-width:720px;background:var(--card);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;background:#071427;border:1px solid rgba(255,255,255,0.03);color:#fff}
+    textarea{min-height:80px;resize:vertical}
+    .muted{color:var(--muted);font-size:13px}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:40px;color:var(--muted);font-size:13px;text-align:center}
+    @media(max-width:900px){.wrap{flex-direction:column}.sidebar{width:100%;display:flex;overflow:auto}.main{padding:16px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="sidebar">
+      <div class="brand">EarnLibr</div>
+      <nav class="nav">
+        <a href="#" id="navDashboard">Dashboard</a>
+        <a href="#" id="openCreate">➕ Add Offer</a>
+        <a href="#deals">⚖️ Deals</a>
+        <a href="#invoices">🧾 Invoices</a>
+        <a href="#disputes">❗ Disputes</a>
+        <a href="#settings">⚙️ Settings</a>
+      </nav>
+      <div style="margin-top:18px">
+        <button id="logoutBtn" class="btn-ghost" style="width:100%;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);cursor:pointer">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="welcome">Provider Dashboard</h1>
+          <div class="small muted" id="providerMeta">Loading…</div>
+        </div>
+        <div class="userinfo">
+          <div class="small muted" id="trustText">Trust: —</div>
+          <div class="avatar" id="avatar">P</div>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card"><h3>Total Offers</h3><p id="totalOffers">0</p></div>
+        <div class="card"><h3>Total Pending</h3><p id="totalPending">0</p></div>
+        <div class="card"><h3>Total Confirmed</h3><p id="totalConfirmed">0</p></div>
+        <div class="card"><h3>Total Paid</h3><p id="totalPaid">0</p></div>
+      </div>
+
+      <section id="offersSection">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <h2>My Offers</h2>
+          <div class="controls">
+            <input id="searchInput" class="search" placeholder="Search offers..." />
+            <select id="filterStatus" class="search">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button id="openCreateBtn" class="btn-primary">+ Add Offer</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Title</th><th>Type</th><th>Currency</th><th>Reward</th><th>Qty</th><th>Pending</th><th>Spent</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="offersTbody">
+              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Loading offers…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="deals" style="margin-top:28px">
+        <h2>Deals (Pending Verification)</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Deal</th><th>Offer</th><th>Promoter</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="dealsTbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading deals…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="invoices" style="margin-top:28px">
+        <h2>Invoices</h2>
+        <div class="table-wrap">
+          <table><thead><tr><th>Invoice</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No invoices yet</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <section id="disputes" style="margin-top:28px">
+        <h2>Disputes</h2>
+        <div class="table-wrap">
+          <table><thead><tr><th>Dispute</th><th>Deal</th><th>From</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="disputesTbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No disputes</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <footer>© 2025 EarnLibr — Providers panel</footer>
+    </main>
+  </div>
+
+  <!-- Modal (Add / Edit Offer) -->
+  <div class="modal" id="modal">
+    <div class="panel">
+      <h3 id="modalTitle">Create Offer</h3>
+
+      <div style="margin-top:12px" class="grid">
+        <div>
+          <label>Title</label>
+          <input id="offerTitle" type="text" placeholder="Short title (e.g., 'Social Media Promo')" />
+          <label style="margin-top:10px">Type</label>
+          <select id="offerType"><option value="service">Service</option><option value="physical">Physical</option><option value="digital">Digital</option></select>
+
+          <label style="margin-top:10px">Target Action</label>
+          <select id="offerAction">
+            <option value="click">Click</option>
+            <option value="lead">Lead</option>
+            <option value="sale">Sale</option>
+            <option value="chat">Chat</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Currency</label>
+          <select id="offerCurrency">
+            <option>USD</option><option>GBP</option><option>NGN</option><option>GHS</option><option>XOF</option><option>LRD</option><option>SLL</option><option>EUR</option>
+          </select>
+
+          <label style="margin-top:10px">Reward / Per Action</label>
+          <input id="offerReward" type="number" placeholder="Amount per action" />
+
+          <label style="margin-top:10px">Quantity / Units (optional)</label>
+          <input id="offerQuantity" type="number" placeholder="e.g., 20 (leave empty for unlimited)" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Description (optional)</label>
+        <textarea id="offerDesc" placeholder="Describe the offer, what provider expects, terms"></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+        <button id="saveOffer" class="btn-primary">Create Offer</button>
+        <button id="cancelOffer" class="btn-ghost">Cancel</button>
+      </div>
+
+      <div id="modalMsg" class="small" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script type="module" src="provider-dashboard.js"></script>
+</body>
+</html>
