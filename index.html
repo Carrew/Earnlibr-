@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Freedom to Earn</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background: #0c0c0c;
+      color: #f1f1f1;
+      scroll-behavior: smooth;
+      line-height: 1.6;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 40px;
+      background: rgba(20, 20, 20, 0.9);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(90deg, #00bcd4, #7fff00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+    }
+
+    nav a {
+      color: #f1f1f1;
+      text-decoration: none;
+      margin: 0 12px;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+
+    nav a:hover {
+      color: #7fff00;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 100px 30px 60px;
+      position: relative;
+    }
+
+    .hero img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+
+    .hero h2 {
+      font-size: 2.2rem;
+      margin: 25px 0 15px;
+      color: #fff;
+    }
+
+    .hero p {
+      color: #ccc;
+      max-width: 650px;
+      margin: 0 auto 25px;
+      font-size: 1.1rem;
+    }
+
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .btn {
+      background: linear-gradient(90deg, #00bcd4, #7fff00);
+      color: #000;
+      padding: 12px 25px;
+      border-radius: 30px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      filter: brightness(1.2);
+      transform: scale(1.05);
+    }
+
+    section {
+      padding: 70px 25px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 188, 212, 0.2);
+    }
+
+    h3 {
+      font-size: 1.8rem;
+      margin-bottom: 15px;
+      color: #7fff00;
+    }
+
+    footer {
+      background: #111;
+      color: #aaa;
+      text-align: center;
+      padding: 30px 10px;
+      border-top: 3px solid red;
+      position: relative;
+    }
+
+    footer::before {
+      content: "";
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, red, white, red);
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .scroll-top {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background: #00bcd4;
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      width: 45px;
+      height: 45px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: none;
+      transition: all 0.3s ease;
+    }
+
+    .scroll-top:hover {
+      background: #7fff00;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        padding: 20px;
+      }
+      nav {
+        margin-top: 10px;
+      }
+      .hero h2 {
+        font-size: 1.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>EarnLibr</h1>
+    <nav>
+      <a href="#home">Home</a>
+      <a href="#about">How It Works</a>
+      <a href="signup.html">Join</a>
+      <a href="login.html">Login</a>
+    </nav>
+  </header>
+
+  <section class="hero" id="home">
+    <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
+    <h2>THE FREEDOM TO EARN STARTS HERE.</h2>
+    <p>EarnLibr is the digital ecosystem built to help you earn from what you share, promote, and create — all in one trusted space.</p>
+    <div class="btn-group">
+      <a href="signup.html" class="btn">Join the Movement</a>
+      <a href="#about" class="btn">Explore How It Works</a>
+    </div>
+  </section>
+
+  <section id="about">
+    <h3>WHAT’S EARNLIBR?</h3>
+    <p>EarnLibr connects creators, freelancers, and businesses into one earning ecosystem. Whether you promote, sell, or serve — you get rewarded for every verified result.</p>
+    <p>No middlemen. No limits. Just growth.</p>
+    <p>Connect. Discover opportunities and join verified earning networks.<br>
+    Promote & Earn. Share offers and get paid when your links convert.<br>
+    Grow Together. Build your influence and income with every success.</p>
+  </section>
+
+  <section>
+    <h3>WHY EARNLIBR?</h3>
+    <p>Because the world is shifting — and it’s time Africa led the next earning revolution.</p>
+    <ul style="list-style: none; padding: 0;">
+      <li>💎 <b>Trust First</b> — Proof-based verification and transparency.</li>
+      <li>🌍 <b>Built for Africa</b> — Rooted in Liberia, empowering the continent.</li>
+      <li>🚀 <b>Freedom Focused</b> — No deposits. No restrictions. Just earning.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>HOW IT ALL FLOWS</h3>
+    <p>1️⃣ Providers list products or services.<br>
+       2️⃣ Freelancers promote and share smart links.<br>
+       3️⃣ Clients purchase or request services.<br>
+       4️⃣ EarnLibr verifies completion.<br>
+       5️⃣ Providers pay → Freelancers earn → Everyone wins.</p>
+  </section>
+
+  <section>
+    <h3>JOIN THE MOVEMENT</h3>
+    <p>Be part of the freedom-to-earn era. EarnLibr is where Africa’s creativity meets technology — rewarding effort, connection, and trust.</p>
+    <div class="btn-group">
+      <a href="signup.html" class="btn">Join as Freelancer</a>
+      <a href="signup.html" class="btn">Join as Provider</a>
+      <a href="signup.html" class="btn">Get Early Access</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 EarnLibr. All Rights Reserved.<br>Built for freedom. Powered by trust.</p>
+  </footer>
+
+  <button class="scroll-top" id="scrollTopBtn">↑</button>
+
+  <script>
+    const btn = document.getElementById("scrollTopBtn");
+    window.onscroll = () => {
+      if (document.documentElement.scrollTop > 300) btn.style.display = "block";
+      else btn.style.display = "none";
+    };
+    btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+  </script>
+</body>
+</html>
