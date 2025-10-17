@@ -131,8 +131,9 @@
   </div>
 
   <script type="module">
-    import { auth } from "./firebase.js";
+    import { auth, db } from "./firebase.js";
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { ref, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
     const loginBtn = document.getElementById('loginBtn');
     const msg = document.getElementById('message');
@@ -145,6 +146,7 @@
       err.style.display='none'; showMessage('');
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+
       if(!email || !password){ showError('Please enter your email and password.'); return; }
 
       loginBtn.disabled = true;
@@ -161,9 +163,29 @@
           return;
         }
 
+        // Get user data from Realtime Database
+        const snapshot = await get(child(ref(db), `users/${user.uid}`));
+        if (!snapshot.exists()) {
+          showError("User record not found.");
+          loginBtn.disabled = false;
+          loginBtn.textContent = "Login";
+          return;
+        }
+
+        const userData = snapshot.val();
+        const role = userData.role;
+
         showMessage('✅ Login successful! Redirecting...');
-        // Redirect to dashboard (role-based redirection will come later)
-        setTimeout(() => window.location.href = 'dashboard.html', 1200);
+        setTimeout(() => {
+          if (role === "promoter") {
+            window.location.href = "freelancer-dashboard.html";
+          } else if (role === "provider") {
+            window.location.href = "provider-dashboard.html";
+          } else {
+            showError("Unknown user role.");
+          }
+        }, 1200);
+
       } catch (e) {
         console.error(e);
         if (e.code === 'auth/user-not-found') {
