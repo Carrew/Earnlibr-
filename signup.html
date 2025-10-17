@@ -75,6 +75,17 @@
       color:#fff;
       font-size:14px;
     }
+    .phone-group {
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .phone-group select {
+      width:35%;
+    }
+    .phone-group input {
+      width:65%;
+    }
     .btn {
       margin-top:18px;
       width:100%;
@@ -124,6 +135,15 @@
     <label for="password">Password</label>
     <input id="password" type="password" placeholder="Enter your password" />
 
+    <label for="country">Country</label>
+    <select id="country"></select>
+
+    <label for="phone">Phone number</label>
+    <div class="phone-group">
+      <select id="countryCode"></select>
+      <input id="phone" type="text" placeholder="555442507" />
+    </div>
+
     <label for="role">I am a</label>
     <select id="role">
       <option value="freelancer">Freelancer</option>
@@ -141,42 +161,67 @@
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { ref, set, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { ref, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
     const signupBtn = document.getElementById('signupBtn');
     const msg = document.getElementById('message');
     const err = document.getElementById('error');
 
-    const origin = window.location.origin; // auto domain detection
+    const origin = window.location.origin;
     const params = new URLSearchParams(window.location.search);
-    const refBy = params.get("ref"); // referral code from link if available
+    const refBy = params.get("ref");
 
     function showMessage(t){ msg.textContent = t; }
     function showError(e){ err.style.display='block'; err.textContent = e; }
 
-    // Generate short ID
+    // Load all countries
+    fetch("https://restcountries.com/v3.1/all")
+      .then(res => res.json())
+      .then(data => {
+        const countrySelect = document.getElementById("country");
+        const codeSelect = document.getElementById("countryCode");
+
+        const sorted = data.sort((a,b) => a.name.common.localeCompare(b.name.common));
+
+        sorted.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.name.common;
+          opt.textContent = c.name.common;
+          countrySelect.appendChild(opt);
+
+          if (c.idd?.root) {
+            const code = c.idd.root + (c.idd.suffixes ? c.idd.suffixes[0] : "");
+            const codeOpt = document.createElement("option");
+            codeOpt.value = code;
+            codeOpt.textContent = `${code} (${c.name.common})`;
+            codeSelect.appendChild(codeOpt);
+          }
+        });
+      });
+
     function generateShortID(name){
       const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "user";
       const rand = Math.floor(1000 + Math.random() * 9000);
       return base + rand;
     }
 
-    // Auto redirect if already logged in
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        // If user already logged in
-        window.location.href = `${origin}/dashboard.html`;
-      }
-    });
-
     signupBtn.addEventListener('click', async () => {
-      err.style.display='none'; showError('');
+      err.style.display='none'; msg.textContent = '';
       const name = document.getElementById('name').value.trim();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       const role = document.getElementById('role').value;
+      const country = document.getElementById('country').value;
+      const countryCode = document.getElementById('countryCode').value;
+      const phoneInput = document.getElementById('phone').value.trim();
 
-      if (!email || !password || !name) { showError('Please fill all fields'); return; }
+      if (!name || !email || !password || !country || !phoneInput) {
+        showError('Please fill all required fields');
+        return;
+      }
+
+      const phone = phoneInput.replace(/^0+/, ''); // remove leading zeros
+      const fullPhone = `${countryCode}${phone}`;
 
       signupBtn.disabled = true;
       signupBtn.textContent = 'Creating...';
@@ -186,42 +231,31 @@
         const uid = userCred.user.uid;
         const shortID = generateShortID(name);
 
-        // Save user data
         await set(ref(db, 'users/' + uid), {
-          uid,
-          name,
-          email,
-          role,
-          userShortID: shortID,
+          uid, name, email, role, country,
+          phone: fullPhone,
+          referralCode: shortID,
           referredBy: refBy || null,
-          createdAt: new Date().toISOString(),
-          emailVerified: false,
-          balance: 0,
-          trustScore: 0
+          earnings: { total: 0, pending: 0, paid: 0 },
+          createdAt: new Date().toISOString()
         });
 
         await sendEmailVerification(userCred.user);
-        showMessage('✅ Account created. Check your inbox for verification email.');
 
-        // Store session locally
-        localStorage.setItem('userSession', JSON.stringify({
-          uid, name, email, role, shortID
-        }));
+        showMessage('✅ Account created! Check your Gmail inbox (and spam) for verification.');
+        msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Go to Gmail</a>`;
 
-        // Redirect after short delay
+        localStorage.setItem('userSession', JSON.stringify({ uid, name, email, role, shortID }));
+
         setTimeout(() => {
           window.location.href = `${origin}/login.html`;
-        }, 2500);
+        }, 3000);
 
       } catch (e) {
         console.error(e);
-        if (e.code === 'auth/email-already-in-use') {
-          showError('Email already in use. Try logging in instead.');
-        } else if (e.code === 'auth/weak-password') {
-          showError('Weak password. Use at least 6 characters.');
-        } else {
-          showError(e.message || 'Signup failed');
-        }
+        if (e.code === 'auth/email-already-in-use') showError('Email already in use.');
+        else if (e.code === 'auth/weak-password') showError('Weak password (min 6 chars).');
+        else showError(e.message || 'Signup failed.');
       } finally {
         signupBtn.disabled = false;
         signupBtn.textContent = 'Create account';
@@ -229,4 +263,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
