@@ -163,7 +163,7 @@
           return;
         }
 
-        // Get user data from Realtime Database
+        // ✅ Fetch user record
         const snapshot = await get(child(ref(db), `users/${user.uid}`));
         if (!snapshot.exists()) {
           showError("User record not found.");
@@ -175,9 +175,19 @@
         const userData = snapshot.val();
         const role = userData.role;
 
+        // ✅ Save to localStorage
+        localStorage.setItem('userSession', JSON.stringify({
+          uid: user.uid,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          referralCode: userData.referralCode
+        }));
+
+        // ✅ Redirect by role
         showMessage('✅ Login successful! Redirecting...');
         setTimeout(() => {
-          if (role === "promoter") {
+          if (role === "freelancer") {
             window.location.href = "freelancer-dashboard.html";
           } else if (role === "provider") {
             window.location.href = "provider-dashboard.html";
@@ -193,7 +203,7 @@
         } else if (e.code === 'auth/wrong-password') {
           showError('Incorrect password.');
         } else {
-          showError(e.message || 'Login failed');
+          showError('Login failed. Please check your credentials.');
         }
       } finally {
         loginBtn.disabled = false;
