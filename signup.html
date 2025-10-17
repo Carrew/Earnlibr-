@@ -75,17 +75,28 @@
       color:#fff;
       font-size:14px;
     }
+    .password-wrap {
+      position:relative;
+    }
+    .toggle-password {
+      position:absolute;
+      top:50%;
+      right:10px;
+      transform:translateY(-50%);
+      background:none;
+      border:none;
+      color:var(--muted);
+      cursor:pointer;
+      font-size:14px;
+    }
     .phone-group {
       display:flex;
       gap:8px;
       align-items:center;
     }
-    .phone-group select {
-      width:35%;
-    }
-    .phone-group input {
-      width:65%;
-    }
+    .phone-group select { width:35%; }
+    .phone-group input { width:65%; }
+
     .btn {
       margin-top:18px;
       width:100%;
@@ -103,12 +114,12 @@
       font-size:13px;
       color:var(--muted);
       margin-top:10px;
-      text-align:center
+      text-align:center;
     }
     .link {
       color:var(--accent2);
       text-decoration:none;
-      font-weight:600
+      font-weight:600;
     }
     .error {
       color:var(--danger);
@@ -133,7 +144,11 @@
     <input id="email" type="email" placeholder="example@gmail.com" />
 
     <label for="password">Password</label>
-    <input id="password" type="password" placeholder="Enter your password" />
+    <div class="password-wrap">
+      <input id="password" type="password" placeholder="Enter your password" />
+      <button type="button" id="togglePassword" class="toggle-password">👁️</button>
+    </div>
+    <div id="strength" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
 
     <label for="country">Country</label>
     <select id="country"></select>
@@ -166,6 +181,9 @@
     const signupBtn = document.getElementById('signupBtn');
     const msg = document.getElementById('message');
     const err = document.getElementById('error');
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const strengthDiv = document.getElementById('strength');
 
     const origin = window.location.origin;
     const params = new URLSearchParams(window.location.search);
@@ -174,14 +192,34 @@
     function showMessage(t){ msg.textContent = t; }
     function showError(e){ err.style.display='block'; err.textContent = e; }
 
-    // ✅ Load all countries from your local GitHub file
+    // 👁️ Toggle Password Visibility
+    togglePassword.addEventListener("click", () => {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      togglePassword.textContent = isHidden ? "🙈" : "👁️";
+    });
+
+    // 💪 Password Strength Checker
+    passwordInput.addEventListener("input", () => {
+      const pwd = passwordInput.value;
+      const rules = {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        number: /[0-9]/.test(pwd),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
+      };
+      const strength = Object.values(rules).filter(Boolean).length;
+      const texts = ["🔴 Very Weak","🟠 Weak","🟡 Fair","🟢 Good","✅ Strong"];
+      strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
+    });
+
+    // 🌍 Load countries
     fetch("countries.json")
       .then(res => res.json())
       .then(data => {
         const countrySelect = document.getElementById("country");
         const codeSelect = document.getElementById("countryCode");
 
-        // Populate countries
         data.forEach(c => {
           const opt = document.createElement("option");
           opt.value = c.name;
@@ -189,14 +227,13 @@
           countrySelect.appendChild(opt);
         });
 
-        // When a user selects a country, auto-fill the code
         countrySelect.addEventListener("change", () => {
-          const selectedCountry = data.find(c => c.name === countrySelect.value);
-          if (selectedCountry) {
+          const selected = data.find(c => c.name === countrySelect.value);
+          if (selected) {
             codeSelect.innerHTML = "";
             const codeOpt = document.createElement("option");
-            codeOpt.value = selectedCountry.code;
-            codeOpt.textContent = selectedCountry.code;
+            codeOpt.value = selected.code;
+            codeOpt.textContent = selected.code;
             codeSelect.appendChild(codeOpt);
           }
         });
@@ -220,11 +257,11 @@
       const phoneInput = document.getElementById('phone').value.trim();
 
       if (!name || !email || !password || !country || !phoneInput) {
-        showError('Please fill all required fields');
+        showError('Please fill all required fields.');
         return;
       }
 
-      const phone = phoneInput.replace(/^0+/, ''); // remove leading zeros
+      const phone = phoneInput.replace(/^0+/, '');
       const fullPhone = `${countryCode}${phone}`;
 
       signupBtn.disabled = true;
@@ -246,20 +283,24 @@
 
         await sendEmailVerification(userCred.user);
 
-        showMessage('✅ Account created! Check your Gmail inbox (and spam) for verification.');
+        showMessage('✅ Account created! Please verify your email.');
         msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Go to Gmail</a>`;
 
         localStorage.setItem('userSession', JSON.stringify({ uid, name, email, role, shortID }));
 
         setTimeout(() => {
-          window.location.href = `${origin}/login.html`;
-        }, 3000);
+          window.location.href = "login.html";
+        }, 5000);
 
       } catch (e) {
         console.error(e);
-        if (e.code === 'auth/email-already-in-use') showError('Email already in use.');
-        else if (e.code === 'auth/weak-password') showError('Weak password (min 6 chars).');
-        else showError(e.message || 'Signup failed.');
+        const errorMap = {
+          "auth/email-already-in-use": "Email already in use.",
+          "auth/invalid-email": "Invalid email address.",
+          "auth/weak-password": "Password too weak — must have 8+ chars, uppercase & number.",
+          "auth/password-does-not-meet-requirements": "Password must contain at least 8 characters, one uppercase letter, and one number.",
+        };
+        showError(errorMap[e.code] || e.message || "Signup failed.");
       } finally {
         signupBtn.disabled = false;
         signupBtn.textContent = 'Create account';
