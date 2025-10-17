@@ -174,30 +174,34 @@
     function showMessage(t){ msg.textContent = t; }
     function showError(e){ err.style.display='block'; err.textContent = e; }
 
-    // Load all countries
-    fetch("https://restcountries.com/v3.1/all")
+    // ✅ Load all countries from your local GitHub file
+    fetch("countries.json")
       .then(res => res.json())
       .then(data => {
         const countrySelect = document.getElementById("country");
         const codeSelect = document.getElementById("countryCode");
 
-        const sorted = data.sort((a,b) => a.name.common.localeCompare(b.name.common));
-
-        sorted.forEach(c => {
+        // Populate countries
+        data.forEach(c => {
           const opt = document.createElement("option");
-          opt.value = c.name.common;
-          opt.textContent = c.name.common;
+          opt.value = c.name;
+          opt.textContent = c.name;
           countrySelect.appendChild(opt);
+        });
 
-          if (c.idd?.root) {
-            const code = c.idd.root + (c.idd.suffixes ? c.idd.suffixes[0] : "");
+        // When a user selects a country, auto-fill the code
+        countrySelect.addEventListener("change", () => {
+          const selectedCountry = data.find(c => c.name === countrySelect.value);
+          if (selectedCountry) {
+            codeSelect.innerHTML = "";
             const codeOpt = document.createElement("option");
-            codeOpt.value = code;
-            codeOpt.textContent = `${code} (${c.name.common})`;
+            codeOpt.value = selectedCountry.code;
+            codeOpt.textContent = selectedCountry.code;
             codeSelect.appendChild(codeOpt);
           }
         });
-      });
+      })
+      .catch(err => console.error("Failed to load countries:", err));
 
     function generateShortID(name){
       const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "user";
@@ -263,4 +267,4 @@
     });
   </script>
 </body>
-  </html>
+</html>
