@@ -4,188 +4,426 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>EarnLibr — Provider Dashboard</title>
+
   <style>
     :root{
-      --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#bfc7d6;
-      --glass: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+      --bg:#0b0d17;
+      --card:#0f1724;
+      --accent1:#4a90e2;
+      --accent2:#a3ff6e;
+      --muted:#bfc7d6;
+      --danger:#e74c3c;
+      --glass: rgba(255,255,255,0.02);
+      --glass-2: rgba(255,255,255,0.015);
+      --radius: 12px;
     }
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#eef2f7}
-    .wrap{display:flex;min-height:100vh}
-    .sidebar{width:240px;background:#0f1724;border-right:1px solid rgba(255,255,255,0.03);padding:20px;box-sizing:border-box}
-    .brand{font-size:20px;font-weight:700;background:linear-gradient(90deg,var(--accent1),var(--accent2));-webkit-background-clip:text;color:transparent;margin-bottom:16px}
-    .nav a{display:block;color:var(--muted);text-decoration:none;padding:10px;border-radius:8px;margin-bottom:6px}
-    .nav a:hover{background:rgba(74,144,226,0.12);color:#fff}
-    .main{flex:1;padding:24px;box-sizing:border-box;overflow:auto}
-    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .userinfo{display:flex;gap:12px;align-items:center}
-    .avatar{width:44px;height:44px;border-radius:8px;background:linear-gradient(90deg,var(--accent1),var(--accent2));display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#041018}
-    h1{margin:0;font-size:20px}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:18px 0}
-    .card{background:var(--glass);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
-    .card h3{margin:0;color:var(--muted);font-size:13px}
-    .card p{margin:6px 0 0;font-size:18px;font-weight:700}
-    .table-wrap{background:rgba(255,255,255,0.02);border-radius:10px;padding:8px;margin-top:10px}
-    table{width:100%;border-collapse:collapse;color:#fff}
-    th,td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px}
-    th{color:var(--muted);font-weight:600}
-    tr:hover{background:rgba(255,255,255,0.015)}
-    .actions button{margin-right:6px;padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
-    .btn-primary{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#041018}
-    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
-    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .search{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#071427;color:#fff}
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:2000}
-    .panel{width:100%;max-width:720px;background:var(--card);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
-    input,select,textarea{width:100%;padding:10px;border-radius:8px;background:#071427;border:1px solid rgba(255,255,255,0.03);color:#fff}
-    textarea{min-height:80px;resize:vertical}
-    .muted{color:var(--muted);font-size:13px}
-    .small{font-size:13px;color:var(--muted)}
-    footer{margin-top:40px;color:var(--muted);font-size:13px;text-align:center}
-    @media(max-width:900px){.wrap{flex-direction:column}.sidebar{width:100%;display:flex;overflow:auto}.main{padding:16px}}
+
+    html,body{height:100%; margin:0; font-family:Inter, system-ui, Arial; background:linear-gradient(180deg,#071028 0%, #0b0d17 100%); color:#eef2f7;}
+
+    /* layout */
+    .wrap { max-width:1200px; margin:28px auto; padding:20px; display:grid; grid-template-columns: 260px 1fr; gap:20px; }
+    .card { background: linear-gradient(180deg,var(--glass),var(--glass-2)); border-radius:var(--radius); padding:18px; box-shadow:0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
+
+    /* sidebar */
+    .sidebar { height:calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
+    .logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03); }
+    .logo img{ width:44px; height:44px; object-fit:cover; border-radius:8px; }
+    .logo h2{ font-size:16px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+
+    .nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+    .nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; }
+    .nav a.active, .nav a:hover { color:#041018; background:linear-gradient(90deg,var(--accent1),var(--accent2)); box-shadow:0 6px 18px rgba(32,90,255,0.08); }
+
+    .profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center; }
+    .avatar { width:44px; height:44px; border-radius:10px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#041018; }
+
+    /* main content */
+    .main { min-height:80vh; display:flex; flex-direction:column; gap:18px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .greeting { }
+    .greeting h1 { font-size:20px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+    .greeting p { margin:4px 0 0 0; color:var(--muted); font-size:13px; }
+
+    .stats-grid { display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+    .stat { padding:14px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008)); }
+    .stat h3 { margin:0 0 6px 0; font-size:12px; color:var(--muted); }
+    .stat p { margin:0; font-size:18px; font-weight:700; }
+
+    .content { display:grid; grid-template-columns: 1fr 360px; gap:12px; align-items:start; }
+    .offers-preview { display:flex; flex-direction:column; gap:10px; }
+    .offer-card { display:flex; gap:12px; padding:12px; align-items:center; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008)); }
+    .offer-card .meta { flex:1; }
+    .offer-title { font-weight:700; margin:0 0 6px 0; }
+    .offer-sub { margin:0; color:var(--muted); font-size:13px; }
+
+    .progress { height:8px; background:rgba(255,255,255,0.04); border-radius:6px; overflow:hidden; margin-top:8px; }
+    .progress > i { display:block; height:100%; background:linear-gradient(90deg,var(--accent1),var(--accent2)); width:0%; }
+
+    .right-column { display:flex; flex-direction:column; gap:12px; }
+    .card.small { padding:10px; }
+
+    .btn { display:inline-block; padding:10px 12px; border-radius:10px; border:0; font-weight:700; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; text-decoration:none; }
+    .link-plain { color:var(--accent2); text-decoration:none; font-weight:600; cursor:pointer; }
+    .muted { color:var(--muted); font-size:13px; }
+
+    /* responsive */
+    @media (max-width:980px){
+      .wrap { grid-template-columns: 1fr; padding:14px; }
+      .sidebar{ position:relative; height:auto; }
+      .content { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <aside class="sidebar">
-      <div class="brand">EarnLibr</div>
+    <!-- SIDEBAR -->
+    <aside class="card sidebar">
+      <div class="logo">
+        <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
+        <div>
+          <h2>EarnLibr</h2>
+          <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
+        </div>
+      </div>
+
       <nav class="nav">
-        <a href="#" id="navDashboard">Dashboard</a>
-        <a href="#" id="openCreate">➕ Add Offer</a>
-        <a href="#deals">⚖️ Deals</a>
-        <a href="#invoices">🧾 Invoices</a>
-        <a href="#disputes">❗ Disputes</a>
-        <a href="#settings">⚙️ Settings</a>
+        <a id="nav-dashboard" class="active">Dashboard</a>
+        <a id="nav-offers">Offers</a>
+        <a id="nav-notifs">Notifications</a>
       </nav>
-      <div style="margin-top:18px">
-        <button id="logoutBtn" class="btn-ghost" style="width:100%;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);cursor:pointer">Logout</button>
+
+      <div class="profile">
+        <div id="avatar" class="avatar">P</div>
+        <div>
+          <div id="providerName" style="font-weight:700;">Loading...</div>
+          <div id="providerEmail" class="muted">—</div>
+        </div>
+        <div style="margin-left:auto">
+          <button id="logoutBtn" class="btn" style="padding:8px 10px;">Logout</button>
+        </div>
       </div>
     </aside>
 
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <h1 id="welcome">Provider Dashboard</h1>
-          <div class="small muted" id="providerMeta">Loading…</div>
+    <!-- MAIN -->
+    <main class="main card">
+      <div class="top">
+        <div class="greeting">
+          <h1 id="greet">Welcome back</h1>
+          <p id="subg" class="muted">Here's a quick summary of your promotions on EarnLibr.</p>
         </div>
-        <div class="userinfo">
-          <div class="small muted" id="trustText">Trust: —</div>
-          <div class="avatar" id="avatar">P</div>
-        </div>
-      </div>
-
-      <div class="cards">
-        <div class="card"><h3>Total Offers</h3><p id="totalOffers">0</p></div>
-        <div class="card"><h3>Total Pending</h3><p id="totalPending">0</p></div>
-        <div class="card"><h3>Total Confirmed</h3><p id="totalConfirmed">0</p></div>
-        <div class="card"><h3>Total Paid</h3><p id="totalPaid">0</p></div>
-      </div>
-
-      <section id="offersSection">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-          <h2>My Offers</h2>
-          <div class="controls">
-            <input id="searchInput" class="search" placeholder="Search offers..." />
-            <select id="filterStatus" class="search">
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
-            </select>
-            <button id="openCreateBtn" class="btn-primary">+ Add Offer</button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="text-align:right;">
+            <div class="muted">Trust Score</div>
+            <div id="trustScore" style="font-weight:800; font-size:18px;">--</div>
           </div>
+          <a id="createOfferBtn" class="btn">Create Offer</a>
         </div>
+      </div>
 
-        <div class="table-wrap" style="margin-top:12px">
-          <table>
-            <thead><tr><th>Title</th><th>Type</th><th>Currency</th><th>Reward</th><th>Qty</th><th>Pending</th><th>Spent</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="offersTbody">
-              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Loading offers…</td></tr>
-            </tbody>
-          </table>
+      <div class="stats-grid" aria-hidden="false">
+        <div class="stat">
+          <h3>Total Offers</h3>
+          <p id="totalOffers">—</p>
         </div>
-      </section>
-
-      <section id="deals" style="margin-top:28px">
-        <h2>Deals (Pending Verification)</h2>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Deal</th><th>Offer</th><th>Promoter</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="dealsTbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading deals…</td></tr></tbody>
-          </table>
+        <div class="stat">
+          <h3>Verified Deals</h3>
+          <p id="totalVerified">—</p>
         </div>
-      </section>
-
-      <section id="invoices" style="margin-top:28px">
-        <h2>Invoices</h2>
-        <div class="table-wrap">
-          <table><thead><tr><th>Invoice</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No invoices yet</td></tr></tbody></table>
+        <div class="stat">
+          <h3>Total Generated</h3>
+          <p id="totalGenerated">$—</p>
         </div>
-      </section>
-
-      <section id="disputes" style="margin-top:28px">
-        <h2>Disputes</h2>
-        <div class="table-wrap">
-          <table><thead><tr><th>Dispute</th><th>Deal</th><th>From</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="disputesTbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No disputes</td></tr></tbody></table>
+        <div class="stat">
+          <h3>Total Spent</h3>
+          <p id="totalSpent">$—</p>
         </div>
-      </section>
+      </div>
 
-      <footer>© 2025 EarnLibr — Providers panel</footer>
+      <div class="content">
+        <section>
+          <h3 style="margin:0 0 10px 0;">Top Offers</h3>
+          <div class="offers-preview" id="offersList">
+            <div class="muted">Loading offers…</div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <a id="viewAllOffers" class="link-plain">View all offers</a>
+          </div>
+        </section>
+
+        <aside class="right-column">
+          <div class="card small">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:13px; color:var(--muted)">Recent Activity</div>
+                <div id="recentActivity" style="font-size:14px; font-weight:700; margin-top:6px;">No recent activity</div>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <a id="viewNotifs" class="link-plain">View notifications</a>
+            </div>
+          </div>
+
+          <div class="card small">
+            <div style="font-size:13px; color:var(--muted)">Account</div>
+            <div style="margin-top:8px; font-weight:700;" id="accountBalances">—</div>
+            <div style="margin-top:8px;">
+              <a id="goPayments" class="link-plain">Payments & invoices</a>
+            </div>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 
-  <!-- Modal (Add / Edit Offer) -->
-  <div class="modal" id="modal">
-    <div class="panel">
-      <h3 id="modalTitle">Create Offer</h3>
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { ref, get, child, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-      <div style="margin-top:12px" class="grid">
-        <div>
-          <label>Title</label>
-          <input id="offerTitle" type="text" placeholder="Short title (e.g., 'Social Media Promo')" />
-          <label style="margin-top:10px">Type</label>
-          <select id="offerType"><option value="service">Service</option><option value="physical">Physical</option><option value="digital">Digital</option></select>
+    // UI refs
+    const providerNameEl = document.getElementById('providerName');
+    const providerEmailEl = document.getElementById('providerEmail');
+    const avatarEl = document.getElementById('avatar');
+    const greetEl = document.getElementById('greet');
+    const trustEl = document.getElementById('trustScore');
 
-          <label style="margin-top:10px">Target Action</label>
-          <select id="offerAction">
-            <option value="click">Click</option>
-            <option value="lead">Lead</option>
-            <option value="sale">Sale</option>
-            <option value="chat">Chat</option>
-          </select>
-        </div>
+    const totalOffersEl = document.getElementById('totalOffers');
+    const totalVerifiedEl = document.getElementById('totalVerified');
+    const totalGeneratedEl = document.getElementById('totalGenerated');
+    const totalSpentEl = document.getElementById('totalSpent');
 
-        <div>
-          <label>Currency</label>
-          <select id="offerCurrency">
-            <option>USD</option><option>GBP</option><option>NGN</option><option>GHS</option><option>XOF</option><option>LRD</option><option>SLL</option><option>EUR</option>
-          </select>
+    const offersListEl = document.getElementById('offersList');
+    const recentActivityEl = document.getElementById('recentActivity');
+    const accountBalancesEl = document.getElementById('accountBalances');
 
-          <label style="margin-top:10px">Reward / Per Action</label>
-          <input id="offerReward" type="number" placeholder="Amount per action" />
+    const navOffers = document.getElementById('nav-offers');
+    const navNotifs = document.getElementById('nav-notifs');
+    const navDashboard = document.getElementById('nav-dashboard');
 
-          <label style="margin-top:10px">Quantity / Units (optional)</label>
-          <input id="offerQuantity" type="number" placeholder="e.g., 20 (leave empty for unlimited)" />
-        </div>
-      </div>
+    const viewAllOffersBtn = document.getElementById('viewAllOffers');
+    const createOfferBtn = document.getElementById('createOfferBtn');
+    const viewNotifsBtn = document.getElementById('viewNotifs');
+    const goPaymentsBtn = document.getElementById('goPayments');
 
-      <div style="margin-top:12px">
-        <label>Description (optional)</label>
-        <textarea id="offerDesc" placeholder="Describe the offer, what provider expects, terms"></textarea>
-      </div>
+    // Ensure logged-in session exists (from login page)
+    const userSessionRaw = localStorage.getItem('userSession');
+    if (!userSessionRaw) {
+      window.location.href = 'login.html';
+      throw new Error('No user session - redirecting to login.');
+    }
 
-      <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
-        <button id="saveOffer" class="btn-primary">Create Offer</button>
-        <button id="cancelOffer" class="btn-ghost">Cancel</button>
-      </div>
+    const userSession = JSON.parse(userSessionRaw);
+    if (!userSession.uid || userSession.role !== 'provider') {
+      // Not a provider: redirect to login or appropriate page
+      window.location.href = 'login.html';
+      throw new Error('Invalid session or role.');
+    }
 
-      <div id="modalMsg" class="small" style="margin-top:12px"></div>
-    </div>
-  </div>
+    // set some immediate UI
+    providerNameEl.textContent = userSession.name || 'Provider';
+    providerEmailEl.textContent = userSession.email || '';
+    greetEl.textContent = `Welcome back, ${userSession.name || 'Provider'}`;
+    avatarEl.textContent = (userSession.name || 'P').slice(0,1).toUpperCase();
 
-  <script type="module" src="provider-dashboard.js"></script>
+    // Navigation
+    navOffers.addEventListener('click', () => window.location.href = 'offers.html');
+    navNotifs.addEventListener('click', () => window.location.href = 'notifications.html');
+    navDashboard.addEventListener('click', () => window.location.href = 'provider-dashboard.html');
+
+    viewAllOffersBtn.addEventListener('click', () => window.location.href = 'offers.html');
+    createOfferBtn.addEventListener('click', () => window.location.href = 'offers.html#create');
+    viewNotifsBtn.addEventListener('click', () => window.location.href = 'notifications.html');
+    goPaymentsBtn.addEventListener('click', () => window.location.href = 'provider-payments.html');
+
+    // Logout (will also work if you provide an external logout.js that defines window.externalLogout)
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('click', async () => {
+      // If you have an external logout.js that provides a function, prefer that:
+      if (window.externalLogout && typeof window.externalLogout === 'function') {
+        try { await window.externalLogout(); } catch(e){ console.warn('externalLogout failed', e); }
+      } else {
+        try {
+          await signOut(auth);
+        } catch(e){
+          console.warn('signOut failed (maybe offline):', e);
+        }
+      }
+      localStorage.removeItem('userSession');
+      window.location.href = 'login.html';
+    });
+
+    // Data fetch & UI update
+    const providerUid = userSession.uid;
+    const userRef = ref(db, `users/${providerUid}`);
+    const offersRef = ref(db, `offers/${providerUid}`);
+
+    // helper: currency formatting
+    const fmt = (n) => {
+      if (typeof n !== 'number') n = Number(n) || 0;
+      return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    };
+
+    // Trust score calculation (basic, can be enhanced)
+    function calculateTrustScore(providerData = {}, offersObj = {}) {
+      // Base: 100
+      let score = 100;
+
+      // reduce for disputes
+      const disputes = providerData.disputes ? Number(providerData.disputes) : 0;
+      score -= Math.min(30, disputes * 6); // each dispute -6, cap -30
+
+      // consider verification rate across offers
+      let totalVerified = 0;
+      let totalAttempts = 0;
+      Object.values(offersObj || {}).forEach(o => {
+        const v = Number(o.verifiedDeals || 0);
+        const qty = Number(o.quantity || 0);
+        totalVerified += v;
+        totalAttempts += Math.max(1, qty);
+      });
+      const verifyRate = totalAttempts === 0 ? 1 : (totalVerified / totalAttempts);
+      // penalize very low verification
+      if (verifyRate < 0.05) score -= 20;
+      else if (verifyRate < 0.2) score -= 10;
+
+      // If provider has many closed-without-response offers, reduce
+      let closedCount = 0, totalOffers = 0;
+      Object.values(offersObj || {}).forEach(o => { totalOffers++; if (o.status === 'closed' && !o.resolved) closedCount++; });
+      if (totalOffers > 0 && (closedCount / totalOffers) > 0.5) score -= 10;
+
+      if (score < 30) score = 30; // floor
+      if (score > 100) score = 100;
+      return Math.round(score);
+    }
+
+    // Render offers preview (top 3 by verifiedDeals desc)
+    function renderOffersPreview(offersObj) {
+      offersListEl.innerHTML = '';
+      const offers = Object.entries(offersObj || {}).map(([id, item]) => ({ id, ...item }));
+      if (offers.length === 0) {
+        offersListEl.innerHTML = '<div class="muted">No offers yet — create one to start promoting.</div>';
+        return;
+      }
+
+      // sort by verifiedDeals desc
+      offers.sort((a,b) => (Number(b.verifiedDeals||0) - Number(a.verifiedDeals||0)));
+
+      // show top 3
+      const top = offers.slice(0,3);
+      top.forEach(o => {
+        const spent = Number(o.verifiedDeals || 0) * Number(o.commission || 0);
+        const generated = Number(o.verifiedDeals || 0) * Number(o.price || 0);
+        const budget = Number(o.promotionBudget || 0);
+        const percent = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+
+        const div = document.createElement('div');
+        div.className = 'offer-card';
+        div.innerHTML = `
+          <div class="meta">
+            <div class="offer-title">${escapeHtml(o.title || 'Untitled')}</div>
+            <div class="offer-sub">Status: ${o.status || 'active'} • Verified: ${Number(o.verifiedDeals||0)}</div>
+            <div class="progress"><i style="width:${percent}%;"></i></div>
+            <div style="margin-top:8px; font-size:13px; color:var(--muted)">
+              Spent: $${fmt(spent)} • Budget: $${fmt(budget)} • Sales: $${fmt(generated)}
+            </div>
+          </div>
+          <div>
+            <a class="btn" href="offer-details.html?id=${encodeURIComponent(o.id)}">Details</a>
+          </div>
+        `;
+        offersListEl.appendChild(div);
+      });
+
+      // recent activity
+      const mostRecent = offers[0];
+      if (mostRecent) {
+        recentActivityEl.textContent = `${mostRecent.title || 'Offer'} — ${mostRecent.verifiedDeals || 0} verified`;
+      }
+    }
+
+    // small helper to avoid XSS for inserted text nodes
+    function escapeHtml(unsafe) {
+      if (unsafe == null) return '';
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Read provider basic record and populate account balances etc.
+    async function loadProviderData() {
+      try {
+        const snap = await get(userRef);
+        const providerData = snap.exists() ? snap.val() : {};
+
+        // Basic account balances (if stored)
+        const walletBalance = Number(providerData.walletBalance || 0);
+        const pending = Number(providerData.pending || 0);
+        const paid = Number(providerData.paid || 0);
+        accountBalancesEl.innerHTML = `
+          Wallet: $${fmt(walletBalance)}<br/>
+          Pending: $${fmt(pending)} • Paid: $${fmt(paid)}
+        `;
+
+        // Now load offers (use onValue to keep in sync live)
+        onValue(offersRef, (offersSnap) => {
+          const offersObj = offersSnap.exists() ? offersSnap.val() : {};
+
+          // aggregate stats
+          const offerEntries = Object.values(offersObj || {});
+          const totalOffers = offerEntries.length;
+          let totalVerified = 0;
+          let totalSpent = 0;
+          let totalGenerated = 0;
+          let activeCount = 0;
+
+          offerEntries.forEach(o => {
+            const verified = Number(o.verifiedDeals || 0);
+            const commission = Number(o.commission || 0);
+            const price = Number(o.price || 0);
+            const spent = verified * commission;
+            const generated = verified * price;
+            totalVerified += verified;
+            totalSpent += spent;
+            totalGenerated += generated;
+            if ((o.status || 'active') === 'active') activeCount++;
+          });
+
+          totalOffersEl.textContent = totalOffers;
+          totalVerifiedEl.textContent = totalVerified;
+          totalGeneratedEl.textContent = `$${fmt(totalGenerated)}`;
+          totalSpentEl.textContent = `$${fmt(totalSpent)}`;
+
+          // trust score
+          const trust = calculateTrustScore(providerData, offersObj);
+          trustEl.textContent = `${trust}/100`;
+
+          // offers preview
+          renderOffersPreview(offersObj);
+
+          // store some top-level numbers on provider record optionally
+        });
+
+      } catch (err) {
+        console.error('Failed to load provider data', err);
+        providerNameEl.textContent = userSession.name || 'Provider';
+      }
+    }
+
+    // initial load
+    loadProviderData();
+
+    // small UX: if provider clicks their name, go to settings/payments
+    providerNameEl.addEventListener('click', () => window.location.href = 'provider-payments.html');
+
+    // if user session is invalidated elsewhere, you may want to redirect (light auth guard)
+    // This is a quick check: if auth client exists, you might want to keep it in sync (optional)
+    // (left intentionally simple to match your current flow)
+
+  </script>
 </body>
-</html>
+  </html>
