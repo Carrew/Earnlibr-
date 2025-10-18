@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EarnLibr — Offer Details</title>
+  <style>
+    :root {
+      --bg:#0b0d17;
+      --card:#0f1724;
+      --accent1:#4a90e2;
+      --accent2:#a3ff6e;
+      --muted:#bfc7d6;
+      --danger:#e74c3c;
+    }
+
+    body {
+      margin:0;
+      font-family:Inter,system-ui,Arial;
+      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+      color:#eef2f7;
+      min-height:100vh;
+    }
+
+    header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:15px 22px;
+      background:rgba(255,255,255,0.02);
+      border-bottom:1px solid rgba(255,255,255,0.05);
+      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    header h1 {
+      font-size:20px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text;
+      color:transparent;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .logout {
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      border:none;
+      padding:8px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      color:#041018;
+      font-weight:600;
+    }
+
+    main {
+      padding:24px;
+      max-width:900px;
+      margin:0 auto;
+    }
+
+    .card {
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border:1px solid rgba(255,255,255,0.04);
+      border-radius:14px;
+      padding:18px;
+      margin-bottom:20px;
+    }
+
+    h2 {
+      margin-top:0;
+      font-size:20px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text;
+      color:transparent;
+    }
+
+    p {
+      font-size:14px;
+      color:var(--muted);
+      margin:6px 0;
+    }
+
+    .grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:14px;
+    }
+
+    .stat {
+      background:rgba(255,255,255,0.03);
+      border-radius:10px;
+      padding:14px;
+      text-align:center;
+    }
+
+    .stat h3 {
+      margin:6px 0 2px;
+      font-size:22px;
+      color:var(--accent2);
+    }
+
+    .stat p {
+      margin:0;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .progress-bar {
+      height:8px;
+      width:100%;
+      background:rgba(255,255,255,0.07);
+      border-radius:6px;
+      overflow:hidden;
+      margin-top:6px;
+    }
+
+    .progress {
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      transition:width 0.4s;
+    }
+
+    .trust-score {
+      font-size:18px;
+      font-weight:600;
+      color:var(--accent2);
+    }
+
+    .back-btn {
+      display:inline-block;
+      margin-bottom:16px;
+      background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.05);
+      color:#fff;
+      padding:8px 14px;
+      border-radius:8px;
+      text-decoration:none;
+      font-size:13px;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1 onclick="window.location.href='provider-offers.html'">EarnLibr Provider</h1>
+    <button class="logout" id="logoutBtn">Logout</button>
+  </header>
+
+  <main>
+    <a href="provider-offers.html" class="back-btn">← Back to Offers</a>
+
+    <div class="card">
+      <h2 id="offerTitle">Offer Title</h2>
+      <p id="offerDesc">Loading details...</p>
+      <p><strong>Status:</strong> <span id="offerStatus"></span></p>
+    </div>
+
+    <div class="grid">
+      <div class="stat">
+        <h3 id="offerPrice">$0</h3>
+        <p>Price</p>
+      </div>
+      <div class="stat">
+        <h3 id="offerCommission">0%</h3>
+        <p>Commission</p>
+      </div>
+      <div class="stat">
+        <h3 id="offerBudget">$0</h3>
+        <p>Promo Budget</p>
+      </div>
+      <div class="stat">
+        <h3 id="offerQuantity">0</h3>
+        <p>Quantity</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Performance Overview</h2>
+      <p><strong>Spent:</strong> $<span id="spent">0</span> / $<span id="budget">0</span></p>
+      <div class="progress-bar"><div class="progress" id="progressBar"></div></div>
+      <p><strong>Verified Deals:</strong> <span id="verifiedDeals">0</span></p>
+      <p><strong>Remaining Balance:</strong> $<span id="remaining">0</span></p>
+    </div>
+
+    <div class="card">
+      <h2>Trust & Activity</h2>
+      <p><strong>Fair Payments:</strong> <span id="fairPayments">0</span></p>
+      <p><strong>Disputes:</strong> <span id="disputes">0</span></p>
+      <p>Your Trust Score: <span class="trust-score" id="trustScore">Calculating...</span></p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const offerId = params.get('id');
+
+    const userSession = JSON.parse(localStorage.getItem('userSession'));
+    if(!userSession || userSession.role !== 'provider'){
+      window.location.href = 'login.html';
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.onclick = () => {
+      localStorage.removeItem('userSession');
+      window.location.href = 'login.html';
+    };
+
+    async function loadOfferDetails(){
+      const offerRef = ref(db, `offers/${userSession.uid}/${offerId}`);
+      const snapshot = await get(offerRef);
+
+      if(!snapshot.exists()){
+        document.querySelector('main').innerHTML = '<p style="text-align:center;color:var(--muted);">Offer not found.</p>';
+        return;
+      }
+
+      const offer = snapshot.val();
+
+      document.getElementById('offerTitle').textContent = offer.title;
+      document.getElementById('offerDesc').textContent = offer.desc || 'No description.';
+      document.getElementById('offerStatus').textContent = offer.status;
+      document.getElementById('offerPrice').textContent = `$${offer.price}`;
+      document.getElementById('offerCommission').textContent = `${offer.commission}%`;
+      document.getElementById('offerBudget').textContent = `$${offer.budget}`;
+      document.getElementById('offerQuantity').textContent = offer.quantity;
+
+      const spent = offer.spent || 0;
+      const verified = offer.verifiedDeals || 0;
+      const disputes = offer.disputes || 0;
+      const fairPayments = offer.fairPayments || 0;
+      const remaining = offer.budget - spent;
+
+      document.getElementById('spent').textContent = spent;
+      document.getElementById('budget').textContent = offer.budget;
+      document.getElementById('verifiedDeals').textContent = verified;
+      document.getElementById('remaining').textContent = remaining > 0 ? remaining : 0;
+
+      const progressPercent = Math.min((spent / offer.budget) * 100, 100);
+      document.getElementById('progressBar').style.width = `${progressPercent}%`;
+
+      // Trust Score Algorithm
+      const trust = calculateTrustScore(fairPayments, disputes, verified);
+      document.getElementById('fairPayments').textContent = fairPayments;
+      document.getElementById('disputes').textContent = disputes;
+      document.getElementById('trustScore').textContent = trust + "%";
+    }
+
+    function calculateTrustScore(fairPayments, disputes, verifiedDeals){
+      // basic formula — to be improved later
+      let score = 80 + (fairPayments * 2) + (verifiedDeals * 0.5) - (disputes * 5);
+      if(score > 100) score = 100;
+      if(score < 0) score = 0;
+      return Math.round(score);
+    }
+
+    loadOfferDetails();
+  </script>
+</body>
+</html>
