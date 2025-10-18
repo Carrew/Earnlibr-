@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Notifications — EarnLibr</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #bfc7d6;
+      --danger: #e74c3c;
+      --success: #27ae60;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial;
+      background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+      color: #eef2f7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      font-size: 22px;
+    }
+    .btn-back {
+      background: transparent;
+      color: var(--accent2);
+      border: 1px solid var(--accent2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .card {
+      width: 100%;
+      max-width: 800px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.03);
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .notif {
+      background: #071427;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .notif.unread { border-color: var(--accent2); }
+    .notif h3 {
+      margin: 0;
+      font-size: 16px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .notif p { margin: 6px 0 10px; color: var(--muted); font-size: 13px; }
+    .notif time { font-size: 12px; color: #8a94a7; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-confirm { background: var(--accent2); color: #041018; }
+    .btn-reject { background: var(--danger); color: #fff; }
+    .btn-read { background: var(--accent1); color: #fff; }
+    .empty { text-align: center; color: var(--muted); font-size: 14px; margin-top: 40px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Notifications</h1>
+    <button class="btn-back" onclick="window.location.href='provider-dashboard.html'">← Back</button>
+  </header>
+
+  <div class="card" id="notifList">
+    <p class="empty">Loading notifications...</p>
+  </div>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import {
+      ref, onValue, push, remove, update
+    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const notifList = document.getElementById('notifList');
+
+    // ✅ Verify logged-in provider
+    const userSession = JSON.parse(localStorage.getItem('userSession'));
+    if (!userSession || userSession.role !== "provider") {
+      window.location.href = "login.html";
+    }
+
+    const uid = userSession.uid;
+    const name = userSession.name || "Provider";
+    const notifRef = ref(db, `notifications/${uid}`);
+
+    // 🧠 Render notification items
+    function renderNotification(id, data) {
+      const div = document.createElement('div');
+      div.className = `notif ${!data.seen ? 'unread' : ''}`;
+      div.innerHTML = `
+        <h3>${data.title}</h3>
+        <p>${data.message}</p>
+        <time>${new Date(data.createdAt).toLocaleString()}</time>
+        <div class="actions">
+          ${data.type === "deal"
+            ? `<button class="btn btn-confirm" data-id="${id}" data-type="confirm">Confirm</button>
+               <button class="btn btn-reject" data-id="${id}" data-type="reject">Reject</button>`
+            : `<button class="btn btn-read" data-id="${id}" data-type="read">Mark as Read</button>`
+          }
+        </div>
+      `;
+      return div;
+    }
+
+    // 🔁 Listen for notifications
+    onValue(notifRef, snapshot => {
+      notifList.innerHTML = '';
+      if (!snapshot.exists()) {
+        notifList.innerHTML = '<p class="empty">No notifications at the moment.</p>';
+        return;
+      }
+
+      const data = snapshot.val();
+      const entries = Object.entries(data).sort((a,b) => 
+        new Date(b[1].createdAt) - new Date(a[1].createdAt)
+      );
+
+      entries.forEach(([id, notif]) => {
+        notifList.appendChild(renderNotification(id, notif));
+      });
+
+      attachActions();
+    });
+
+    // 🎯 Handle actions (Confirm, Reject, Read)
+    function attachActions() {
+      document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const type = btn.dataset.type;
+
+          const targetRef = ref(db, `notifications/${uid}/${id}`);
+
+          if (type === 'confirm' || type === 'reject') {
+            const status = type === 'confirm' ? 'confirmed' : 'rejected';
+            const message =
+              type === 'confirm'
+                ? `${name} has CONFIRMED the deal.`
+                : `${name} has REJECTED the deal.`;
+
+            // Update and remove provider's copy
+            await update(targetRef, { status });
+            await remove(targetRef);
+
+            // Send notification to Admin
+            const adminRef = ref(db, `notifications/admin`);
+            await push(adminRef, {
+              title: "Provider Deal Response",
+              message,
+              providerId: uid,
+              providerName: name,
+              status,
+              createdAt: new Date().toISOString(),
+              seen: false
+            });
+
+            alert(`Deal ${status.toUpperCase()} and admin notified.`);
+          } else if (type === 'read') {
+            await update(targetRef, { seen: true });
+          }
+        });
+      });
+    }
+
+    // 🧹 Auto-delete old notifications (48h)
+    onValue(notifRef, snapshot => {
+      if (!snapshot.exists()) return;
+      const now = Date.now();
+      snapshot.forEach(child => {
+        const createdAt = new Date(child.val().createdAt).getTime();
+        if (now - createdAt > 172800000) remove(ref(db, `notifications/${uid}/${child.key}`));
+      });
+    });
+  </script>
+</body>
+</html>
