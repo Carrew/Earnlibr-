@@ -1,397 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>EarnLibr — Provider Offers</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Offer | Earnlibr Providers</title>
+  <link rel="stylesheet" href="dashboard.css" />
   <style>
-    :root {
-      --bg:#0b0d17;
-      --card:#0f1724;
-      --accent1:#4a90e2;
-      --accent2:#a3ff6e;
-      --muted:#bfc7d6;
-      --danger:#e74c3c;
-    }
-
     body {
-      margin:0;
-      font-family:Inter,system-ui,Arial;
-      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
-      color:#eef2f7;
-      min-height:100vh;
-      padding:0;
+      font-family: 'Poppins', sans-serif;
+      background: #f7f8fa;
+      margin: 0;
+      padding: 0;
+      color: #333;
     }
 
-    header {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:15px 22px;
-      background:rgba(255,255,255,0.02);
-      border-bottom:1px solid rgba(255,255,255,0.05);
-      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     }
 
-    header h1 {
-      font-size:20px;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip:text;
-      color:transparent;
-      font-weight:700;
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #222;
     }
 
-    .user-info {
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-size:14px;
+    form label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
     }
 
-    .logout {
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      border:none;
-      padding:8px 14px;
-      border-radius:8px;
-      cursor:pointer;
-      color:#041018;
-      font-weight:600;
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
     }
 
-    main {
-      padding:24px;
-      max-width:1000px;
-      margin:0 auto;
+    textarea {
+      min-height: 80px;
+      resize: vertical;
     }
 
-    .summary {
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-      gap:16px;
-      margin-bottom:25px;
+    button {
+      margin-top: 20px;
+      width: 100%;
+      background-color: #3b82f6;
+      color: #fff;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
     }
 
-    .summary-card {
-      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
-      padding:18px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,0.04);
-      text-align:center;
+    button:hover {
+      background-color: #2563eb;
     }
 
-    .summary-card h2 {
-      font-size:26px;
-      margin:6px 0 4px;
-      color:var(--accent2);
+    .info {
+      background: #eaf2ff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #1d4ed8;
     }
-
-    .summary-card p {
-      font-size:13px;
-      color:var(--muted);
-      margin:0;
-    }
-
-    .offers-section {
-      margin-top:10px;
-    }
-
-    .offers-header {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-bottom:12px;
-    }
-
-    .offers-header h2 {
-      font-size:18px;
-      font-weight:600;
-    }
-
-    .btn {
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      border:none;
-      padding:10px 14px;
-      border-radius:10px;
-      cursor:pointer;
-      color:#041018;
-      font-weight:700;
-      transition:opacity 0.2s;
-    }
-
-    .btn:hover { opacity:0.9; }
-
-    .offers-list {
-      display:grid;
-      gap:14px;
-    }
-
-    .offer-card {
-      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
-      border:1px solid rgba(255,255,255,0.04);
-      border-radius:12px;
-      padding:16px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-
-    .offer-info {
-      flex:1;
-    }
-
-    .offer-info h3 {
-      margin:0;
-      font-size:16px;
-      color:#fff;
-    }
-
-    .offer-info p {
-      margin:3px 0;
-      font-size:13px;
-      color:var(--muted);
-    }
-
-    .status {
-      font-weight:600;
-      color:var(--accent2);
-      font-size:13px;
-    }
-
-    .view-btn {
-      background:rgba(255,255,255,0.1);
-      border:1px solid rgba(255,255,255,0.05);
-      padding:8px 14px;
-      border-radius:8px;
-      cursor:pointer;
-      color:#fff;
-      font-size:13px;
-    }
-
-    /* Modal */
-    .modal {
-      display:none;
-      position:fixed;
-      top:0;left:0;
-      width:100%;height:100%;
-      background:rgba(0,0,0,0.6);
-      justify-content:center;
-      align-items:center;
-    }
-
-    .modal-content {
-      background:var(--card);
-      padding:20px;
-      border-radius:14px;
-      width:90%;
-      max-width:420px;
-    }
-
-    .modal-content h3 {
-      margin-top:0;
-      margin-bottom:10px;
-    }
-
-    .modal-content label {
-      font-size:13px;
-      color:var(--muted);
-      display:block;
-      margin-top:8px;
-      margin-bottom:4px;
-    }
-
-    .modal-content input, .modal-content textarea {
-      width:100%;
-      padding:8px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.05);
-      background:#071427;
-      color:#fff;
-      font-size:14px;
-    }
-
-    .modal-actions {
-      margin-top:12px;
-      display:flex;
-      justify-content:flex-end;
-      gap:10px;
-    }
-
-    .close-btn {
-      background:rgba(255,255,255,0.1);
-      border:none;
-      color:#fff;
-      padding:8px 12px;
-      border-radius:8px;
-      cursor:pointer;
-    }
-
   </style>
 </head>
 <body>
-  <header>
-    <h1>EarnLibr Provider</h1>
-    <div class="user-info">
-      <span id="providerName"></span>
-      <button class="logout" id="logoutBtn">Logout</button>
-    </div>
-  </header>
+  <div class="container">
+    <h2>Create Offer</h2>
 
-  <main>
-    <section class="summary">
-      <div class="summary-card">
-        <h2 id="activeOffers">0</h2>
-        <p>Active Offers</p>
-      </div>
-      <div class="summary-card">
-        <h2 id="closedOffers">0</h2>
-        <p>Closed Offers</p>
-      </div>
-      <div class="summary-card">
-        <h2 id="totalSpent">$0</h2>
-        <p>Total Spent</p>
-      </div>
-      <div class="summary-card">
-        <h2 id="verifiedDeals">0</h2>
-        <p>Verified Deals</p>
-      </div>
-    </section>
-
-    <section class="offers-section">
-      <div class="offers-header">
-        <h2>Your Offers</h2>
-        <button class="btn" id="newOfferBtn">+ New Offer</button>
-      </div>
-
-      <div id="offersList" class="offers-list">
-        <p style="color:var(--muted);text-align:center;">Loading your offers...</p>
-      </div>
-    </section>
-  </main>
-
-  <!-- Modal -->
-  <div id="offerModal" class="modal">
-    <div class="modal-content">
-      <h3>Create New Offer</h3>
+    <form id="offerForm">
       <label>Title</label>
-      <input id="offerTitle" type="text" placeholder="Offer title">
-
-      <label>Price ($)</label>
-      <input id="offerPrice" type="number" min="1">
-
-      <label>Commission (%)</label>
-      <input id="offerCommission" type="number" min="1">
-
-      <label>Promo Budget ($)</label>
-      <input id="offerBudget" type="number" min="1">
-
-      <label>Quantity</label>
-      <input id="offerQuantity" type="number" min="1">
+      <input type="text" id="title" placeholder="Enter product or service title" required />
 
       <label>Description</label>
-      <textarea id="offerDesc" rows="3" placeholder="Short offer description"></textarea>
+      <textarea id="description" placeholder="Describe your product/service" required></textarea>
 
-      <div class="modal-actions">
-        <button class="close-btn" id="cancelOffer">Cancel</button>
-        <button class="btn" id="saveOffer">Save</button>
+      <label>Category</label>
+      <select id="category" required>
+        <option value="">Select category</option>
+        <option>Digital Service</option>
+        <option>Physical Product</option>
+        <option>Course / Training</option>
+        <option>Consultation</option>
+        <option>Other</option>
+      </select>
+
+      <label>Currency</label>
+      <select id="currency" required></select>
+
+      <label>Price</label>
+      <input type="number" id="price" placeholder="Main price" required />
+
+      <label>Minimum Price (lowest acceptable offer)</label>
+      <input type="number" id="minPrice" placeholder="Minimum acceptable price" required />
+
+      <label>Commission Type</label>
+      <select id="commissionType" required>
+        <option value="fixed">Fixed</option>
+        <option value="percentage">Percentage</option>
+      </select>
+
+      <label>Commission Value</label>
+      <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+
+      <label>Promotion Budget (amount to spend)</label>
+      <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+
+      <label>Total Products Available</label>
+      <input type="number" id="totalProducts" placeholder="How many items available" required />
+
+      <label>Upload Product Image</label>
+      <input type="file" id="productImage" accept="image/*" />
+
+      <div class="info">
+        Note: Image will only be uploaded to Cloudinary once the offer is approved by Earnlibr.
       </div>
-    </div>
+
+      <button type="submit">Submit Offer for Verification</button>
+    </form>
   </div>
 
+  <!-- Scripts -->
+  <script type="module" src="firebase.js"></script>
+  <script src="currencies.js"></script>
+
   <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { ref, get, set, push, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { db, auth } from "./firebase.js";
+    import { ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-    const providerNameEl = document.getElementById('providerName');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const offersList = document.getElementById('offersList');
-    const offerModal = document.getElementById('offerModal');
-    const newOfferBtn = document.getElementById('newOfferBtn');
-    const cancelOffer = document.getElementById('cancelOffer');
-    const saveOffer = document.getElementById('saveOffer');
-
-    // Get user from localStorage
-    const userSession = JSON.parse(localStorage.getItem('userSession'));
-    if(!userSession || userSession.role !== 'provider'){
-      window.location.href = 'login.html';
-    }
-    providerNameEl.textContent = userSession.name || 'Provider';
-
-    // Logout
-    logoutBtn.onclick = () => {
-      localStorage.removeItem('userSession');
-      window.location.href = 'login.html';
-    };
-
-    // Modal open/close
-    newOfferBtn.onclick = () => offerModal.style.display='flex';
-    cancelOffer.onclick = () => offerModal.style.display='none';
-    window.onclick = (e) => { if(e.target === offerModal) offerModal.style.display='none'; }
-
-    // Load offers
-    const offersRef = ref(db, `offers/${userSession.uid}`);
-    onValue(offersRef, (snapshot) => {
-      offersList.innerHTML = '';
-      const data = snapshot.val();
-      let active=0, closed=0, totalSpent=0, verified=0;
-
-      if(!data){
-        offersList.innerHTML = '<p style="color:var(--muted);text-align:center;">No offers created yet.</p>';
-        return;
-      }
-
-      Object.entries(data).forEach(([id, offer]) => {
-        const div = document.createElement('div');
-        div.className = 'offer-card';
-        div.innerHTML = `
-          <div class="offer-info">
-            <h3>${offer.title}</h3>
-            <p>$${offer.price} • ${offer.commission}% commission</p>
-            <p>Budget: $${offer.budget} | Quantity: ${offer.quantity}</p>
-            <span class="status">${offer.status}</span>
-          </div>
-          <button class="view-btn" onclick="window.location.href='offer-details.html?id=${id}'">View</button>
-        `;
-        offersList.appendChild(div);
-
-        if(offer.status === 'Active') active++;
-        else closed++;
-        totalSpent += offer.spent || 0;
-        verified += offer.verifiedDeals || 0;
-      });
-
-      document.getElementById('activeOffers').textContent = active;
-      document.getElementById('closedOffers').textContent = closed;
-      document.getElementById('totalSpent').textContent = `$${totalSpent}`;
-      document.getElementById('verifiedDeals').textContent = verified;
+    document.addEventListener("DOMContentLoaded", () => {
+      populateCurrencyDropdown("currency");
     });
 
-    // Save new offer
-    saveOffer.onclick = async () => {
-      const title = offerTitle.value.trim();
-      const price = parseFloat(offerPrice.value);
-      const commission = parseFloat(offerCommission.value);
-      const budget = parseFloat(offerBudget.value);
-      const quantity = parseInt(offerQuantity.value);
-      const desc = offerDesc.value.trim();
+    const offerForm = document.getElementById("offerForm");
 
-      if(!title || !price || !commission || !budget || !quantity){
-        alert('Please fill all fields.');
+    offerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const user = auth.currentUser;
+      if (!user) {
+        alert("You must be logged in to create an offer.");
         return;
       }
 
-      const newOffer = {
-        title, price, commission, budget, quantity, desc,
-        status: 'Active',
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const category = document.getElementById("category").value;
+      const currency = document.getElementById("currency").value;
+      const price = parseFloat(document.getElementById("price").value);
+      const minPrice = parseFloat(document.getElementById("minPrice").value);
+      const commissionType = document.getElementById("commissionType").value;
+      const commissionValue = parseFloat(document.getElementById("commissionValue").value);
+      const promotionBudget = parseFloat(document.getElementById("promotionBudget").value);
+      const totalProducts = parseInt(document.getElementById("totalProducts").value);
+
+      // Store temporarily before verification (without uploading image)
+      const offerData = {
+        providerId: user.uid,
+        title,
+        description,
+        category,
+        currency,
+        price,
+        minPrice,
+        commissionType,
+        commissionValue,
+        promotionBudget,
+        totalProducts,
+        status: "pending",
         createdAt: new Date().toISOString(),
-        spent: 0,
-        verifiedDeals: 0
+        approvedAt: null,
+        imageUrl: null // only added once approved
       };
 
-      const newRef = push(ref(db, `offers/${userSession.uid}`));
-      await set(newRef, newOffer);
-      offerModal.style.display='none';
-    };
+      try {
+        await push(ref(db, "offers"), offerData);
+        alert("Offer submitted for Earnlibr verification!");
+        offerForm.reset();
+      } catch (error) {
+        console.error(error);
+        alert("Error submitting offer: " + error.message);
+      }
+    });
   </script>
 </body>
-          </html>
+</html>
