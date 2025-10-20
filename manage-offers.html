@@ -56,105 +56,136 @@
       color: #041018;
       font-weight: 700;
       cursor: pointer;
+      transition: transform 0.2s;
     }
+    .logout-btn:hover { transform: scale(1.03); }
 
     /* Main area */
     .main {
       flex: 1;
+      display: flex;
+      flex-direction: column;
       padding: 25px;
       background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+      min-height: 100vh;
       overflow-y: auto;
     }
 
     h2 {
       font-size: 24px;
+      font-weight: 700;
       margin-bottom: 25px;
       color: #fff;
     }
 
-    /* Offer cards */
+    /* Offer cards grid */
     .offer-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 20px;
+      flex: 1;
     }
 
     .offer-card {
       background: #101827;
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 15px;
       box-shadow: 0 0 8px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .offer-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 15px rgba(74,144,226,0.3);
     }
 
     .offer-card img {
       width: 100%;
-      height: 160px;
+      height: 180px;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 10px;
       margin-bottom: 10px;
     }
 
     .offer-title {
       font-weight: 600;
-      font-size: 16px;
+      font-size: 17px;
       color: #fff;
+      margin-bottom: 6px;
     }
 
     .offer-desc {
       font-size: 14px;
       color: #94a3b8;
-      margin: 5px 0;
+      margin: 4px 0;
     }
 
     .status {
       display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 5px 10px;
+      border-radius: 8px;
       font-size: 13px;
-      margin-top: 5px;
+      margin-top: 6px;
     }
     .status.approved { background: #22c55e33; color: #4ade80; }
     .status.pending { background: #facc1533; color: #fbbf24; }
     .status.rejected { background: #ef444433; color: #f87171; }
 
     .actions {
-      margin-top: 10px;
+      margin-top: 12px;
       display: flex;
       justify-content: space-between;
+      gap: 8px;
     }
 
     .btn {
+      flex: 1;
       border: none;
-      border-radius: 6px;
-      padding: 8px 10px;
+      border-radius: 8px;
+      padding: 8px;
       font-size: 13px;
       cursor: pointer;
       color: #fff;
+      transition: opacity 0.2s;
     }
     .btn.edit { background: #3b82f6; }
     .btn.delete { background: #ef4444; }
+    .btn:hover { opacity: 0.85; }
 
     /* Modal */
     .modal {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.55);
       justify-content: center;
       align-items: center;
       z-index: 1000;
+      animation: fadeIn 0.2s ease;
     }
     .modal.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
 
     .modal-content {
       background: #1e293b;
       color: #fff;
       padding: 25px;
-      border-radius: 10px;
+      border-radius: 12px;
       width: 90%;
       max-width: 500px;
+      animation: slideUp 0.3s ease;
     }
-    .modal-content input, .modal-content textarea, .modal-content select {
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-content input,
+    .modal-content textarea,
+    .modal-content select {
       width: 100%;
       margin-top: 8px;
       padding: 10px;
@@ -163,6 +194,7 @@
       background: #0f172a;
       color: #fff;
     }
+
     .modal-content button {
       margin-top: 15px;
       width: 100%;
@@ -174,6 +206,16 @@
       font-weight: 700;
       cursor: pointer;
     }
+
+    .close-modal {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      float: right;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .close-modal:hover { color: #fff; }
   </style>
 </head>
 <body>
@@ -194,6 +236,7 @@
   <!-- Edit Modal -->
   <div id="editModal" class="modal">
     <div class="modal-content">
+      <button class="close-modal" onclick="closeModal()">×</button>
       <h3>Edit Offer</h3>
       <form id="editForm">
         <input type="hidden" id="editOfferId" />
@@ -234,7 +277,6 @@
     const modal = document.getElementById("editModal");
     const editForm = document.getElementById("editForm");
 
-    // 🔹 Load user session
     const session = JSON.parse(localStorage.getItem('userSession'));
     if (!session) {
       window.location.href = 'login.html';
@@ -242,29 +284,32 @@
     }
     const userId = session.uid;
 
-    // 🔹 Fetch offers
+    // 🔹 Fetch offers properly from user's node
     function loadOffers() {
-      const offersRef = ref(db, "offers");
+      const offersRef = ref(db, "offers/" + userId);
       onValue(offersRef, (snapshot) => {
         offerGrid.innerHTML = "";
-        snapshot.forEach((child) => {
-          const data = child.val();
-          if (data.providerId === userId) {
+        if (snapshot.exists()) {
+          snapshot.forEach((child) => {
+            const data = child.val();
             offerGrid.innerHTML += renderOfferCard(child.key, data);
-          }
-        });
+          });
+        } else {
+          offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;'>No offers yet.</div>";
+        }
       });
     }
 
     function renderOfferCard(id, data) {
       const image = data.imageUrl || "https://via.placeholder.com/400x200?text=Pending+Approval";
+      const desc = data.description ? data.description.substring(0, 80) + "..." : "";
       return `
         <div class="offer-card">
           <img src="${image}" alt="Product" />
           <div class="offer-title">${data.title}</div>
-          <div class="offer-desc">${data.description.substring(0, 80)}...</div>
-          <div class="offer-desc">💰 ${data.currency} ${data.price}</div>
-          <div class="status ${data.status}">${data.status}</div>
+          <div class="offer-desc">${desc}</div>
+          <div class="offer-desc">💰 ${data.currency || "$"} ${data.price || "—"}</div>
+          <div class="status ${data.status || 'pending'}">${data.status || 'pending'}</div>
           <div class="actions">
             <button class="btn edit" onclick="editOffer('${id}')">Edit</button>
             <button class="btn delete" onclick="deleteOffer('${id}')">Delete</button>
@@ -274,23 +319,25 @@
 
     // 🔹 Modal logic
     window.editOffer = (id) => {
-      const offersRef = ref(db, "offers/" + id);
+      const offersRef = ref(db, "offers/" + userId + "/" + id);
       onValue(offersRef, (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
         document.getElementById("editOfferId").value = id;
-        document.getElementById("editTitle").value = data.title;
-        document.getElementById("editDescription").value = data.description;
-        document.getElementById("editCategory").value = data.category;
-        document.getElementById("editPromotionBudget").value = data.promotionBudget;
-        document.getElementById("editTotalProducts").value = data.totalProducts;
+        document.getElementById("editTitle").value = data.title || "";
+        document.getElementById("editDescription").value = data.description || "";
+        document.getElementById("editCategory").value = data.category || "Other";
+        document.getElementById("editPromotionBudget").value = data.promotionBudget || 0;
+        document.getElementById("editTotalProducts").value = data.totalProducts || 0;
         modal.classList.add("active");
       }, { onlyOnce: true });
     };
 
+    window.closeModal = () => modal.classList.remove("active");
+
     window.deleteOffer = async (id) => {
       if (confirm("Delete this offer?")) {
-        await remove(ref(db, "offers/" + id));
+        await remove(ref(db, "offers/" + userId + "/" + id));
         alert("Offer deleted.");
       }
     };
@@ -307,7 +354,7 @@
         status: "pending",
         updatedAt: new Date().toISOString(),
       };
-      await update(ref(db, "offers/" + id), updatedData);
+      await update(ref(db, "offers/" + userId + "/" + id), updatedData);
       modal.classList.remove("active");
       alert("Offer updated and resubmitted!");
     });
