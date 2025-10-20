@@ -23,6 +23,8 @@
       flex-direction: column;
       padding: 20px;
       border-right: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      transition: all 0.3s ease;
     }
 
     .logo {
@@ -76,6 +78,16 @@
       font-weight: 700;
       margin-bottom: 25px;
       color: #fff;
+    }
+
+    /* Info messages */
+    .info {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
     }
 
     /* Offer cards grid */
@@ -216,6 +228,38 @@
       cursor: pointer;
     }
     .close-modal:hover { color: #fff; }
+
+    /* 🔹 MOBILE VIEW */
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -260px;
+        height: 100%;
+        z-index: 1001;
+        transition: left 0.3s ease;
+      }
+
+      .sidebar.active { left: 0; }
+
+      .menu-toggle {
+        background: #0f1724;
+        color: #fff;
+        border: none;
+        padding: 12px 18px;
+        font-size: 20px;
+        cursor: pointer;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1100;
+        border-radius: 8px;
+      }
+
+      .main { padding-top: 60px; }
+    }
   </style>
 </head>
 <body>
@@ -228,8 +272,11 @@
     <button id="logoutBtn" class="logout-btn">Logout</button>
   </aside>
 
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
   <main class="main">
     <h2>Your Offers</h2>
+    <div id="info" class="info"></div>
     <div id="offerGrid" class="offer-grid"></div>
   </main>
 
@@ -267,15 +314,11 @@
     import { db } from "./firebase.js";
     import { ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-    const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('userSession');
-      window.location.href = 'login.html';
-    });
-
+    const infoBox = document.getElementById("info");
     const offerGrid = document.getElementById("offerGrid");
     const modal = document.getElementById("editModal");
     const editForm = document.getElementById("editForm");
+    const logoutBtn = document.getElementById("logoutBtn");
 
     const session = JSON.parse(localStorage.getItem('userSession'));
     if (!session) {
@@ -283,6 +326,19 @@
       throw new Error('No user session found');
     }
     const userId = session.uid;
+
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('userSession');
+      window.location.href = 'login.html';
+    });
+
+    // 🔹 Info box helper
+    function showInfo(message, color = "#4a90e2") {
+      infoBox.style.display = "block";
+      infoBox.style.color = color;
+      infoBox.textContent = message;
+      setTimeout(() => { infoBox.style.display = "none"; }, 3000);
+    }
 
     // 🔹 Fetch offers properly from user's node
     function loadOffers() {
@@ -336,10 +392,8 @@
     window.closeModal = () => modal.classList.remove("active");
 
     window.deleteOffer = async (id) => {
-      if (confirm("Delete this offer?")) {
-        await remove(ref(db, "offers/" + userId + "/" + id));
-        alert("Offer deleted.");
-      }
+      await remove(ref(db, "offers/" + userId + "/" + id));
+      showInfo("Offer deleted successfully", "#ef4444");
     };
 
     editForm.addEventListener("submit", async (e) => {
@@ -356,10 +410,15 @@
       };
       await update(ref(db, "offers/" + userId + "/" + id), updatedData);
       modal.classList.remove("active");
-      alert("Offer updated and resubmitted!");
+      showInfo("Offer updated & resubmitted for verification", "#22c55e");
     });
+
+    // 🔹 Mobile menu toggle
+    window.toggleSidebar = () => {
+      document.querySelector('.sidebar').classList.toggle('active');
+    };
 
     loadOffers();
   </script>
 </body>
-</html>
+  </html>
