@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EarnLibr — Wallet</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #bfc7d6;
+      --danger: #e74c3c;
+      --radius: 12px;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial;
+      background: linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+      color: #eef2f7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .logo img {
+      width: 44px;
+      height: 44px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .logo h2 {
+      font-size: 16px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      margin: 0;
+    }
+
+    .nav a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .nav a.active, .nav a:hover {
+      color: #041018;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+    }
+
+    .profile {
+      margin-top: auto;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #041018;
+    }
+
+    .main {
+      flex: 1;
+      padding: 25px;
+      overflow-y: auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 20px;
+    }
+
+    .balance-card {
+      background: rgba(255,255,255,0.02);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .transactions {
+      display: grid;
+      gap: 12px;
+    }
+
+    .transaction {
+      background: rgba(255,255,255,0.02);
+      padding: 12px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .transaction .type {
+      font-weight: 600;
+    }
+
+    .transaction .status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .status.pending { background: #facc1533; color: #fbbf24; }
+    .status.completed { background: #22c55e33; color: #4ade80; }
+    .status.failed { background: #ef444433; color: #f87171; }
+
+    /* MOBILE */
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .sidebar { position: fixed; top: 0; left: -260px; height: 100%; z-index: 1001; transition: left 0.3s ease; }
+      .sidebar.active { left: 0; }
+      .menu-toggle {
+        background: var(--card);
+        color: #fff;
+        border: none;
+        padding: 12px 18px;
+        font-size: 20px;
+        cursor: pointer;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1100;
+        border-radius: 8px;
+      }
+      .main { padding-top: 60px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
+      <h2>EarnLibr</h2>
+    </div>
+
+    <nav class="nav">
+      <a href="freelancer-dashboard.html" class="">Dashboard</a>
+      <a href="offers.html" class="">Offers</a>
+      <a class="active">Wallet</a>
+      <a href="freelancer-notifications.html">Notifications</a>
+    </nav>
+
+    <div class="profile">
+      <div id="avatar" class="avatar">F</div>
+      <div>
+        <div id="userName" style="font-weight:700;">Loading...</div>
+        <div id="userEmail" style="font-size:12px;color:var(--muted);">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+  <!-- MAIN -->
+  <main class="main">
+    <h1>Wallet Overview</h1>
+    <div class="balance-card">
+      <div>
+        <div style="font-size:14px; color:var(--muted)">Total Balance</div>
+        <div id="totalBalance" style="font-size:22px; font-weight:700;">$0.00</div>
+      </div>
+      <div>
+        <div style="font-size:14px; color:var(--muted)">Pending</div>
+        <div id="pendingBalance" style="font-size:18px;">$0.00</div>
+      </div>
+      <div>
+        <div style="font-size:14px; color:var(--muted)">Withdrawn</div>
+        <div id="withdrawnBalance" style="font-size:18px;">$0.00</div>
+      </div>
+    </div>
+
+    <h2>Transaction History</h2>
+    <div id="transactions" class="transactions"></div>
+  </main>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const userSessionRaw = localStorage.getItem('userSession');
+    if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
+    const userSession = JSON.parse(userSessionRaw);
+    const userId = userSession.uid;
+
+    // Load profile info
+    document.getElementById('userName').textContent = userSession.name || "Freelancer";
+    document.getElementById('userEmail').textContent = userSession.email || "";
+    document.getElementById('avatar').textContent = (userSession.name || "F")[0].toUpperCase();
+
+    const totalBalanceEl = document.getElementById('totalBalance');
+    const pendingBalanceEl = document.getElementById('pendingBalance');
+    const withdrawnBalanceEl = document.getElementById('withdrawnBalance');
+    const transactionsEl = document.getElementById('transactions');
+
+    const walletRef = ref(db, `wallets/${userId}`);
+    onValue(walletRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.val();
+      totalBalanceEl.textContent = `$${(data.total || 0).toFixed(2)}`;
+      pendingBalanceEl.textContent = `$${(data.pending || 0).toFixed(2)}`;
+      withdrawnBalanceEl.textContent = `$${(data.withdrawn || 0).toFixed(2)}`;
+
+      transactionsEl.innerHTML = "";
+      if (data.transactions) {
+        Object.entries(data.transactions).sort((a,b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
+        .forEach(([id, t]) => {
+          const div = document.createElement('div');
+          div.className = 'transaction';
+          div.innerHTML = `
+            <div>
+              <div class="type">${t.type}</div>
+              <div class="desc" style="font-size:12px; color:var(--muted)">${t.description || ''}</div>
+            </div>
+            <div>
+              <div>${t.amount ? '$'+t.amount.toFixed(2) : '$0.00'}</div>
+              <div class="status ${t.status || 'pending'}">${t.status || 'pending'}</div>
+            </div>
+          `;
+          transactionsEl.appendChild(div);
+        });
+      }
+    });
+
+    window.toggleSidebar = () => {
+      document.querySelector('.sidebar').classList.toggle('active');
+    };
+  </script>
+</body>
+</html>
