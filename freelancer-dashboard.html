@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EarnLibr — Freelancer Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #bfc7d6;
+      --danger: #e74c3c;
+      --sidebar-width: 250px;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial;
+      background: var(--bg);
+      color: #fff;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      transition: transform 0.3s ease;
+    }
+    .sidebar.hide {
+      transform: translateX(-100%);
+    }
+    .logo {
+      width: 100%;
+      height: 120px;
+      margin-bottom: 25px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .nav-link {
+      display: block;
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+    .logout-btn {
+      margin-top: auto;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      color: #041018;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Main content */
+    .main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      padding: 25px;
+      background: linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+      min-height: 100vh;
+    }
+
+    /* Mobile toggle */
+    .toggle-sidebar {
+      display: none;
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      background: var(--accent1);
+      color: #041018;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 1001;
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .wallet-overview {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .wallet-card {
+      flex: 1 1 150px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      padding: 15px;
+      border-radius: 12px;
+      color: #041018;
+      font-weight: 700;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    @media(max-width:768px){
+      .main {
+        margin-left: 0;
+      }
+      .toggle-sidebar {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<button class="toggle-sidebar">☰</button>
+
+<aside class="sidebar">
+  <div class="logo">
+    <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
+  </div>
+  <a href="freelancer-dashboard.html" class="nav-link active">Dashboard</a>
+  <a href="offers.html" class="nav-link">Offers</a>
+  <a href="my-promotions.html" class="nav-link">My Promotions</a>
+  <a href="wallet.html" class="nav-link">Wallet</a>
+  <a href="notifications.html" class="nav-link">Notifications</a>
+  <button id="logoutBtn" class="logout-btn">Logout</button>
+</aside>
+
+<main class="main">
+  <h2>Welcome, <span id="userName"></span> 👋</h2>
+
+  <div class="card">
+    <h3>Wallet Overview</h3>
+    <div class="wallet-overview">
+      <div class="wallet-card">
+        Pending<br><span id="pendingBalance">$0</span>
+      </div>
+      <div class="wallet-card">
+        Approved<br><span id="approvedBalance">$0</span>
+      </div>
+      <div class="wallet-card">
+        Paid<br><span id="paidBalance">$0</span>
+      </div>
+      <div class="wallet-card">
+        Owed<br><span id="owedBalance">$0</span>
+      </div>
+    </div>
+    <small>Full details in <a href="wallet.html" style="color:var(--accent2)">Wallet</a></small>
+  </div>
+
+  <div class="card">
+    <h3>Quick Actions</h3>
+    <div style="display:flex;gap:15px;flex-wrap:wrap">
+      <button onclick="window.location.href='offers.html'" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent1);color:#041018;font-weight:700;cursor:pointer">Browse Offers</button>
+      <button onclick="window.location.href='my-promotions.html'" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent2);color:#041018;font-weight:700;cursor:pointer">My Promotions</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  const toggleBtn = document.querySelector('.toggle-sidebar');
+  const sidebar = document.querySelector('.sidebar');
+  toggleBtn.addEventListener('click', ()=>sidebar.classList.toggle('hide'));
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', ()=>{
+    localStorage.removeItem('userSession');
+    window.location.href = 'login.html';
+  });
+
+  // 🔹 Load user info from localStorage
+  const session = JSON.parse(localStorage.getItem('userSession'));
+  if(!session){
+    window.location.href = 'login.html';
+  } else {
+    document.getElementById('userName').textContent = session.name || 'Freelancer';
+
+    // Example wallet values (replace with real Firebase fetch if needed)
+    document.getElementById('pendingBalance').textContent = `$${session.wallet?.pending || 0}`;
+    document.getElementById('approvedBalance').textContent = `$${session.wallet?.approved || 0}`;
+    document.getElementById('paidBalance').textContent = `$${session.wallet?.paid || 0}`;
+    document.getElementById('owedBalance').textContent = `$${session.wallet?.owed || 0}`;
+  }
+</script>
+</body>
+      </html>
