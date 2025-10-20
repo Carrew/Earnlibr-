@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EarnLibr — Offers</title>
+
+  <style>
+    :root{
+      --bg:#0b0d17; 
+      --card:#0f1724; 
+      --accent1:#4a90e2; 
+      --accent2:#a3ff6e; 
+      --muted:#bfc7d6;
+      --danger:#e74c3c;
+      --radius:12px;
+    }
+
+    html, body{
+      margin:0; font-family:Inter,system-ui,Arial;
+      background: var(--bg); color:#eef2f7; min-height:100vh;
+      display:flex;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      width:260px; background:var(--card); padding:20px; display:flex;
+      flex-direction:column; border-right:1px solid rgba(255,255,255,0.05);
+      position:relative; transition: all 0.3s ease;
+    }
+    .logo{
+      display:flex; gap:12px; align-items:center; padding-bottom:8px;
+      border-bottom:1px solid rgba(255,255,255,0.03);
+    }
+    .logo img{ width:44px; height:44px; object-fit:cover; border-radius:8px;}
+    .logo h2{
+      font-size:16px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text; color:transparent;
+    }
+    .nav{ margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+    .nav a{
+      display:block; padding:10px 12px; border-radius:10px;
+      text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer;
+    }
+    .nav a.active, .nav a:hover{ color:#041018; background:linear-gradient(90deg,var(--accent1),var(--accent2));}
+
+    .profile{ margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03);
+      display:flex; gap:12px; align-items:center;}
+    .avatar{
+      width:44px; height:44px; border-radius:10px; background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      display:flex; align-items:center; justify-content:center; font-weight:700; color:#041018;
+    }
+    .btn-logout{
+      margin-left:auto; padding:6px 10px; border:none; border-radius:8px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#041018; cursor:pointer; font-weight:700;
+    }
+
+    /* Main */
+    .main{ flex:1; padding:25px; display:flex; flex-direction:column; gap:18px;
+      overflow-y:auto; min-height:100vh; background: linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+    }
+    h1{ font-size:20px; background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text; color:transparent; margin:0 0 10px 0; }
+
+    .offer-grid{
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px;
+    }
+    .offer-card{
+      background:var(--card); border-radius:var(--radius); padding:15px; box-shadow:0 0 8px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .offer-card:hover{ transform:translateY(-5px); box-shadow:0 0 15px rgba(74,144,226,0.3); }
+    .offer-card img{ width:100%; height:180px; object-fit:cover; border-radius:8px; margin-bottom:10px; }
+    .offer-title{ font-weight:600; font-size:17px; color:#fff; margin-bottom:6px; }
+    .offer-desc{ font-size:14px; color:#94a3b8; margin:4px 0; }
+    .status{
+      display:inline-block; padding:5px 10px; border-radius:8px; font-size:13px; margin-top:6px;
+    }
+    .status.approved{ background:#22c55e33; color:#4ade80; }
+    .status.pending{ background:#facc1533; color:#fbbf24; }
+    .status.rejected{ background:#ef444433; color:#f87171; }
+
+    .actions{ margin-top:12px; display:flex; gap:8px; }
+    .btn{ flex:1; border:none; border-radius:8px; padding:8px; font-size:13px; cursor:pointer; color:#fff; }
+    .btn.copy{ background:#3b82f6; }
+    .btn.track{ background:#4ade80; }
+
+    /* Mobile */
+    @media (max-width:768px){
+      body{ flex-direction:column; }
+      .sidebar{ position:fixed; top:0; left:-260px; height:100%; z-index:1001; transition: left 0.3s ease;}
+      .sidebar.active{ left:0; }
+      .menu-toggle{
+        background: var(--card); color:#fff; border:none; padding:12px 18px; font-size:20px;
+        cursor:pointer; position:fixed; top:10px; left:10px; z-index:1100; border-radius:8px;
+      }
+      .main{ padding-top:60px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
+      <h2>EarnLibr</h2>
+    </div>
+    <nav class="nav">
+      <a href="freelancer-dashboard.html" class="nav-link">Dashboard</a>
+      <a href="offers.html" class="nav-link active">Browse Offers</a>
+      <a href="my-promotions.html" class="nav-link">My Promotions</a>
+      <a href="wallet.html" class="nav-link">Wallet</a>
+      <a href="notifications.html" class="nav-link">Notifications</a>
+    </nav>
+    <div class="profile">
+      <div id="avatar" class="avatar">F</div>
+      <div>
+        <div id="freelancerName" style="font-weight:700;">Loading...</div>
+        <div id="freelancerEmail" style="font-size:12px; color:#bfc7d6;">—</div>
+      </div>
+      <button id="logoutBtn" class="btn-logout">Logout</button>
+    </div>
+  </aside>
+
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+  <!-- Main -->
+  <main class="main">
+    <h1>Available Offers</h1>
+    <div id="offerGrid" class="offer-grid"></div>
+  </main>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import { ref, onValue, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const sessionRaw = localStorage.getItem('userSession');
+    if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'); }
+    const session = JSON.parse(sessionRaw);
+
+    document.getElementById('freelancerName').textContent = session.name || 'Freelancer';
+    document.getElementById('freelancerEmail').textContent = session.email || '';
+    document.getElementById('avatar').textContent = (session.name||'F').charAt(0).toUpperCase();
+
+    document.getElementById('logoutBtn').onclick = () => {
+      localStorage.removeItem('userSession');
+      window.location.href='login.html';
+    }
+
+    window.toggleSidebar = () => {
+      document.querySelector('.sidebar').classList.toggle('active');
+    }
+
+    const offerGrid = document.getElementById('offerGrid');
+
+    // Load all offers from Firebase
+    const offersRef = ref(db, "offers");
+    onValue(offersRef, (snapshot) => {
+      offerGrid.innerHTML = "";
+      snapshot.forEach(providerSnap => {
+        const providerOffers = providerSnap.val();
+        const providerId = providerSnap.key;
+
+        for(const offerId in providerOffers){
+          const offer = providerOffers[offerId];
+          if(!offer) continue;
+
+          const statusClass = offer.status || 'pending';
+          const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=Pending+Approval";
+          const desc = offer.description ? offer.description.substring(0,80)+'...' : '';
+
+          const card = document.createElement('div');
+          card.className = 'offer-card';
+          card.innerHTML = `
+            <img src="${image}" alt="Offer">
+            <div class="offer-title">${offer.title}</div>
+            <div class="offer-desc">${desc}</div>
+            <div class="offer-desc">💰 ${offer.currency||"$"} ${offer.price||"—"}</div>
+            <div class="status ${statusClass}">${offer.status||'pending'}</div>
+            <div class="actions">
+              <button class="btn copy">Copy Link</button>
+              <button class="btn track">Track Stats</button>
+            </div>
+          `;
+          offerGrid.appendChild(card);
+
+          // Generate unique promotion link
+          const copyBtn = card.querySelector('.btn.copy');
+          copyBtn.onclick = () => {
+            const link = `${window.location.origin}/track.html?offer=${offerId}&user=${session.uid}`;
+            navigator.clipboard.writeText(link);
+            alert('Promotion link copied!');
+          }
+
+          // Track stats (opens freelancer stats for that offer)
+          const trackBtn = card.querySelector('.btn.track');
+          trackBtn.onclick = () => {
+            window.location.href = `my-promotions.html#${offerId}`;
+          }
+        }
+      });
+
+      if(!offerGrid.hasChildNodes()){
+        offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;'>No offers available yet.</div>";
+      }
+    });
+  </script>
+</body>
+</html>
