@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Offers | Earnlibr Providers</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f7f8fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #222;
+      margin-bottom: 30px;
+    }
+
+    .offer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .offer-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: transform 0.2s ease;
+    }
+
+    .offer-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .offer-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      background: #eaeaea;
+    }
+
+    .offer-content {
+      padding: 15px;
+    }
+
+    .offer-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .offer-desc {
+      font-size: 14px;
+      color: #666;
+      margin: 5px 0;
+    }
+
+    .offer-info {
+      font-size: 14px;
+      color: #333;
+      margin: 5px 0;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status.approved { background: #dcfce7; color: #166534; }
+    .status.pending { background: #fef9c3; color: #854d0e; }
+    .status.rejected { background: #fee2e2; color: #991b1b; }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      margin: 5px;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn.edit { background-color: #3b82f6; color: #fff; }
+    .btn.delete { background-color: #ef4444; color: #fff; }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .modal-content h3 {
+      margin-top: 0;
+    }
+
+    .modal-content input, .modal-content textarea, .modal-content select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .modal-content button {
+      margin-top: 15px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: #3b82f6;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .modal-close {
+      text-align: right;
+      margin-bottom: 10px;
+      cursor: pointer;
+      color: #888;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Your Offers</h2>
+  <div id="offerGrid" class="offer-grid"></div>
+
+  <!-- Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-close" id="closeModal">&times;</div>
+      <h3>Edit Offer</h3>
+
+      <form id="editForm">
+        <input type="hidden" id="editOfferId" />
+
+        <label>Title</label>
+        <input type="text" id="editTitle" required />
+
+        <label>Description</label>
+        <textarea id="editDescription" required></textarea>
+
+        <label>Category</label>
+        <select id="editCategory" required>
+          <option>Digital Service</option>
+          <option>Physical Product</option>
+          <option>Course / Training</option>
+          <option>Consultation</option>
+          <option>Other</option>
+        </select>
+
+        <label>Currency</label>
+        <select id="editCurrency" required></select>
+
+        <label>Price</label>
+        <input type="number" id="editPrice" disabled />
+
+        <label>Commission Type</label>
+        <select id="editCommissionType" disabled>
+          <option value="fixed">Fixed</option>
+          <option value="percentage">Percentage</option>
+        </select>
+
+        <label>Commission Value</label>
+        <input type="number" id="editCommissionValue" disabled />
+
+        <label>Promotion Budget</label>
+        <input type="number" id="editPromotionBudget" required />
+
+        <label>Total Products Available</label>
+        <input type="number" id="editTotalProducts" required />
+
+        <button type="submit">Resubmit for Verification</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="firebase.js"></script>
+  <script src="currencies.js"></script>
+
+  <script type="module">
+    import { db, auth } from "./firebase.js";
+    import { ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      populateCurrencyDropdown("editCurrency");
+      loadOffers();
+    });
+
+    const offerGrid = document.getElementById("offerGrid");
+    const modal = document.getElementById("editModal");
+    const closeModal = document.getElementById("closeModal");
+
+    closeModal.onclick = () => modal.classList.remove("active");
+    window.onclick = (e) => { if (e.target === modal) modal.classList.remove("active"); };
+
+    function loadOffers() {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Please log in to view your offers.");
+        return;
+      }
+
+      const offersRef = ref(db, "offers");
+      onValue(offersRef, (snapshot) => {
+        offerGrid.innerHTML = "";
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data.providerId === user.uid) {
+            offerGrid.innerHTML += renderOfferCard(child.key, data);
+          }
+        });
+      });
+    }
+
+    function renderOfferCard(id, data) {
+      const image = data.imageUrl || "https://via.placeholder.com/400x200?text=Pending+Approval";
+      return `
+        <div class="offer-card">
+          <img src="${image}" alt="Product" class="offer-image" />
+          <div class="offer-content">
+            <div class="offer-title">${data.title}</div>
+            <div class="offer-desc">${data.description.substring(0, 60)}...</div>
+            <div class="offer-info"><b>Category:</b> ${data.category}</div>
+            <div class="offer-info"><b>Price:</b> ${data.currency} ${data.price}</div>
+            <div class="offer-info"><b>Commission:</b> ${data.commissionValue}${data.commissionType === "percentage" ? "%" : ""}</div>
+            <div class="offer-info"><b>Budget:</b> ${data.currency} ${data.promotionBudget}</div>
+            <div class="offer-info"><b>Total:</b> ${data.totalProducts} units</div>
+            <div class="status ${data.status}">${data.status}</div>
+
+            <div class="actions">
+              <button class="btn edit" onclick="editOffer('${id}')">Edit</button>
+              <button class="btn delete" onclick="deleteOffer('${id}')">Delete</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // Expose globally
+    window.editOffer = (id) => {
+      const offersRef = ref(db, "offers/" + id);
+      onValue(offersRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        document.getElementById("editOfferId").value = id;
+        document.getElementById("editTitle").value = data.title;
+        document.getElementById("editDescription").value = data.description;
+        document.getElementById("editCategory").value = data.category;
+        document.getElementById("editCurrency").value = data.currency;
+        document.getElementById("editPrice").value = data.price;
+        document.getElementById("editCommissionType").value = data.commissionType;
+        document.getElementById("editCommissionValue").value = data.commissionValue;
+        document.getElementById("editPromotionBudget").value = data.promotionBudget;
+        document.getElementById("editTotalProducts").value = data.totalProducts;
+
+        modal.classList.add("active");
+      }, { onlyOnce: true });
+    };
+
+    window.deleteOffer = async (id) => {
+      if (confirm("Are you sure you want to delete this offer?")) {
+        await remove(ref(db, "offers/" + id));
+        alert("Offer deleted.");
+      }
+    };
+
+    // Handle edit submit
+    const editForm = document.getElementById("editForm");
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("editOfferId").value;
+      const updatedData = {
+        title: document.getElementById("editTitle").value.trim(),
+        description: document.getElementById("editDescription").value.trim(),
+        category: document.getElementById("editCategory").value,
+        currency: document.getElementById("editCurrency").value,
+        promotionBudget: parseFloat(document.getElementById("editPromotionBudget").value),
+        totalProducts: parseInt(document.getElementById("editTotalProducts").value),
+        status: "pending",
+        approvedAt: null,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await update(ref(db, "offers/" + id), updatedData);
+      alert("Offer updated and resubmitted for verification!");
+      modal.classList.remove("active");
+    });
+  </script>
+</body>
+</html>
