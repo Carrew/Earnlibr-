@@ -38,6 +38,7 @@
     snapshot.forEach(userSnap => {
       const uid = userSnap.key;
       const userOffers = userSnap.val();
+
       for (const offerId in userOffers) {
         const offer = userOffers[offerId];
 
@@ -87,10 +88,16 @@
             // Remove from pending
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
 
-            // Clear image memory
-            offer.imageBase64 = null;
+            // Add notification to provider
+            await push(ref(db, `notifications/${uid}`), {
+              title: 'Offer Approved ✅',
+              message: `Your offer "${offer.title}" has been approved and is now live.`,
+              type: 'approved',
+              createdAt: new Date().toISOString()
+            });
 
-            alert('Offer approved and live!');
+            offer.imageBase64 = null; // clear memory
+            alert('Offer approved, live, and provider notified!');
           } catch (err) {
             console.error(err);
             alert('Error approving offer: ' + err.message);
@@ -101,11 +108,17 @@
         card.querySelector('.reject').onclick = async () => {
           if (confirm('Are you sure you want to reject this offer?')) {
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
-            
-            // Clear image memory
-            offer.imageBase64 = null;
 
-            alert('Offer rejected.');
+            // Add notification to provider
+            await push(ref(db, `notifications/${uid}`), {
+              title: 'Offer Rejected ❌',
+              message: `Your offer "${offer.title}" was rejected. Please review and try again.`,
+              type: 'rejected',
+              createdAt: new Date().toISOString()
+            });
+
+            offer.imageBase64 = null;
+            alert('Offer rejected and provider notified.');
           }
         };
 
