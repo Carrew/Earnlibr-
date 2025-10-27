@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Notifications</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px;}
+    h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px;}
+    .notif-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
+    .notif-message { flex:1; }
+    .notif-time { font-size:12px; color:#bfc7d6; margin-left:10px; }
+    .mark-read { background:#4ade80; color:#041018; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:700;}
+    .unread { border-left:4px solid #4a90e2; }
+  </style>
+</head>
+<body>
+
+<h1>Provider Notifications</h1>
+<div id="notificationsContainer">Loading...</div>
+
+<script type="module">
+  import { auth, db } from './firebase.js';
+  import { ref, onValue, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+  const notificationsContainer = document.getElementById('notificationsContainer');
+
+  // Check session
+  const userSessionRaw = localStorage.getItem('userSession');
+  if (!userSessionRaw) {
+    window.location.href = 'login.html';
+    throw new Error('No user session');
+  }
+  const userSession = JSON.parse(userSessionRaw);
+  const uid = userSession.uid;
+
+  const notifRef = ref(db, `notifications/${uid}`);
+  
+  // Listen for notifications in real-time
+  onValue(notifRef, (snapshot) => {
+    notificationsContainer.innerHTML = '';
+    if (!snapshot.exists()) {
+      notificationsContainer.innerHTML = '<p>No notifications yet.</p>';
+      return;
+    }
+
+    const notifs = snapshot.val();
+    for (const notifId in notifs) {
+      const notif = notifs[notifId];
+      const card = document.createElement('div');
+      card.className = 'notif-card' + (notif.read ? '' : ' unread');
+
+      const time = new Date(notif.timestamp).toLocaleString();
+
+      card.innerHTML = `
+        <div class="notif-message">${notif.message}<span class="notif-time">${time}</span></div>
+        ${!notif.read ? '<button class="mark-read">Mark Read</button>' : ''}
+      `;
+
+      if (!notif.read) {
+        card.querySelector('.mark-read').onclick = async () => {
+          const updates = {};
+          updates[`${notifId}/read`] = true;
+          await update(notifRef, updates);
+        };
+      }
+
+      notificationsContainer.appendChild(card);
+    }
+  });
+</script>
+
+</body>
+</html>
