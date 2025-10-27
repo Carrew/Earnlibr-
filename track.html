@@ -162,10 +162,11 @@
     import { db } from "./firebase.js";
     import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
+    // ✅ Use the same query parameters your links provide
     const params = new URLSearchParams(window.location.search);
-    const offerId = params.get("offerId");
-    const providerId = params.get("providerId") || "unknown";
-    const promoterId = params.get("promoterId") || "direct";
+    const offerId = params.get("offer");
+    const providerId = params.get("user");  // matches the UID from offers/<uid>/<offerId>
+    const promoterId = params.get("promoter") || "direct";
 
     const offerImage = document.getElementById("offerImage");
     const offerTitle = document.getElementById("offerTitle");
@@ -176,7 +177,6 @@
     const successMsg = document.getElementById("successMsg");
     const whatsappBtn = document.getElementById("whatsappBtn");
 
-    // Fetch offer details
     async function loadOffer() {
       if (!offerId || !providerId) {
         offerTitle.textContent = "Invalid or missing offer link.";
@@ -199,13 +199,12 @@
       offerDescription.textContent = data.description || "No description available.";
       offerCategory.textContent = data.category || "Uncategorized";
 
-      // Store provider phone for later
-      window.providerPhone = data.providerPhone || "+231 000 000 000";
+      // Store provider phone for WhatsApp
+      window.providerPhone = data.providerPhone || "+231000000000";
     }
 
     loadOffer();
 
-    // Submit request form
     requestForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const clientName = document.getElementById("clientName").value.trim();
@@ -229,9 +228,9 @@
 
         requestForm.style.display = "none";
         successMsg.style.display = "block";
-        successMsg.innerHTML = `✅ Request received! You can contact the provider directly at:<br><strong>${window.providerPhone}</strong>`;
+        successMsg.innerHTML = `✅ Request received! Contact the provider at:<br><strong>${window.providerPhone}</strong>`;
         whatsappBtn.style.display = "block";
-        whatsappBtn.href = `https://wa.me/${window.providerPhone.replace(/[^0-9]/g, '')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+        whatsappBtn.href = `https://wa.me/${window.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
       } catch (err) {
         alert("Error submitting request: " + err.message);
       }
