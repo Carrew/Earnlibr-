@@ -1,6 +1,241 @@
-<!DOCTYPE HTML>
-<html>
-  <head></head>
-  <body> <h1>TRACK</h1>
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offer Details | EarnLibr</title>
+
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #cbd5e1;
+      --radius: 14px;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", sans-serif;
+      background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 15px;
+    }
+
+    .container {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      max-width: 700px;
+      width: 100%;
+      padding: 25px;
+    }
+
+    img {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      object-fit: cover;
+      height: 250px;
+    }
+
+    h1 {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+
+    .desc {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .price {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .category {
+      font-size: 13px;
+      background: rgba(255,255,255,0.08);
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 18px;
+    }
+
+    form label {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    form input, form textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin-top: 4px;
+      background: #071427;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 18px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      font-weight: 700;
+      color: #041018;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    button:hover { transform: scale(1.02); }
+
+    .success {
+      margin-top: 18px;
+      background: rgba(74,144,226,0.1);
+      padding: 12px;
+      border-radius: 8px;
+      color: #a3ff6e;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+
+    a.whatsapp {
+      display: block;
+      text-align: center;
+      background: #25d366;
+      color: #041018;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 10px;
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." alt="Offer" />
+    <h1 id="offerTitle">Loading offer...</h1>
+    <div class="price" id="offerPrice"></div>
+    <div class="category" id="offerCategory"></div>
+    <div class="desc" id="offerDescription"></div>
+
+    <form id="requestForm">
+      <label>Your Full Name</label>
+      <input type="text" id="clientName" required />
+
+      <label>Your Phone Number</label>
+      <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx" />
+
+      <label>Message (optional)</label>
+      <textarea id="note" placeholder="Any additional info..."></textarea>
+
+      <button type="submit">Request This Offer</button>
+    </form>
+
+    <div class="success" id="successMsg"></div>
+    <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Chat on WhatsApp</a>
+  </div>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const offerId = params.get("offerId");
+    const providerId = params.get("providerId") || "unknown";
+    const promoterId = params.get("promoterId") || "direct";
+
+    const offerImage = document.getElementById("offerImage");
+    const offerTitle = document.getElementById("offerTitle");
+    const offerPrice = document.getElementById("offerPrice");
+    const offerDescription = document.getElementById("offerDescription");
+    const offerCategory = document.getElementById("offerCategory");
+    const requestForm = document.getElementById("requestForm");
+    const successMsg = document.getElementById("successMsg");
+    const whatsappBtn = document.getElementById("whatsappBtn");
+
+    // Fetch offer details
+    async function loadOffer() {
+      if (!offerId || !providerId) {
+        offerTitle.textContent = "Invalid or missing offer link.";
+        return;
+      }
+
+      const offerRef = ref(db, "offers/" + providerId + "/" + offerId);
+      const snapshot = await get(offerRef);
+
+      if (!snapshot.exists()) {
+        offerTitle.textContent = "Offer not found (404)";
+        offerImage.src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
+        return;
+      }
+
+      const data = snapshot.val();
+      offerImage.src = data.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
+      offerTitle.textContent = data.title || "Untitled Offer";
+      offerPrice.textContent = `${data.currency || "$"} ${data.price || "N/A"}`;
+      offerDescription.textContent = data.description || "No description available.";
+      offerCategory.textContent = data.category || "Uncategorized";
+
+      // Store provider phone for later
+      window.providerPhone = data.providerPhone || "+231 000 000 000";
+    }
+
+    loadOffer();
+
+    // Submit request form
+    requestForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const clientName = document.getElementById("clientName").value.trim();
+      const clientContact = document.getElementById("clientContact").value.trim();
+      const note = document.getElementById("note").value.trim();
+
+      if (!clientName || !clientContact) return alert("Please enter your name and phone number.");
+
+      const notification = {
+        offerId,
+        promoterId,
+        providerId,
+        clientName,
+        clientContact,
+        note,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await push(ref(db, "admin-notifications"), notification);
+
+        requestForm.style.display = "none";
+        successMsg.style.display = "block";
+        successMsg.innerHTML = `✅ Request received! You can contact the provider directly at:<br><strong>${window.providerPhone}</strong>`;
+        whatsappBtn.style.display = "block";
+        whatsappBtn.href = `https://wa.me/${window.providerPhone.replace(/[^0-9]/g, '')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+      } catch (err) {
+        alert("Error submitting request: " + err.message);
+      }
+    });
+  </script>
+</body>
 </html>
