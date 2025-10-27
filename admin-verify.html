@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Admin Verify Offers</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px;}
+    h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; }
+    .offer-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; display:flex; gap:15px; align-items:center;}
+    .offer-card img { width:120px; height:80px; object-fit:cover; border-radius:8px;}
+    .offer-details { flex:1; }
+    .offer-actions button { margin-right:8px; padding:6px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:700;}
+    .approve { background:#4ade80; color:#041018; }
+    .reject { background:#ef4444; color:#fff; }
+  </style>
+</head>
+<body>
+
+<h1>Pending Offers Verification</h1>
+<div id="offersContainer">Loading...</div>
+
+<script type="module">
+  import { db } from './firebase.js';
+  import { ref, onValue, remove, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+  const offersContainer = document.getElementById('offersContainer');
+
+  // Load pending offers
+  const pendingRef = ref(db, 'offers_pending');
+  onValue(pendingRef, (snapshot) => {
+    offersContainer.innerHTML = '';
+    if (!snapshot.exists()) {
+      offersContainer.innerHTML = '<p>No pending offers.</p>';
+      return;
+    }
+
+    snapshot.forEach(userSnap => {
+      const uid = userSnap.key;
+      const userOffers = userSnap.val();
+      for (const offerId in userOffers) {
+        const offer = userOffers[offerId];
+
+        const card = document.createElement('div');
+        card.className = 'offer-card';
+        card.innerHTML = `
+          <img src="${offer.imageBase64 || 'https://via.placeholder.com/120x80?text=No+Image'}" alt="Offer Image">
+          <div class="offer-details">
+            <strong>${offer.title}</strong><br>
+            ${offer.description}<br>
+            💰 ${offer.currency || '$'} ${offer.price}<br>
+            Commission: ${offer.commissionType} ${offer.commissionValue}<br>
+            Total Products: ${offer.totalProducts}
+          </div>
+          <div class="offer-actions">
+            <button class="approve">Approve</button>
+            <button class="reject">Reject</button>
+          </div>
+        `;
+
+        // Approve
+        card.querySelector('.approve').onclick = async () => {
+          try {
+            // Upload image to Cloudinary
+            let cloudUrl = null;
+            if (offer.imageBase64) {
+              const formData = new FormData();
+              formData.append('file', offer.imageBase64);
+              formData.append('upload_preset', 'YOUR_CLOUDINARY_PRESET'); // <-- replace with your preset
+
+              const res = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload', {
+                method: 'POST',
+                body: formData
+              });
+              const data = await res.json();
+              cloudUrl = data.secure_url;
+            }
+
+            // Move offer to /offers
+            const approvedOffer = { ...offer, imageUrl: cloudUrl, status: 'approved', approvedAt: new Date().toISOString() };
+            await push(ref(db, 'offers/' + uid), approvedOffer);
+
+            // Remove from pending
+            await remove(ref(db, `offers_pending/${uid}/${offerId}`));
+
+            alert('Offer approved and live!');
+          } catch (err) {
+            console.error(err);
+            alert('Error approving offer: ' + err.message);
+          }
+        };
+
+        // Reject
+        card.querySelector('.reject').onclick = async () => {
+          if (confirm('Are you sure you want to reject this offer?')) {
+            await remove(ref(db, `offers_pending/${uid}/${offerId}`));
+            alert('Offer rejected.');
+          }
+        };
+
+        offersContainer.appendChild(card);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
