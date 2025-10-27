@@ -188,7 +188,11 @@
           // Generate unique promotion link
           const copyBtn = card.querySelector('.btn.copy');
           copyBtn.onclick = () => {
-            const link = `${window.location.origin}/track.html?offer=${offerId}&user=${session.uid}`;
+            // Build correct GitHub Pages path (adjust "Earnlibr-" to your repo name exactly)
+const repoPath = "Earnlibr-";
+const link = `${window.location.origin}/${repoPath}/track.html?offer=${offerId}&user=${session.uid}`;
+navigator.clipboard.writeText(link);
+alert("Promotion link copied!");
             navigator.clipboard.writeText(link);
             alert('Promotion link copied!');
           }
