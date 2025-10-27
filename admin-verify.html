@@ -61,14 +61,13 @@
         // Approve
         card.querySelector('.approve').onclick = async () => {
           try {
-            // Upload image to Cloudinary
             let cloudUrl = null;
             if (offer.imageBase64) {
               const formData = new FormData();
               formData.append('file', offer.imageBase64);
-              formData.append('upload_preset', 'YOUR_CLOUDINARY_PRESET'); // <-- replace with your preset
+              formData.append('upload_preset', 'Earnlibr');
 
-              const res = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload', {
+              const res = await fetch('https://api.cloudinary.com/v1_1/dye3bda08/image/upload', {
                 method: 'POST',
                 body: formData
               });
@@ -77,11 +76,19 @@
             }
 
             // Move offer to /offers
-            const approvedOffer = { ...offer, imageUrl: cloudUrl, status: 'approved', approvedAt: new Date().toISOString() };
+            const approvedOffer = { 
+              ...offer, 
+              imageUrl: cloudUrl, 
+              status: 'approved', 
+              approvedAt: new Date().toISOString() 
+            };
             await push(ref(db, 'offers/' + uid), approvedOffer);
 
             // Remove from pending
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
+
+            // Clear image memory
+            offer.imageBase64 = null;
 
             alert('Offer approved and live!');
           } catch (err) {
@@ -94,6 +101,10 @@
         card.querySelector('.reject').onclick = async () => {
           if (confirm('Are you sure you want to reject this offer?')) {
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
+            
+            // Clear image memory
+            offer.imageBase64 = null;
+
             alert('Offer rejected.');
           }
         };
