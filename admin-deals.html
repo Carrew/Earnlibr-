@@ -37,91 +37,102 @@
       }
 
       const dealsData = snapshot.val();
-      Object.keys(dealsData).sort((a,b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp)).forEach(async (dealId) => {
-        const deal = dealsData[dealId];
-        const card = document.createElement('div');
-        card.className = 'deal-card ' + (deal.status || '');
+      Object.keys(dealsData)
+        .sort((a,b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp))
+        .forEach(async (dealId) => {
+          const deal = dealsData[dealId];
+          const card = document.createElement('div');
+          card.className = 'deal-card ' + (deal.status || '');
 
-        // Deal info
-        card.innerHTML = `
-          <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-          <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle || 'N/A'}</div>
-          <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'} (${deal.providerId})</div>
-          <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterName || 'Direct'} (${deal.promoterId})</div>
-          <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
-          <div class="deal-info"><strong>Note:</strong> ${deal.note || 'None'}</div>
-          <div class="deal-actions">
-            <button class="complete">Mark Completed</button>
-            <button class="cancel">Mark Cancelled</button>
-          </div>
-          <div class="timestamp">Created: ${new Date(deal.timestamp).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
-        `;
+          card.innerHTML = `
+            <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
+            <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle || 'N/A'}</div>
+            <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'} (${deal.providerId})</div>
+            <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterName || 'Direct'} (${deal.promoterId})</div>
+            <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
+            <div class="deal-info"><strong>Note:</strong> ${deal.note || 'None'}</div>
+            <div class="deal-actions">
+              <button class="complete">Mark Completed</button>
+              <button class="cancel">Mark Cancelled</button>
+            </div>
+            <div class="timestamp">Created: ${new Date(deal.timestamp).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
+          `;
 
-        // ✅ Mark Completed
-        card.querySelector('.complete').onclick = async () => {
-          if (deal.status === 'completed') return alert('Deal already completed.');
-          const updates = {
-            [`deals/${dealId}/status`]: 'completed',
-            [`deals/${dealId}/completedAt`]: new Date().toISOString()
-          };
-          await update(ref(db), updates);
+          // ✅ Mark Completed
+          card.querySelector('.complete').onclick = async () => {
+            if (deal.status === 'completed') return alert('Deal already completed.');
+            try {
+              const timestamp = new Date().toISOString();
+              const updates = {
+                [`deals/${dealId}/status`]: 'completed',
+                [`deals/${dealId}/completedAt`]: timestamp
+              };
+              await update(ref(db), updates);
 
-          // Update offer promo spent and auto close if budget reached
-          if (deal.offerId && deal.providerId) {
-            const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
-            const offerSnap = await get(offerRef);
-            if (offerSnap.exists()) {
-              const offerData = offerSnap.val();
-              const commissionValue = parseFloat(deal.commissionValue || 0);
-              const newSpent = (parseFloat(offerData.promoSpent || 0) + commissionValue);
-              let offerUpdates = { promoSpent: newSpent };
-              if (offerData.promoBudget && newSpent >= parseFloat(offerData.promoBudget)) {
-                offerUpdates.status = 'completed';
+              // Update offer promo spent safely
+              if (deal.offerId && deal.providerId) {
+                const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
+                const offerSnap = await get(offerRef);
+                if (offerSnap.exists()) {
+                  const offerData = offerSnap.val();
+                  const commissionValue = parseFloat(deal.commissionValue || 0);
+                  const newSpent = (parseFloat(offerData.promoSpent || 0) + commissionValue) || commissionValue;
+                  let offerUpdates = { promoSpent: newSpent };
+                  if (offerData.promoBudget && newSpent >= parseFloat(offerData.promoBudget)) {
+                    offerUpdates.status = 'completed';
+                  }
+                  await update(offerRef, offerUpdates);
+                }
               }
-              await update(offerRef, offerUpdates);
+
+              // Notifications to all relevant parties
+              const notif = {
+                title: 'Deal Completed ✅',
+                message: `Deal ${dealId} has been marked completed.`,
+                type: 'completed',
+                createdAt: timestamp
+              };
+              await push(ref(db, `notifications/${deal.providerId}`), notif);
+              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
+              await push(ref(db, `admin-notifications`), { ...notif, dealId });
+
+              alert('Deal marked as completed.');
+            } catch (err) {
+              console.error(err);
+              alert('Error completing deal: ' + err.message);
             }
-          }
-
-          // Notifications
-          const timestamp = new Date().toISOString();
-          const notif = {
-            title: 'Deal Completed ✅',
-            message: `Deal ${dealId} marked completed.`,
-            type: 'completed',
-            createdAt: timestamp
           };
-          await push(ref(db, `notifications/${deal.providerId}`), notif);
-          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
-          await push(ref(db, `admin-notifications`), { ...notif, dealId });
 
-          alert('Deal marked as completed.');
-        };
+          // ❌ Mark Cancelled
+          card.querySelector('.cancel').onclick = async () => {
+            if (deal.status === 'cancelled') return alert('Deal already cancelled.');
+            try {
+              const timestamp = new Date().toISOString();
+              const updates = {
+                [`deals/${dealId}/status`]: 'cancelled',
+                [`deals/${dealId}/cancelledAt`]: timestamp
+              };
+              await update(ref(db), updates);
 
-        // ❌ Mark Cancelled
-        card.querySelector('.cancel').onclick = async () => {
-          if (deal.status === 'cancelled') return alert('Deal already cancelled.');
-          const updates = {
-            [`deals/${dealId}/status`]: 'cancelled',
-            [`deals/${dealId}/cancelledAt`]: new Date().toISOString()
+              const notif = {
+                title: 'Deal Cancelled ❌',
+                message: `Deal ${dealId} has been cancelled.`,
+                type: 'cancelled',
+                createdAt: timestamp
+              };
+              await push(ref(db, `notifications/${deal.providerId}`), notif);
+              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
+              await push(ref(db, `admin-notifications`), { ...notif, dealId });
+
+              alert('Deal marked as cancelled.');
+            } catch (err) {
+              console.error(err);
+              alert('Error cancelling deal: ' + err.message);
+            }
           };
-          await update(ref(db), updates);
 
-          const timestamp = new Date().toISOString();
-          const notif = {
-            title: 'Deal Cancelled ❌',
-            message: `Deal ${dealId} was cancelled.`,
-            type: 'cancelled',
-            createdAt: timestamp
-          };
-          await push(ref(db, `notifications/${deal.providerId}`), notif);
-          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
-          await push(ref(db, `admin-notifications`), { ...notif, dealId });
-
-          alert('Deal marked as cancelled.');
-        };
-
-        dealsContainer.appendChild(card);
-      });
+          dealsContainer.appendChild(card);
+        });
     });
   </script>
 </body>
