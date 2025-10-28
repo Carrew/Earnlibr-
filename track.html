@@ -160,12 +160,11 @@
 
   <script type="module">
     import { db } from "./firebase.js";
-    import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-    // ✅ Use the same query parameters your links provide
     const params = new URLSearchParams(window.location.search);
     const offerId = params.get("offer");
-    const providerId = params.get("user");  // matches the UID from offers/<uid>/<offerId>
+    const providerId = params.get("user");
     const promoterId = params.get("promoter") || "direct";
 
     const offerImage = document.getElementById("offerImage");
@@ -177,6 +176,9 @@
     const successMsg = document.getElementById("successMsg");
     const whatsappBtn = document.getElementById("whatsappBtn");
 
+    let offerData = null;
+
+    // 🔹 Load offer details
     async function loadOffer() {
       if (!offerId || !providerId) {
         offerTitle.textContent = "Invalid or missing offer link.";
@@ -192,19 +194,19 @@
         return;
       }
 
-      const data = snapshot.val();
-      offerImage.src = data.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
-      offerTitle.textContent = data.title || "Untitled Offer";
-      offerPrice.textContent = `${data.currency || "$"} ${data.price || "N/A"}`;
-      offerDescription.textContent = data.description || "No description available.";
-      offerCategory.textContent = data.category || "Uncategorized";
+      offerData = snapshot.val();
+      offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
+      offerTitle.textContent = offerData.title || "Untitled Offer";
+      offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
+      offerDescription.textContent = offerData.description || "No description available.";
+      offerCategory.textContent = offerData.category || "Uncategorized";
 
-      // Store provider phone for WhatsApp
-      window.providerPhone = data.providerPhone || "+231000000000";
+      window.providerPhone = offerData.providerPhone || "+231000000000";
     }
 
     loadOffer();
 
+    // 🔹 Handle form submission
     requestForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const clientName = document.getElementById("clientName").value.trim();
@@ -213,25 +215,68 @@
 
       if (!clientName || !clientContact) return alert("Please enter your name and phone number.");
 
-      const notification = {
-        offerId,
-        promoterId,
-        providerId,
-        clientName,
-        clientContact,
-        note,
-        timestamp: new Date().toISOString()
-      };
-
       try {
-        await push(ref(db, "admin-notifications"), notification);
+        // 🔸 Create Deal Data
+        const dealData = {
+          offerId,
+          offerTitle: offerData.title,
+          offerPrice: offerData.price,
+          providerId,
+          promoterId,
+          clientName,
+          clientContact,
+          note,
+          status: "pending",
+          createdAt: new Date().toISOString()
+        };
 
+        // 🔸 Save to Deals DB
+        const newDealRef = await push(ref(db, "deals"), dealData);
+        const dealId = newDealRef.key;
+
+        // 🔸 Send Notifications
+
+        // Admin Notification
+        await push(ref(db, "admin-notifications"), {
+          type: "deal",
+          title: "New Deal Request",
+          message: `${clientName} requested offer "${dealData.offerTitle}"`,
+          dealId,
+          ...dealData
+        });
+
+        // Provider Notification
+        await push(ref(db, `provider-notifications/${providerId}`), {
+          type: "deal",
+          title: "New Deal Request",
+          message: `You have a new client request for "${dealData.offerTitle}".`,
+          dealId,
+          ...dealData
+        });
+
+        // Promoter Notification (if not direct)
+        if (promoterId !== "direct") {
+          await push(ref(db, `freelancer-notifications/${promoterId}`), {
+            type: "deal",
+            title: "You Generated a Deal!",
+            message: `Your shared link just converted into a deal for "${dealData.offerTitle}".`,
+            dealId,
+            ...dealData
+          });
+        }
+
+        // 🔸 Success Feedback to Client
         requestForm.style.display = "none";
         successMsg.style.display = "block";
-        successMsg.innerHTML = `✅ Request received! Contact the provider at:<br><strong>${window.providerPhone}</strong>`;
+        successMsg.innerHTML = `
+          ✅ Your request was received!<br>
+          The provider will contact you shortly or you may reach them directly at:<br>
+          <strong>${window.providerPhone}</strong>`;
         whatsappBtn.style.display = "block";
         whatsappBtn.href = `https://wa.me/${window.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+
       } catch (err) {
+        console.error(err);
         alert("Error submitting request: " + err.message);
       }
     });
