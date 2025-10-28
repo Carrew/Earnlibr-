@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promoter Deals | EarnLibr</title>
+  <style>
+    body {
+      background: #0b0d17;
+      color: #fff;
+      font-family: "Inter", sans-serif;
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .deal {
+      background: #121c2e;
+      margin: 12px 0;
+      padding: 15px;
+      border-radius: 10px;
+    }
+    .deal strong {
+      color: #a3ff6e;
+    }
+    .earnings {
+      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+      -webkit-background-clip: text;
+      color: transparent;
+      font-weight: 700;
+      font-size: 22px;
+      text-align: center;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>💼 Your Deals</h1>
+  <div class="earnings">Earnings: <span id="totalEarnings">$0</span></div>
+  <div id="dealList">Loading your deals...</div>
+
+  <script type="module">
+    import { db, auth } from "./firebase.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    const dealList = document.getElementById("dealList");
+    const totalEarningsEl = document.getElementById("totalEarnings");
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        dealList.innerHTML = "Please login to see your deals.";
+        return;
+      }
+
+      const promoterId = user.uid;
+      const dealsRef = ref(db, "deals");
+
+      onValue(dealsRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          dealList.innerHTML = "No deals yet.";
+          totalEarningsEl.textContent = "$0";
+          return;
+        }
+
+        const deals = snapshot.val();
+        let html = "";
+        let totalEarnings = 0;
+
+        for (const [dealId, deal] of Object.entries(deals)) {
+          if (deal.promoterId !== promoterId) continue;
+
+          const isCompleted = deal.status === "completed";
+          const dealCommission = isCompleted && deal.offerPrice && deal.commissionRate
+            ? deal.offerPrice * deal.commissionRate
+            : 0;
+          if (isCompleted) totalEarnings += dealCommission;
+
+          html += `
+            <div class="deal">
+              <p><strong>Offer ID:</strong> ${deal.offerId}</p>
+              <p><strong>Client:</strong> ${deal.clientName} (${deal.clientContact})</p>
+              <p><strong>Status:</strong> ${deal.status}</p>
+              <p><strong>Potential Commission:</strong> $${(deal.offerPrice * deal.commissionRate || 0).toFixed(2)}</p>
+              ${
+                isCompleted
+                  ? `<p><strong>✅ Earned:</strong> $${dealCommission.toFixed(2)}</p>`
+                  : ""
+              }
+            </div>
+          `;
+        }
+
+        totalEarningsEl.textContent = "$" + totalEarnings.toFixed(2);
+        dealList.innerHTML = html || "No deals linked to your promotions yet.";
+      });
+    });
+  </script>
+</body>
+</html>
