@@ -160,7 +160,7 @@
 
   <script type="module">
     import { db } from "./firebase.js";
-    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
     const params = new URLSearchParams(window.location.search);
     const offerId = params.get("offer");
@@ -178,7 +178,7 @@
 
     let offerData = null;
 
-    // 🔹 Load offer details
+    // 🔹 Load offer details with status check
     async function loadOffer() {
       if (!offerId || !providerId) {
         offerTitle.textContent = "Invalid or missing offer link.";
@@ -191,10 +191,20 @@
       if (!snapshot.exists()) {
         offerTitle.textContent = "Offer not found (404)";
         offerImage.src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
+        requestForm.style.display = "none";
         return;
       }
 
       offerData = snapshot.val();
+
+      // ✅ Only show verified + active offers
+      if (!offerData.verified || offerData.status !== "active") {
+        offerTitle.textContent = "This offer is currently unavailable.";
+        offerImage.src = "https://via.placeholder.com/600x300?text=Unavailable";
+        requestForm.style.display = "none";
+        return;
+      }
+
       offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
       offerTitle.textContent = offerData.title || "Untitled Offer";
       offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
@@ -216,7 +226,6 @@
       if (!clientName || !clientContact) return alert("Please enter your name and phone number.");
 
       try {
-        // 🔸 Create Deal Data
         const dealData = {
           offerId,
           offerTitle: offerData.title,
@@ -230,11 +239,8 @@
           createdAt: new Date().toISOString()
         };
 
-        // 🔸 Save to Deals DB
         const newDealRef = await push(ref(db, "deals"), dealData);
         const dealId = newDealRef.key;
-
-        // 🔸 Send Notifications
 
         // Admin Notification
         await push(ref(db, "admin-notifications"), {
@@ -254,7 +260,7 @@
           ...dealData
         });
 
-        // Promoter Notification (if not direct)
+        // Promoter Notification
         if (promoterId !== "direct") {
           await push(ref(db, `freelancer-notifications/${promoterId}`), {
             type: "deal",
@@ -265,7 +271,6 @@
           });
         }
 
-        // 🔸 Success Feedback to Client
         requestForm.style.display = "none";
         successMsg.style.display = "block";
         successMsg.innerHTML = `
