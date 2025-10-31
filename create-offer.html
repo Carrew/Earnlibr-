@@ -1,359 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EarnLibr — Create Offer</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EarnLibr — Create Offer</title>
 
-  <style>
-    :root {
-      --bg: #0b0d17;
-      --card: #0f1724;
-      --accent1: #4a90e2;
-      --accent2: #a3ff6e;
-      --muted: #bfc7d6;
-      --danger: #e74c3c;
-      --glass: rgba(255, 255, 255, 0.02);
-      --glass-2: rgba(255, 255, 255, 0.015);
-      --radius: 12px;
-    }
+<style>
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #e74c3c;
+  --glass: rgba(255, 255, 255, 0.02);
+  --glass-2: rgba(255, 255, 255, 0.015);
+  --radius: 12px;
+}
 
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: Inter, system-ui, Arial;
-      background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
-      color: #eef2f7;
-    }
+html, body { height: 100%; margin: 0; font-family: Inter, system-ui, Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
+.wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+.card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.03); overflow: hidden; }
+.sidebar { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px; }
+.logo { display: flex; gap: 12px; align-items: center; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+.logo img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
+.logo h2 { font-size: 16px; margin: 0; background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; }
+.nav { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.nav a { display: block; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+.nav a.active, .nav a:hover { color: #041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+.profile { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.03); display: flex; gap: 12px; align-items: center; }
+.avatar { width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #041018; }
+.main { min-height: 80vh; display: flex; flex-direction: column; gap: 18px; position: relative; }
+h1 { font-size: 20px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; margin: 0 0 10px 0; }
+form label { display: block; margin-top: 14px; color: var(--muted); font-size: 13px; }
+input, textarea, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); background: #071427; color: #fff; font-size: 14px; margin-top: 4px; }
+textarea { min-height: 80px; resize: vertical; }
+button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; }
 
-    .wrap {
-      max-width: 1200px;
-      margin: 28px auto;
-      padding: 20px;
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 20px;
-    }
+#imagePreview { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; }
 
-    .card {
-      background: linear-gradient(180deg, var(--glass), var(--glass-2));
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.03);
-      overflow: hidden;
-    }
+.notification { position: absolute; top: -10px; right: 0; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; opacity: 0.95; }
+.notification.success { background:#4ade80; color:#041018; }
+.notification.error { background:#ef4444; color:#fff; }
+.notification.info { background:#3b82f6; color:#fff; }
 
-    .sidebar {
-      height: calc(100vh - 80px);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      position: sticky;
-      top: 20px;
-    }
-
-    .logo {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    }
-
-    .logo img {
-      width: 44px;
-      height: 44px;
-      object-fit: cover;
-      border-radius: 8px;
-    }
-
-    .logo h2 {
-      font-size: 16px;
-      margin: 0;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-    }
-
-    .nav {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .nav a {
-      display: block;
-      padding: 10px 12px;
-      border-radius: 10px;
-      text-decoration: none;
-      color: var(--muted);
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .nav a.active, .nav a:hover {
-      color: #041018;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-    }
-
-    .profile {
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.03);
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: #041018;
-    }
-
-    .main {
-      min-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    h1 {
-      font-size: 20px;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-      margin: 0 0 10px 0;
-    }
-
-    form label {
-      display: block;
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    input, textarea, select {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.04);
-      background: #071427;
-      color: #fff;
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    textarea { min-height: 80px; resize: vertical; }
-
-    button {
-      margin-top: 18px;
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      font-weight: 700;
-      color: #041018;
-      cursor: pointer;
-    }
-
-    #imagePreview {
-      width: 100%;
-      max-height: 220px;
-      object-fit: contain;
-      border-radius: 10px;
-      margin-top: 8px;
-      display: none;
-    }
-
-    @media (max-width:980px) {
-      .wrap { grid-template-columns: 1fr; padding: 14px; }
-      .sidebar { position: relative; height: auto; }
-    }
-  </style>
+@media (max-width:980px) { .wrap { grid-template-columns: 1fr; padding: 14px; } .sidebar { position: relative; height: auto; } }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- SIDEBAR -->
-    <aside class="card sidebar">
-      <div class="logo">
-        <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
-        <div>
-          <h2>EarnLibr</h2>
-          <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
-        </div>
+<div class="wrap">
+  <!-- SIDEBAR -->
+  <aside class="card sidebar">
+    <div class="logo">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
+      <div>
+        <h2>EarnLibr</h2>
+        <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
       </div>
-
-      <nav class="nav">
-        <a id="nav-dashboard">Dashboard</a>
-        <a id="nav-offers">Offers</a>
-        <a id="nav-create" class="active">Create Offer</a>
-        <a id="nav-notifs">Notifications</a>
-      </nav>
-
-      <div class="profile">
-        <div id="avatar" class="avatar">P</div>
-        <div>
-          <div id="providerName" style="font-weight:700;">Loading...</div>
-          <div id="providerEmail" class="muted">—</div>
-        </div>
-        <div style="margin-left:auto">
-          <button id="logoutBtn" class="btn" style="padding:6px 10px;">Logout</button>
-        </div>
+    </div>
+    <nav class="nav">
+      <a id="nav-dashboard">Dashboard</a>
+      <a id="nav-offers">Offers</a>
+      <a id="nav-create" class="active">Create Offer</a>
+      <a id="nav-notifs">Notifications</a>
+    </nav>
+    <div class="profile">
+      <div id="avatar" class="avatar">P</div>
+      <div>
+        <div id="providerName" style="font-weight:700;">Loading...</div>
+        <div id="providerEmail" class="muted">—</div>
       </div>
-    </aside>
+      <div style="margin-left:auto">
+        <button id="logoutBtn" class="btn" style="padding:6px 10px;">Logout</button>
+      </div>
+    </div>
+  </aside>
 
-    <!-- MAIN -->
-    <main class="main card">
-      <h1>Create a New Offer</h1>
+  <!-- MAIN -->
+  <main class="main card">
+    <h1>Create a New Offer</h1>
 
-      <form id="offerForm">
-        <label>Title</label>
-        <input type="text" id="title" placeholder="Enter product or service title" required />
+    <form id="offerForm">
+      <label>Title</label>
+      <input type="text" id="title" placeholder="Enter product or service title" required />
+      <label>Description</label>
+      <textarea id="description" placeholder="Describe your product/service" required></textarea>
+      <label>Category</label>
+      <select id="category" required>
+        <option value="">Select category</option>
+        <option>Digital Service</option>
+        <option>Physical Product</option>
+        <option>Course / Training</option>
+        <option>Consultation</option>
+        <option>Other</option>
+      </select>
+      <label>Currency</label>
+      <select id="currency" required></select>
+      <label>Price</label>
+      <input type="number" id="price" placeholder="Main price" required />
+      <label>Commission Type</label>
+      <select id="commissionType" required>
+        <option value="fixed">Fixed</option>
+        <option value="percentage">Percentage</option>
+      </select>
+      <label>Commission Value</label>
+      <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+      <label>Promotion Budget</label>
+      <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+      <label>Total Products Available</label>
+      <input type="number" id="totalProducts" placeholder="How many items available" required />
+      <label>Upload Product Image</label>
+      <input type="file" id="productImage" accept="image/*" />
+      <img id="imagePreview" alt="Preview" />
 
-        <label>Description</label>
-        <textarea id="description" placeholder="Describe your product/service" required></textarea>
+      <button type="submit" id="submitBtn">Submit Offer for Verification</button>
+    </form>
+  </main>
+</div>
 
-        <label>Category</label>
-        <select id="category" required>
-          <option value="">Select category</option>
-          <option>Digital Service</option>
-          <option>Physical Product</option>
-          <option>Course / Training</option>
-          <option>Consultation</option>
-          <option>Other</option>
-        </select>
+<script type="module" src="firebase.js"></script>
+<script src="currencies.js"></script>
 
-        <label>Currency</label>
-        <select id="currency" required></select>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { ref, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
-        <label>Price</label>
-        <input type="number" id="price" placeholder="Main price" required />
+const providerNameEl = document.getElementById('providerName');
+const providerEmailEl = document.getElementById('providerEmail');
+const avatarEl = document.getElementById('avatar');
+const imageInput = document.getElementById('productImage');
+const imagePreview = document.getElementById('imagePreview');
+const offerForm = document.getElementById("offerForm");
+const submitBtn = document.getElementById("submitBtn");
+let imageBase64 = "";
 
-        <label>Commission Type</label>
-        <select id="commissionType" required>
-          <option value="fixed">Fixed</option>
-          <option value="percentage">Percentage</option>
-        </select>
+// Inline notification helper
+function showNotification(message, type='info', duration=3000) {
+  const notif = document.createElement('div');
+  notif.className = `notification ${type}`;
+  notif.textContent = message;
+  offerForm.prepend(notif);
+  setTimeout(() => notif.remove(), duration);
+}
 
-        <label>Commission Value</label>
-        <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+// Session check
+const userSessionRaw = localStorage.getItem('userSession');
+if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No user session'); }
+const userSession = JSON.parse(userSessionRaw);
+providerNameEl.textContent = userSession.name || 'Provider';
+providerEmailEl.textContent = userSession.email || '';
+avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
 
-        <label>Promotion Budget</label>
-        <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+// Navigation
+document.getElementById('nav-dashboard').onclick = () => window.location.href = 'provider-dashboard.html';
+document.getElementById('nav-offers').onclick = () => window.location.href = 'manage-offers.html';
+document.getElementById('nav-notifs').onclick = () => window.location.href = 'notifications.html';
+document.getElementById('logoutBtn').onclick = async () => {
+  try { await signOut(auth); } catch(e) {}
+  localStorage.removeItem('userSession');
+  window.location.href = 'login.html';
+};
 
-        <label>Total Products Available</label>
-        <input type="number" id="totalProducts" placeholder="How many items available" required />
+// Currency dropdown
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof populateCurrencyDropdown === 'function') populateCurrencyDropdown("currency");
+});
 
-        <label>Upload Product Image</label>
-        <input type="file" id="productImage" accept="image/*" />
-        <img id="imagePreview" alt="Preview" />
-
-        <button type="submit">Submit Offer for Verification</button>
-      </form>
-    </main>
-  </div>
-
-  <script type="module" src="firebase.js"></script>
-  <script src="currencies.js"></script>
-
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { ref, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-    import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-
-    const providerNameEl = document.getElementById('providerName');
-    const providerEmailEl = document.getElementById('providerEmail');
-    const avatarEl = document.getElementById('avatar');
-    const imageInput = document.getElementById('productImage');
-    const imagePreview = document.getElementById('imagePreview');
-    let imageBase64 = "";
-
-    // 🟢 Session check
-    const userSessionRaw = localStorage.getItem('userSession');
-    if (!userSessionRaw) {
-      window.location.href = 'login.html';
-      throw new Error('No user session');
-    }
-    const userSession = JSON.parse(userSessionRaw);
-    providerNameEl.textContent = userSession.name || 'Provider';
-    providerEmailEl.textContent = userSession.email || '';
-    avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
-
-    // 🟢 Navigation
-    document.getElementById('nav-dashboard').onclick = () => window.location.href = 'provider-dashboard.html';
-    document.getElementById('nav-offers').onclick = () => window.location.href = 'manage-offers.html';
-    document.getElementById('nav-notifs').onclick = () => window.location.href = 'notifications.html';
-    document.getElementById('logoutBtn').onclick = async () => {
-      try { await signOut(auth); } catch(e) {}
-      localStorage.removeItem('userSession');
-      window.location.href = 'login.html';
+// Image preview
+imageInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      imageBase64 = event.target.result;
+      imagePreview.src = imageBase64;
+      imagePreview.style.display = "block";
     };
+    reader.readAsDataURL(file);
+  }
+});
 
-    // 🟢 Currency dropdown
-    document.addEventListener("DOMContentLoaded", () => {
-      if (typeof populateCurrencyDropdown === 'function') {
-        populateCurrencyDropdown("currency");
-      }
-    });
+// Offer submission
+offerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
+  showNotification("Submitting offer...", "info");
 
-    // 🟢 Image preview (no upload yet)
-    imageInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          imageBase64 = event.target.result;
-          imagePreview.src = imageBase64;
-          imagePreview.style.display = "block";
-        };
-        reader.readAsDataURL(file);
-      }
-    });
+  const uid = userSession.uid;
+  if (!uid) return showNotification("Session expired. Please log in again.", "error");
 
-    // 🟢 Offer submission
-    const offerForm = document.getElementById("offerForm");
-    offerForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  const offerData = {
+    providerId: uid,
+    title: title.value.trim(),
+    description: description.value.trim(),
+    category: category.value,
+    currency: currency.value,
+    price: parseFloat(price.value),
+    commissionType: commissionType.value,
+    commissionValue: parseFloat(commissionValue.value),
+    promotionBudget: parseFloat(promotionBudget.value),
+    totalProducts: parseInt(totalProducts.value),
+    imageBase64: imageBase64 || null,
+    status: "pending",
+    createdAt: new Date().toISOString()
+  };
 
-      const uid = userSession.uid;
-      if (!uid) return alert("Session expired. Please log in again.");
-
-      const offerData = {
-        providerId: uid,
-        title: title.value.trim(),
-        description: description.value.trim(),
-        category: category.value,
-        currency: currency.value,
-        price: parseFloat(price.value),
-        commissionType: commissionType.value,
-        commissionValue: parseFloat(commissionValue.value),
-        promotionBudget: parseFloat(promotionBudget.value),
-        totalProducts: parseInt(totalProducts.value),
-        imageBase64: imageBase64 || null,
-        status: "pending",
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        await push(ref(db, "offers_pending/" + uid), offerData);
-        alert("Offer submitted for EarnLibr verification!");
-        offerForm.reset();
-        imagePreview.style.display = "none";
-      } catch (error) {
-        console.error(error);
-        alert("Error submitting offer: " + error.message);
-      }
-    });
-  </script>
+  try {
+    await push(ref(db, "offers_pending/" + uid), offerData);
+    showNotification("Offer submitted for verification!", "success");
+    offerForm.reset();
+    imagePreview.style.display = "none";
+    imageBase64 = "";
+  } catch (error) {
+    console.error(error);
+    showNotification("Error submitting offer: " + error.message, "error");
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
 </body>
 </html>
