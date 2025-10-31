@@ -1,40 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EarnLibr — Provider Deals</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px; }
-    h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
-    .deal-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); }
-    .deal-card.completed { border-left:4px solid #4ade80; }
-    .deal-card.cancelled { border-left:4px solid #ef4444; }
-    .deal-info { margin-bottom:10px; font-size:14px; }
-    .deal-actions button { margin-right:8px; padding:6px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
-    .complete { background:#4ade80; color:#041018; }
-    .cancel { background:#ef4444; color:#fff; }
-    .timestamp { font-size:12px; color:#bfc7d6; margin-top:5px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0d17;
+      color: #eef2f7;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 20px;
+    }
+    .deal-card {
+      background: #0f1724;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    }
+    .deal-card.completed {
+      border-left: 4px solid #4ade80;
+    }
+    .deal-card.cancelled {
+      border-left: 4px solid #ef4444;
+    }
+    .deal-info {
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .deal-actions button {
+      margin-right: 8px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .complete {
+      background: #4ade80;
+      color: #041018;
+    }
+    .cancel {
+      background: #ef4444;
+      color: #fff;
+    }
+    .timestamp {
+      font-size: 12px;
+      color: #bfc7d6;
+      margin-top: 5px;
+    }
+    .notif {
+      background: #1a2235;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      display: none;
+    }
+    .notif.success {
+      border-left: 4px solid #4ade80;
+      color: #a3ff6e;
+    }
+    .notif.error {
+      border-left: 4px solid #ef4444;
+      color: #ff8c8c;
+    }
   </style>
 </head>
 <body>
   <h1>Your Deals</h1>
+  <div id="notif" class="notif"></div>
   <div id="dealsContainer">Loading deals...</div>
 
   <script type="module">
     import { db } from './firebase.js';
-    import { ref, onValue, update, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    import {
+      ref,
+      onValue,
+      update,
+      push,
+      get,
+      set,
+      remove
+    } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-    // ✅ Read logged-in provider from localStorage
     const userSession = JSON.parse(localStorage.getItem('userSession'));
     const providerId = userSession?.uid;
     const dealsContainer = document.getElementById('dealsContainer');
+    const notif = document.getElementById('notif');
+
+    const showNotif = (message, type = 'success') => {
+      notif.textContent = message;
+      notif.className = `notif ${type}`;
+      notif.style.display = 'block';
+      setTimeout(() => (notif.style.display = 'none'), 4000);
+    };
 
     if (!providerId) {
       dealsContainer.innerHTML = '<p>Error: Provider not logged in.</p>';
     } else {
       const dealsRef = ref(db, 'deals');
-
       onValue(dealsRef, async (snapshot) => {
         dealsContainer.innerHTML = '';
         if (!snapshot.exists()) {
@@ -43,11 +115,12 @@
         }
 
         const dealsData = snapshot.val();
-
-        // ✅ Filter deals for this provider and sort newest first
         const providerDeals = Object.keys(dealsData)
-          .filter(id => dealsData[id].providerId === providerId)
-          .sort((a,b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp));
+          .filter((id) => dealsData[id].providerId === providerId)
+          .sort(
+            (a, b) =>
+              new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp)
+          );
 
         if (providerDeals.length === 0) {
           dealsContainer.innerHTML = '<p>No deals found for your offers yet.</p>';
@@ -72,75 +145,93 @@
             <div class="timestamp">Created: ${new Date(deal.timestamp).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
           `;
 
-          // ✅ Mark Completed
+          // ✅ MARK COMPLETED
           card.querySelector('.complete').onclick = async () => {
-            if (deal.status === 'completed') return alert('Already completed.');
+            if (deal.status === 'completed') return showNotif('Already completed.', 'error');
             try {
               const timestamp = new Date().toISOString();
-              const updates = {
-                [`deals/${dealId}/status`]: 'completed',
-                [`deals/${dealId}/completedAt`]: timestamp
-              };
-              await update(ref(db), updates);
 
-              // Update offer promoSpent safely
+              // Fetch and update offer
               if (deal.offerId && deal.providerId) {
                 const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
                 const offerSnap = await get(offerRef);
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
-                  const commissionValue = parseFloat(deal.commissionValue || 0);
-                  const newSpent = (parseFloat(offerData.promoSpent || 0) + commissionValue) || commissionValue;
+
+                  // 🧮 Commission Calculation
+                  let commissionEarned = 0;
+                  if (offerData.commissionType === 'percentage') {
+                    const percent = parseFloat(offerData.commissionValue || 0);
+                    const price = parseFloat(offerData.price || 0);
+                    commissionEarned = (price * percent) / 100;
+                  } else if (offerData.commissionType === 'fixed') {
+                    commissionEarned = parseFloat(offerData.commissionValue || 0);
+                  } else {
+                    commissionEarned = parseFloat(deal.commissionValue || 0);
+                  }
+
+                  const currentSpent = parseFloat(offerData.promoSpent || 0);
+                  const newSpent = currentSpent + commissionEarned;
+
                   let offerUpdates = { promoSpent: newSpent };
-                  if (offerData.promoBudget && newSpent >= parseFloat(offerData.promoBudget)) {
+                  if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
                     offerUpdates.status = 'completed';
                   }
+
                   await update(offerRef, offerUpdates);
                 }
               }
 
-              const notif = {
+              // Move deal to completed-deals
+              await set(ref(db, `completed-deals/${dealId}`), {
+                ...deal,
+                status: 'completed',
+                completedAt: timestamp
+              });
+              await remove(ref(db, `deals/${dealId}`));
+
+              // Notify
+              const notifData = {
                 title: 'Deal Completed ✅',
                 message: `Deal ${dealId} marked completed by provider.`,
                 type: 'completed',
                 createdAt: timestamp
               };
-              await push(ref(db, `notifications/${deal.providerId}`), notif);
-              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
-              await push(ref(db, `admin-notifications`), { ...notif, dealId });
+              await push(ref(db, `notifications/${deal.providerId}`), notifData);
+              if (deal.promoterId && deal.promoterId !== 'direct')
+                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              alert('Deal marked as completed.');
+              showNotif('✅ Deal marked completed successfully.');
             } catch (err) {
               console.error(err);
-              alert('Error: ' + err.message);
+              showNotif('Error completing deal: ' + err.message, 'error');
             }
           };
 
-          // ❌ Mark Cancelled
+          // ❌ MARK CANCELLED
           card.querySelector('.cancel').onclick = async () => {
-            if (deal.status === 'cancelled') return alert('Already cancelled.');
+            if (deal.status === 'cancelled') return showNotif('Already cancelled.', 'error');
             try {
               const timestamp = new Date().toISOString();
-              const updates = {
-                [`deals/${dealId}/status`]: 'cancelled',
-                [`deals/${dealId}/cancelledAt`]: timestamp
-              };
-              await update(ref(db), updates);
 
-              const notif = {
+              await remove(ref(db, `deals/${dealId}`));
+
+              const notifData = {
                 title: 'Deal Cancelled ❌',
-                message: `Deal ${dealId} was cancelled by provider.`,
+                message: `Deal ${dealId} cancelled by provider.`,
                 type: 'cancelled',
                 createdAt: timestamp
               };
-              await push(ref(db, `notifications/${deal.providerId}`), notif);
-              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notif);
-              await push(ref(db, `admin-notifications`), { ...notif, dealId });
+              await push(ref(db, `notifications/${deal.providerId}`), notifData);
+              if (deal.promoterId && deal.promoterId !== 'direct')
+                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              alert('Deal marked as cancelled.');
+              showNotif('❌ Deal cancelled successfully.');
             } catch (err) {
               console.error(err);
-              alert('Error cancelling deal: ' + err.message);
+              showNotif('Error cancelling deal: ' + err.message, 'error');
             }
           };
 
