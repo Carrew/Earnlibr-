@@ -36,7 +36,7 @@
     }
 
     snapshot.forEach(userSnap => {
-      const uid = userSnap.key;
+      const uid = userSnap.key;  // providerId
       const userOffers = userSnap.val();
 
       for (const offerId in userOffers) {
@@ -51,7 +51,8 @@
             ${offer.description || ''}<br>
             💰 ${offer.currency || '$'} ${offer.price || 0}<br>
             Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>
-            Total Products: ${offer.totalProducts || 0}
+            Total Products: ${offer.totalProducts || 0}<br>
+            Promo Budget: ${offer.promotionBudget || 0}
           </div>
           <div class="offer-actions">
             <button class="approve">Approve</button>
@@ -76,13 +77,17 @@
               cloudUrl = data.secure_url;
             }
 
-            // Move offer to /offers in the format frontend expects
-            const approvedOffer = { 
-              ...offer,
+            // Full system-ready offer JSON
+            const approvedOffer = {   
+              providerId: uid,                             // Explicit provider ID
+              promotionBudget: offer.promotionBudget || 0, // Preserve promo budget
+              createdAt: offer.createdAt || new Date().toISOString(), // Original submission timestamp
+
               imageUrl: cloudUrl || offer.imageUrl,
-              status: 'active',       // front-end requires 'active'
-              verified: true,         // front-end requires verified = true
+              status: 'active',
+              verified: true,
               approvedAt: new Date().toISOString(),
+
               title: offer.title || 'Untitled Offer',
               description: offer.description || '',
               price: offer.price || 0,
