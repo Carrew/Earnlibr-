@@ -192,27 +192,47 @@
 <script type="module">
   const toggleBtn = document.querySelector('.toggle-sidebar');
   const sidebar = document.querySelector('.sidebar');
-  toggleBtn.addEventListener('click', ()=>sidebar.classList.toggle('hide'));
-
   const logoutBtn = document.getElementById('logoutBtn');
-  logoutBtn.addEventListener('click', ()=>{
+
+  // Sidebar toggle
+  toggleBtn.addEventListener('click', () => sidebar.classList.toggle('hide'));
+
+  // Logout
+  logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('userSession');
     window.location.href = 'login.html';
   });
 
   // 🔹 Load user info from localStorage
   const session = JSON.parse(localStorage.getItem('userSession'));
-  if(!session){
+  if (!session) {
     window.location.href = 'login.html';
   } else {
+    // Name greeting
     document.getElementById('userName').textContent = session.name || 'Freelancer';
 
-    // Example wallet values (replace with real Firebase fetch if needed)
+    // Wallet (placeholder values)
     document.getElementById('pendingBalance').textContent = `$${session.wallet?.pending || 0}`;
     document.getElementById('approvedBalance').textContent = `$${session.wallet?.approved || 0}`;
     document.getElementById('paidBalance').textContent = `$${session.wallet?.paid || 0}`;
     document.getElementById('owedBalance').textContent = `$${session.wallet?.owed || 0}`;
+
+    // ✅ Profile Info card for all other fields
+    const main = document.querySelector('.main');
+    const profileCard = document.createElement('div');
+    profileCard.className = 'card';
+    profileCard.innerHTML = `
+      <h3>Profile Info</h3>
+      <p><strong>Email:</strong> ${session.email || 'N/A'}</p>
+      <p><strong>Phone:</strong> ${session.phone || 'N/A'}</p>
+      <p><strong>Country:</strong> ${session.country || 'N/A'}</p>
+      <p><strong>Role:</strong> ${session.role || 'N/A'}</p>
+      <p><strong>Referral Code:</strong> ${session.referralCode || 'N/A'}</p>
+      <p><strong>Account Created:</strong> ${session.createdAt || 'N/A'}</p>
+    `;
+    main.prepend(profileCard); // Place it at the top, below greeting
   }
 </script>
+
 </body>
-      </html>
+</html>
