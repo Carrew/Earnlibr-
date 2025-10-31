@@ -131,6 +131,17 @@
       display: none;
     }
 
+    .error {
+      margin-top: 18px;
+      background: rgba(239,68,68,0.1);
+      padding: 12px;
+      border-radius: 8px;
+      color: #ef4444;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+
   </style>
 </head>
 <body>
@@ -155,16 +166,16 @@
     </form>
 
     <div class="success" id="successMsg"></div>
+    <div class="error" id="errorMsg"></div>
     <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Chat on WhatsApp</a>
   </div>
 
   <script type="module">
     import { db } from "./firebase.js";
-    import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { ref, get, push, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
     const params = new URLSearchParams(window.location.search);
     const offerId = params.get("offer");
-    const providerId = params.get("user");
     const promoterId = params.get("promoter") || "direct";
 
     const offerImage = document.getElementById("offerImage");
@@ -174,30 +185,46 @@
     const offerCategory = document.getElementById("offerCategory");
     const requestForm = document.getElementById("requestForm");
     const successMsg = document.getElementById("successMsg");
+    const errorMsg = document.getElementById("errorMsg");
     const whatsappBtn = document.getElementById("whatsappBtn");
 
     let offerData = null;
+    let providerId = null;
 
-    // 🔹 Load offer details with status check
     async function loadOffer() {
-      if (!offerId || !providerId) {
+      if (!offerId) {
         offerTitle.textContent = "Invalid or missing offer link.";
+        requestForm.style.display = "none";
         return;
       }
 
-      const offerRef = ref(db, "offers/" + providerId + "/" + offerId);
-      const snapshot = await get(offerRef);
+      // Search all offers to find the one with matching offerId
+      const offersRef = ref(db, "offers");
+      const snapshot = await get(offersRef);
 
       if (!snapshot.exists()) {
-        offerTitle.textContent = "Offer not found (404)";
+        offerTitle.textContent = "No offers found.";
+        requestForm.style.display = "none";
+        return;
+      }
+
+      let found = false;
+      snapshot.forEach(providerSnap => {
+        const providerOffers = providerSnap.val();
+        if (providerOffers[offerId]) {
+          offerData = providerOffers[offerId];
+          providerId = providerSnap.key;
+          found = true;
+        }
+      });
+
+      if (!found) {
+        offerTitle.textContent = "Offer not found (404).";
         offerImage.src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
         requestForm.style.display = "none";
         return;
       }
 
-      offerData = snapshot.val();
-
-      // ✅ Only show verified + active offers
       if (!offerData.verified || offerData.status !== "active") {
         offerTitle.textContent = "This offer is currently unavailable.";
         offerImage.src = "https://via.placeholder.com/600x300?text=Unavailable";
@@ -216,14 +243,19 @@
 
     loadOffer();
 
-    // 🔹 Handle form submission
     requestForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      errorMsg.style.display = "none";
+
       const clientName = document.getElementById("clientName").value.trim();
       const clientContact = document.getElementById("clientContact").value.trim();
       const note = document.getElementById("note").value.trim();
 
-      if (!clientName || !clientContact) return alert("Please enter your name and phone number.");
+      if (!clientName || !clientContact) {
+        errorMsg.textContent = "Please enter your name and phone number.";
+        errorMsg.style.display = "block";
+        return;
+      }
 
       try {
         const dealData = {
@@ -282,7 +314,8 @@
 
       } catch (err) {
         console.error(err);
-        alert("Error submitting request: " + err.message);
+        errorMsg.textContent = "Error submitting request: " + err.message;
+        errorMsg.style.display = "block";
       }
     });
   </script>
