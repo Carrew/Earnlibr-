@@ -47,11 +47,11 @@
         card.innerHTML = `
           <img src="${offer.imageBase64 || 'https://via.placeholder.com/120x80?text=No+Image'}" alt="Offer Image">
           <div class="offer-details">
-            <strong>${offer.title}</strong><br>
-            ${offer.description}<br>
-            💰 ${offer.currency || '$'} ${offer.price}<br>
-            Commission: ${offer.commissionType} ${offer.commissionValue}<br>
-            Total Products: ${offer.totalProducts}
+            <strong>${offer.title || 'Untitled Offer'}</strong><br>
+            ${offer.description || ''}<br>
+            💰 ${offer.currency || '$'} ${offer.price || 0}<br>
+            Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>
+            Total Products: ${offer.totalProducts || 0}
           </div>
           <div class="offer-actions">
             <button class="approve">Approve</button>
@@ -76,19 +76,28 @@
               cloudUrl = data.secure_url;
             }
 
-            // Move offer to /offers
+            // Move offer to /offers in the format frontend expects
             const approvedOffer = { 
-              ...offer, 
-              imageUrl: cloudUrl, 
-              status: 'approved', 
-              approvedAt: new Date().toISOString() 
+              ...offer,
+              imageUrl: cloudUrl || offer.imageUrl,
+              status: 'active',       // front-end requires 'active'
+              verified: true,         // front-end requires verified = true
+              approvedAt: new Date().toISOString(),
+              title: offer.title || 'Untitled Offer',
+              description: offer.description || '',
+              price: offer.price || 0,
+              currency: offer.currency || '$',
+              commissionType: offer.commissionType || '',
+              commissionValue: offer.commissionValue || 0,
+              totalProducts: offer.totalProducts || 0,
+              category: offer.category || 'Uncategorized',
+              providerPhone: offer.providerPhone || '+231000000000'
             };
-            await push(ref(db, 'offers/' + uid), approvedOffer);
 
-            // Remove from pending
+            await push(ref(db, 'offers/' + uid), approvedOffer);
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
 
-            // Add notification to provider
+            // Notify provider
             await push(ref(db, `notifications/${uid}`), {
               title: 'Offer Approved ✅',
               message: `Your offer "${offer.title}" has been approved and is now live.`,
@@ -96,7 +105,7 @@
               createdAt: new Date().toISOString()
             });
 
-            offer.imageBase64 = null; // clear memory
+            offer.imageBase64 = null; // free memory
             alert('Offer approved, live, and provider notified!');
           } catch (err) {
             console.error(err);
@@ -109,7 +118,7 @@
           if (confirm('Are you sure you want to reject this offer?')) {
             await remove(ref(db, `offers_pending/${uid}/${offerId}`));
 
-            // Add notification to provider
+            // Notify provider
             await push(ref(db, `notifications/${uid}`), {
               title: 'Offer Rejected ❌',
               message: `Your offer "${offer.title}" was rejected. Please review and try again.`,
