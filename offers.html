@@ -86,7 +86,8 @@
             <img src="${image}" alt="Offer">
             <div class="offer-title">${offer.title}</div>
             <div class="offer-desc">${desc}</div>
-            <div class="offer-desc">💰 ${offer.currency||"$"} ${offer.price||"—"}</div>
+            <div class="offer-desc">💰 ${offer.currency || "$"} ${offer.price || "—"}</div>
+            <div class="offer-desc">🏆 Commission: ${offer.commissionValue || 0}${offer.commissionType === "percentage" ? "%" : ""}</div>
             <div class="status ${statusClass}">${offer.status}</div>
             <div class="actions">
               <button class="btn copy">Copy Link</button>
