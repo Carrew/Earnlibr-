@@ -163,7 +163,7 @@
           return;
         }
 
-        // ✅ Fetch user record
+        // ✅ Fetch full user record from database
         const snapshot = await get(child(ref(db), `users/${user.uid}`));
         if (!snapshot.exists()) {
           showError("User record not found.");
@@ -175,16 +175,19 @@
         const userData = snapshot.val();
         const role = userData.role;
 
-        // ✅ Save to localStorage
+        // ✅ Save full user info to localStorage
         localStorage.setItem('userSession', JSON.stringify({
           uid: user.uid,
           name: userData.name,
           email: userData.email,
           role: userData.role,
-          referralCode: userData.referralCode
+          referralCode: userData.referralCode,
+          phone: userData.phone || '',
+          country: userData.country || '',
+          createdAt: userData.createdAt || ''
         }));
 
-        // ✅ Redirect by role
+        // ✅ Redirect based on role
         showMessage('✅ Login successful! Redirecting...');
         setTimeout(() => {
           if (role === "freelancer") {
