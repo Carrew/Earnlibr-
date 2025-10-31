@@ -45,6 +45,14 @@
     .btn{ flex:1; border:none; border-radius:8px; padding:8px; font-size:13px; cursor:pointer; color:#fff; }
     .btn.copy{ background:#3b82f6; }
     .btn.track{ background:#4ade80; }
+    .notification{
+      position:fixed; top:20px; right:20px; padding:12px 18px;
+      border-radius:8px; background:var(--accent1); color:#fff; font-weight:600;
+      box-shadow:0 2px 10px rgba(0,0,0,0.3); opacity:0; transform:translateY(-10px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index:9999;
+    }
+    .notification.show{ opacity:1; transform:translateY(0); }
     @media(max-width:360px){
       body{ padding:10px; }
     }
@@ -53,6 +61,8 @@
 <body>
   <h1>Available Offers</h1>
   <div id="offerGrid" class="offer-grid"></div>
+
+  <div id="notification" class="notification"></div>
 
   <script type="module">
     import { db } from "./firebase.js";
@@ -63,7 +73,14 @@
     const session = JSON.parse(sessionRaw);
 
     const offerGrid = document.getElementById('offerGrid');
+    const notification = document.getElementById('notification');
     const offersRef = ref(db, "offers");
+
+    function showNotification(message){
+      notification.textContent = message;
+      notification.classList.add('show');
+      setTimeout(()=> notification.classList.remove('show'), 3000);
+    }
 
     onValue(offersRef, snapshot => {
       offerGrid.innerHTML = "";
@@ -99,9 +116,10 @@
           // Copy Link
           card.querySelector('.btn.copy').onclick = () => {
             const repoPath = "Earnlibr-";
-            const link = `${window.location.origin}/${repoPath}/track.html?offer=${offerId}&user=${session.uid}`;
-            navigator.clipboard.writeText(link);
-            alert("Promotion link copied!");
+            const link = `${window.location.origin}/${repoPath}/track.html?offer=${offerId}&promoter=${session.uid}`;
+            navigator.clipboard.writeText(link)
+              .then(()=> showNotification("Promotion link copied!"))
+              .catch(()=> showNotification("Failed to copy link."));
           };
 
           // Track Stats
