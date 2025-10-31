@@ -25,13 +25,16 @@
     import { db } from './firebase.js';
     import { ref, onValue, update, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-    const providerId = localStorage.getItem('providerId'); // ensure set on login
+    // ✅ Read logged-in provider from localStorage
+    const userSession = JSON.parse(localStorage.getItem('userSession'));
+    const providerId = userSession?.uid;
     const dealsContainer = document.getElementById('dealsContainer');
 
     if (!providerId) {
       dealsContainer.innerHTML = '<p>Error: Provider not logged in.</p>';
     } else {
       const dealsRef = ref(db, 'deals');
+
       onValue(dealsRef, async (snapshot) => {
         dealsContainer.innerHTML = '';
         if (!snapshot.exists()) {
@@ -40,6 +43,8 @@
         }
 
         const dealsData = snapshot.val();
+
+        // ✅ Filter deals for this provider and sort newest first
         const providerDeals = Object.keys(dealsData)
           .filter(id => dealsData[id].providerId === providerId)
           .sort((a,b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp));
