@@ -76,9 +76,9 @@
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
                   const commissionValue = parseFloat(deal.commissionValue || 0);
-                  const newSpent = (parseFloat(offerData.promoSpent || 0) + commissionValue) || commissionValue;
-                  let offerUpdates = { promoSpent: newSpent };
-                  if (offerData.promoBudget && newSpent >= parseFloat(offerData.promoBudget)) {
+                  const newSpent = (parseFloat(offerData.promoSpent || 0) + commissionValue);
+                  const offerUpdates = { promoSpent: newSpent };
+                  if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
                     offerUpdates.status = 'completed';
                   }
                   await update(offerRef, offerUpdates);
