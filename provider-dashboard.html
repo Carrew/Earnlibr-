@@ -273,7 +273,6 @@
 </head>
 <body>
   <div class="wrap">
-    <!-- SIDEBAR -->
     <aside class="card sidebar">
       <div class="logo">
         <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
@@ -286,7 +285,7 @@
       <nav class="nav">
         <a id="nav-dashboard" class="active">Dashboard</a>
         <a id="nav-offers">Offers</a>
-        <a id="nav-notifs">Notifications</a>
+        <a id="nav-deals">Deals</a> <a id="nav-notifs">Notifications</a>
       </nav>
 
       <div class="profile">
@@ -306,7 +305,6 @@
       </div>
     </aside>
 
-    <!-- MAIN -->
     <main class="main card">
       <div class="top">
         <div class="greeting">
@@ -391,6 +389,7 @@
     const navOffers = document.getElementById('nav-offers');
     const navNotifs = document.getElementById('nav-notifs');
     const navDashboard = document.getElementById('nav-dashboard');
+    const navDeals = document.getElementById('nav-deals'); // 🟢 NEW: Get the Deals link
     const viewAllOffersBtn = document.getElementById('viewAllOffers');
     const createOfferBtn = document.getElementById('createOfferBtn');
     const viewNotifsBtn = document.getElementById('viewNotifs');
@@ -401,6 +400,7 @@
     navOffers.addEventListener('click', () => window.location.href = 'manage-offers.html');
     navNotifs.addEventListener('click', () => window.location.href = 'notifications.html');
     navDashboard.addEventListener('click', () => window.location.href = 'provider-dashboard.html');
+    navDeals.addEventListener('click', () => window.location.href = 'providers-deals.html'); // 🟢 NEW: Add listener for Deals
     viewAllOffersBtn.addEventListener('click', () => window.location.href = 'manage-offers.html');
     createOfferBtn.addEventListener('click', () => window.location.href = 'create-offer.html');
     viewNotifsBtn.addEventListener('click', () => window.location.href = 'notifications.html');
@@ -447,4 +447,5 @@
     loadProviderData();
   </script>
 </body>
-                                                                     </html>
+  </html>
+            
