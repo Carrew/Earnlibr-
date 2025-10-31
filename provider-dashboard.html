@@ -105,8 +105,8 @@
       padding-top: 10px;
       border-top: 1px solid rgba(255, 255, 255, 0.03);
       display: flex;
-      gap: 12px;
-      align-items: center;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .avatar {
@@ -119,6 +119,23 @@
       justify-content: center;
       font-weight: 700;
       color: #041018;
+      font-size: 18px;
+    }
+
+    .profile-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .profile-info div {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .profile-info strong {
+      color: #fff;
+      font-weight: 700;
     }
 
     /* Main content */
@@ -262,7 +279,7 @@
         <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
         <div>
           <h2>EarnLibr</h2>
-          <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
+          <div style="font-size:12px;color:var(--muted)">Provider Panel</div>
         </div>
       </div>
 
@@ -273,12 +290,17 @@
       </nav>
 
       <div class="profile">
-        <div id="avatar" class="avatar">P</div>
-        <div>
-          <div id="providerName" style="font-weight:700;">Loading...</div>
+        <div class="avatar" id="avatar">P</div>
+        <div class="profile-info">
+          <div><strong id="providerName">Loading...</strong></div>
           <div id="providerEmail" class="muted">—</div>
+          <div id="providerRole">—</div>
+          <div id="providerPhone">—</div>
+          <div id="providerCountry">—</div>
+          <div id="providerReferral">—</div>
+          <div id="providerCreated">—</div>
         </div>
-        <div style="margin-left:auto">
+        <div style="margin-top:6px">
           <button id="logoutBtn" class="btn" style="padding:8px 10px;">Logout</button>
         </div>
       </div>
@@ -350,6 +372,11 @@
 
     const providerNameEl = document.getElementById('providerName');
     const providerEmailEl = document.getElementById('providerEmail');
+    const providerRoleEl = document.getElementById('providerRole');
+    const providerPhoneEl = document.getElementById('providerPhone');
+    const providerCountryEl = document.getElementById('providerCountry');
+    const providerReferralEl = document.getElementById('providerReferral');
+    const providerCreatedEl = document.getElementById('providerCreated');
     const avatarEl = document.getElementById('avatar');
     const greetEl = document.getElementById('greet');
     const trustEl = document.getElementById('trustScore');
@@ -385,13 +412,18 @@
       window.location.href = 'login.html';
     });
 
-    // Session check
+    // Load session
     const userSessionRaw = localStorage.getItem('userSession');
     if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No user session'); }
 
     const userSession = JSON.parse(userSessionRaw);
     providerNameEl.textContent = userSession.name || 'Provider';
-    providerEmailEl.textContent = userSession.email || '';
+    providerEmailEl.textContent = userSession.email || '—';
+    providerRoleEl.textContent = `Role: ${userSession.role || '—'}`;
+    providerPhoneEl.textContent = `Phone: ${userSession.phone || '—'}`;
+    providerCountryEl.textContent = `Country: ${userSession.country || '—'}`;
+    providerReferralEl.textContent = `Referral: ${userSession.referralCode || '—'}`;
+    providerCreatedEl.textContent = `Joined: ${userSession.createdAt || '—'}`;
     avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
     greetEl.textContent = `Welcome back, ${userSession.name || 'Provider'}`;
 
@@ -415,4 +447,4 @@
     loadProviderData();
   </script>
 </body>
-</html>
+                                                                     </html>
