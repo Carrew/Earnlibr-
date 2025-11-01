@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset Password — EarnLibr</title>
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --accent: #a3ff6e;
+      --bg-dark: #0b0d17;
+      --bg-card: #0f1724;
+      --text-light: #eef2f7;
+      --text-muted: #9ba6b2;
+      --error: #ef4444;
+      --success: #4ade80;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top left, var(--bg-dark) 40%, var(--bg-card) 100%);
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .header {
+      position: absolute;
+      top: 40px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(270deg, var(--primary), var(--accent), var(--primary));
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientShift 5s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: rgba(15, 23, 36, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 18px;
+      padding: 40px 35px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      margin-top: 100px;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(25px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #1a2235;
+      color: var(--text-light);
+      font-size: 15px;
+      margin-bottom: 15px;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    input:focus {
+      background: #212b42;
+    }
+
+    button {
+      width: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border: none;
+      color: var(--bg-dark);
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+
+    .notif {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      background: #1a2235;
+      display: none;
+      line-height: 1.5;
+    }
+
+    .notif.success {
+      border-left: 4px solid var(--success);
+      color: #a3ff6e;
+    }
+
+    .notif.error {
+      border-left: 4px solid var(--error);
+      color: #ff8c8c;
+    }
+
+    .links {
+      margin-top: 25px;
+    }
+
+    .links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.3s ease;
+    }
+
+    .links a:hover {
+      color: var(--accent);
+    }
+
+    footer {
+      position: absolute;
+      bottom: 10px;
+      font-size: 12px;
+      color: #7c8899;
+      text-align: center;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>EarnLibr</h1>
+  </div>
+
+  <div class="card">
+    <h2>Reset Password</h2>
+    <p>Enter your registered email and we’ll send you a secure reset link.</p>
+
+    <input type="email" id="email" placeholder="Email address" />
+    <button id="resetBtn">Send Reset Link</button>
+
+    <div id="notif" class="notif"></div>
+
+    <div class="links">
+      <a href="login.html">⬅ Back to Login</a>
+    </div>
+  </div>
+
+  <footer>© 2025 EarnLibr. All rights reserved.</footer>
+
+  <script type="module">
+    import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { auth } from "./firebase.js";
+
+    const emailInput = document.getElementById("email");
+    const resetBtn = document.getElementById("resetBtn");
+    const notif = document.getElementById("notif");
+
+    const showNotif = (message, type = "success") => {
+      notif.textContent = message;
+      notif.className = `notif ${type}`;
+      notif.style.display = "block";
+      setTimeout(() => (notif.style.display = "none"), 4000);
+    };
+
+    resetBtn.addEventListener("click", async () => {
+      const email = emailInput.value.trim();
+      if (!email) return showNotif("Please enter your email.", "error");
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showNotif("✅ Password reset link sent! Redirecting to login...");
+
+        emailInput.value = "";
+
+        // ⏳ Auto-redirect to login after 3 seconds
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 3000);
+      } catch (err) {
+        if (err.code === "auth/user-not-found")
+          showNotif("No account found with this email.", "error");
+        else showNotif("Error: " + err.message, "error");
+      }
+    });
+  </script>
+</body>
+  </html>
