@@ -114,6 +114,10 @@
         .sort((a, b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp))
         .forEach(async (dealId) => {
           const deal = dealsData[dealId];
+
+          // Skip completed/cancelled just in case they exist under /deals
+          if (deal.status === 'completed' || deal.status === 'cancelled') return;
+
           const card = document.createElement('div');
           card.className = 'deal-card ' + (deal.status || '');
 
@@ -146,7 +150,6 @@
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
 
-                  // 🧮 Commission Calculation
                   let commissionEarned = 0;
                   if (offerData.commissionType === 'percentage') {
                     const percent = parseFloat(offerData.commissionValue || 0);
@@ -155,7 +158,7 @@
                   } else if (offerData.commissionType === 'fixed') {
                     commissionEarned = parseFloat(offerData.commissionValue || 0);
                   } else {
-                    commissionEarned = parseFloat(deal.commissionValue || 0); // fallback
+                    commissionEarned = parseFloat(deal.commissionValue || 0);
                   }
 
                   const currentSpent = parseFloat(offerData.promoSpent || 0);
@@ -180,6 +183,9 @@
               // Remove from main deals node
               await remove(ref(db, `deals/${dealId}`));
 
+              // ✅ Instantly remove from frontend
+              card.remove();
+
               // Notifications
               const notifData = {
                 title: 'Deal Completed ✅',
@@ -192,7 +198,7 @@
                 await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('✅ Deal marked completed and moved to Completed Deals.');
+              showNotif('✅ Deal marked completed and removed from frontend.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
@@ -207,6 +213,9 @@
 
               await remove(ref(db, `deals/${dealId}`));
 
+              // ✅ Instantly remove from frontend
+              card.remove();
+
               const notifData = {
                 title: 'Deal Cancelled ❌',
                 message: `Deal ${dealId} has been cancelled.`,
@@ -218,7 +227,7 @@
                 await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('❌ Deal cancelled and removed.');
+              showNotif('❌ Deal cancelled and removed from frontend.');
             } catch (err) {
               console.error(err);
               showNotif('Error cancelling deal: ' + err.message, 'error');
