@@ -99,6 +99,7 @@
       text-decoration:none; 
       font-weight:600
     }
+    .link:hover{opacity:0.8;}
     .error{
       color:var(--danger); 
       font-weight:600; 
@@ -121,6 +122,11 @@
 
     <label for="password">Password</label>
     <input id="password" type="password" placeholder="Your password" />
+
+    <!-- Forgot password link -->
+    <p class="small" style="text-align:right; margin-top:6px;">
+      <a class="link" href="reset.html">Forgot password?</a>
+    </p>
 
     <button id="loginBtn" class="btn">Login</button>
 
