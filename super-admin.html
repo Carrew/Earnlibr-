@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Super Admin Setup</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #bfc7d6;
+      --danger: #e74c3c;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: #eef2f7;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .card {
+      width: 100%;
+      max-width: 450px;
+      background: var(--card);
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      text-align: center;
+    }
+    p.lead {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.04);
+      background: #071427;
+      color: #fff;
+      font-size: 14px;
+    }
+    .btn {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      color: #041018;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .small { font-size: 13px; color: var(--muted); margin-top: 10px; text-align:center; }
+    .error { color: var(--danger); font-weight: 600; margin-top: 8px; font-size: 13px; display:none; }
+    .notif { display:none; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
+    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; background: #0f1724; }
+    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; background: #0f1724; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Super Admin Setup</h1>
+    <p class="lead">Create your super admin account for EarnLibr.</p>
+
+    <div id="notif" class="notif"></div>
+    <div id="error" class="error"></div>
+
+    <label for="name">Full Name</label>
+    <input type="text" id="name" placeholder="John Doe">
+
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="admin@example.com">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Strong password">
+
+    <label for="phone">Phone (optional)</label>
+    <input type="text" id="phone" placeholder="+231 123 456 789">
+
+    <label for="bio">Bio / Notes (optional)</label>
+    <input type="text" id="bio" placeholder="Short description about you">
+
+    <button id="signupBtn" class="btn">Create Super Admin</button>
+    <p class="small">This page should be removed after first setup to secure your system.</p>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { ref, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const signupBtn = document.getElementById('signupBtn');
+    const notif = document.getElementById('notif');
+    const errorDiv = document.getElementById('error');
+
+    const showNotif = (msg, type='success') => {
+      notif.textContent = msg;
+      notif.className = `notif ${type}`;
+      notif.style.display = 'block';
+      setTimeout(() => notif.style.display='none', 5000);
+    }
+    const showError = (msg) => {
+      errorDiv.textContent = msg;
+      errorDiv.style.display = 'block';
+    }
+
+    signupBtn.addEventListener('click', async () => {
+      errorDiv.style.display = 'none';
+      notif.style.display = 'none';
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const phone = document.getElementById('phone').value.trim();
+      const bio = document.getElementById('bio').value.trim();
+
+      if(!name || !email || !password){
+        showError("Name, Email, and Password are required.");
+        return;
+      }
+
+      signupBtn.disabled = true;
+      signupBtn.textContent = "Creating...";
+
+      try {
+        // Create Firebase Auth user
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCred.user;
+
+        // Optional: send email verification
+        await sendEmailVerification(user);
+
+        // Save super admin info to database
+        await set(ref(db, `users/${user.uid}`), {
+          name,
+          email,
+          phone: phone || '',
+          bio: bio || '',
+          role: 'super_admin',
+          createdAt: new Date().toISOString()
+        });
+
+        showNotif("✅ Super Admin created! Please verify your email before logging in.");
+      } catch (e) {
+        console.error(e);
+        if(e.code === 'auth/email-already-in-use'){
+          showError("This email is already registered.");
+        } else if(e.code === 'auth/weak-password'){
+          showError("Password is too weak. Use at least 6 characters.");
+        } else {
+          showError("Error creating super admin: " + e.message);
+        }
+      } finally {
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Create Super Admin";
+      }
+    });
+  </script>
+</body>
+</html>
