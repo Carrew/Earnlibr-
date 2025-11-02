@@ -25,16 +25,9 @@
       margin-bottom: 15px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     }
-    .deal-card.completed {
-      border-left: 4px solid #4ade80;
-    }
-    .deal-card.cancelled {
-      border-left: 4px solid #ef4444;
-    }
-    .deal-info {
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
+    .deal-card.completed { border-left: 4px solid #4ade80; }
+    .deal-card.cancelled { border-left: 4px solid #ef4444; }
+    .deal-info { margin-bottom: 10px; font-size: 14px; }
     .deal-actions button {
       margin-right: 8px;
       padding: 6px 12px;
@@ -43,19 +36,9 @@
       cursor: pointer;
       font-weight: 700;
     }
-    .complete {
-      background: #4ade80;
-      color: #041018;
-    }
-    .cancel {
-      background: #ef4444;
-      color: #fff;
-    }
-    .timestamp {
-      font-size: 12px;
-      color: #bfc7d6;
-      margin-top: 5px;
-    }
+    .complete { background: #4ade80; color: #041018; }
+    .cancel { background: #ef4444; color: #fff; }
+    .timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
     .notif {
       background: #1a2235;
       padding: 10px;
@@ -64,14 +47,8 @@
       font-size: 14px;
       display: none;
     }
-    .notif.success {
-      border-left: 4px solid #4ade80;
-      color: #a3ff6e;
-    }
-    .notif.error {
-      border-left: 4px solid #ef4444;
-      color: #ff8c8c;
-    }
+    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
   </style>
 </head>
 <body>
@@ -81,19 +58,10 @@
 
   <script type="module">
     import { db } from './firebase.js';
-    import {
-      ref,
-      onValue,
-      update,
-      push,
-      get,
-      set,
-      remove
-    } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    import { ref, onValue, update, push, get, set, remove } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
     const dealsContainer = document.getElementById('dealsContainer');
     const notif = document.getElementById('notif');
-
     const showNotif = (message, type = 'success') => {
       notif.textContent = message;
       notif.className = `notif ${type}`;
@@ -111,30 +79,24 @@
 
       const dealsData = snapshot.val();
       Object.keys(dealsData)
-        .sort((a, b) => new Date(dealsData[b].timestamp) - new Date(dealsData[a].timestamp))
+        .sort((a, b) => new Date(dealsData[b].createdAt) - new Date(dealsData[a].createdAt))
         .forEach(async (dealId) => {
           const deal = dealsData[dealId];
 
-          // Skip completed/cancelled just in case they exist under /deals
-          if (deal.status === 'completed' || deal.status === 'cancelled') return;
-
           const card = document.createElement('div');
           card.className = 'deal-card ' + (deal.status || '');
-
           card.innerHTML = `
             <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
             <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle || 'N/A'}</div>
             <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'} (${deal.providerId})</div>
-            <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterName || 'Direct'} (${deal.promoterId})</div>
+            <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId !== 'direct' ? deal.promoterName || 'Unknown' : 'Direct'} (${deal.promoterId})</div>
             <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
             <div class="deal-info"><strong>Note:</strong> ${deal.note || 'None'}</div>
             <div class="deal-actions">
               <button class="complete">Mark Completed</button>
               <button class="cancel">Mark Cancelled</button>
             </div>
-            <div class="timestamp">
-              Created: ${new Date(deal.timestamp).toLocaleString()} | Status: ${deal.status || 'Pending'}
-            </div>
+            <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
           `;
 
           // ✅ MARK COMPLETED
@@ -142,6 +104,7 @@
             if (deal.status === 'completed') return showNotif('Already completed.', 'error');
             try {
               const timestamp = new Date().toISOString();
+              let commissionEarned = 0;
 
               // Update offer promoSpent
               if (deal.offerId && deal.providerId) {
@@ -150,55 +113,49 @@
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
 
-                  let commissionEarned = 0;
                   if (offerData.commissionType === 'percentage') {
-                    const percent = parseFloat(offerData.commissionValue || 0);
-                    const price = parseFloat(offerData.price || 0);
-                    commissionEarned = (price * percent) / 100;
+                    commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
                   } else if (offerData.commissionType === 'fixed') {
                     commissionEarned = parseFloat(offerData.commissionValue || 0);
                   } else {
                     commissionEarned = parseFloat(deal.commissionValue || 0);
                   }
 
-                  const currentSpent = parseFloat(offerData.promoSpent || 0);
-                  const newSpent = currentSpent + commissionEarned;
-
-                  let offerUpdates = { promoSpent: newSpent };
+                  const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
+                  const offerUpdates = { promoSpent: newSpent };
                   if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
                     offerUpdates.status = 'completed';
                   }
-
                   await update(offerRef, offerUpdates);
                 }
               }
 
-              // Move deal to completed-deals
+              // Update promoter earnings
+              if (deal.promoterId && deal.promoterId !== 'direct') {
+                const promoterRef = ref(db, `users/${deal.promoterId}/earnings`);
+                const promoterSnap = await get(promoterRef);
+                const currentEarnings = promoterSnap.exists() ? promoterSnap.val() : { total: 0, pending: 0, paid: 0 };
+                currentEarnings.total = parseFloat(currentEarnings.total || 0) + commissionEarned;
+                await update(promoterRef, currentEarnings);
+              }
+
+              // Save full deal info + commissionEarned
               await set(ref(db, `completed-deals/${dealId}`), {
                 ...deal,
                 status: 'completed',
-                completedAt: timestamp
+                completedAt: timestamp,
+                commissionEarned
               });
 
-              // Remove from main deals node
               await remove(ref(db, `deals/${dealId}`));
-
-              // ✅ Instantly remove from frontend
               card.remove();
 
-              // Notifications
-              const notifData = {
-                title: 'Deal Completed ✅',
-                message: `Deal ${dealId} marked as completed.`,
-                type: 'completed',
-                createdAt: timestamp
-              };
+              const notifData = { title: 'Deal Completed ✅', message: `Deal ${dealId} completed.`, type: 'completed', createdAt: timestamp, commissionEarned };
               await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct')
-                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('✅ Deal marked completed and removed from frontend.');
+              showNotif('✅ Deal completed and saved with commission.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
@@ -210,24 +167,15 @@
             if (deal.status === 'cancelled') return showNotif('Already cancelled.', 'error');
             try {
               const timestamp = new Date().toISOString();
-
               await remove(ref(db, `deals/${dealId}`));
-
-              // ✅ Instantly remove from frontend
               card.remove();
 
-              const notifData = {
-                title: 'Deal Cancelled ❌',
-                message: `Deal ${dealId} has been cancelled.`,
-                type: 'cancelled',
-                createdAt: timestamp
-              };
+              const notifData = { title: 'Deal Cancelled ❌', message: `Deal ${dealId} cancelled.`, type: 'cancelled', createdAt: timestamp };
               await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct')
-                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('❌ Deal cancelled and removed from frontend.');
+              showNotif('❌ Deal cancelled and removed.');
             } catch (err) {
               console.error(err);
               showNotif('Error cancelling deal: ' + err.message, 'error');
