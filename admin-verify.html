@@ -44,7 +44,7 @@
 
 <script type="module">
 import { db } from './firebase.js';
-import { ref, onValue, remove, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, onValue, remove, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
 const offersContainer = document.getElementById('offersContainer');
 
@@ -54,6 +54,13 @@ function showNotification(card, message, type='info', duration=3000) {
   notif.innerText = message;
   card.appendChild(notif);
   setTimeout(() => notif.remove(), duration);
+}
+
+// Fetch provider/user info
+async function getProviderInfo(providerId) {
+  const userRef = ref(db, `users/${providerId}`);
+  const snapshot = await get(userRef);
+  return snapshot.exists() ? snapshot.val() : null;
 }
 
 const pendingRef = ref(db, 'offers_pending');
@@ -103,6 +110,9 @@ onValue(pendingRef, (snapshot) => {
         showNotification(card, 'Processing approval...', 'info');
 
         try {
+          // Get provider/user info
+          const providerInfo = await getProviderInfo(uid);
+
           let cloudUrl = null;
           if (offer.imageBase64) {
             const formData = new FormData();
@@ -116,8 +126,12 @@ onValue(pendingRef, (snapshot) => {
 
           const approvedOffer = {   
             providerId: uid,
+            providerName: providerInfo?.name || "Unknown",
+            providerEmail: providerInfo?.email || "",
+            providerPhone: providerInfo?.phone || offer.providerPhone || "+231000000000",
+            role: providerInfo?.role || "provider",
             promotionBudget: offer.promotionBudget || 0,
-            promoSpent: 0,  // ✅ initialized for deals to update later
+            promoSpent: 0,
             createdAt: offer.createdAt || new Date().toISOString(),
             imageUrl: cloudUrl || offer.imageUrl,
             status: 'active',
@@ -130,8 +144,7 @@ onValue(pendingRef, (snapshot) => {
             commissionType: offer.commissionType || '',
             commissionValue: offer.commissionValue || 0,
             totalProducts: offer.totalProducts || 0,
-            category: offer.category || 'Uncategorized',
-            providerPhone: offer.providerPhone || '+231000000000'
+            category: offer.category || 'Uncategorized'
           };
 
           await push(ref(db, 'offers/' + uid), approvedOffer);
@@ -144,7 +157,8 @@ onValue(pendingRef, (snapshot) => {
           });
 
           offer.imageBase64 = null;
-          showNotification(card, 'Offer approved! Provider notified.', 'success');
+          showNotification(card, 'Offer approved! Provider info saved.', 'success');
+
         } catch (err) {
           console.error(err);
           showNotification(card, 'Error: ' + err.message, 'error');
