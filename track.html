@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Offer Details | EarnLibr</title>
-
   <style>
     :root {
       --bg: #0b0d17;
@@ -52,96 +51,16 @@
       margin-bottom: 10px;
     }
 
-    .desc {
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-      margin-bottom: 15px;
-    }
-
-    .price {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .category {
-      font-size: 13px;
-      background: rgba(255,255,255,0.08);
-      padding: 4px 8px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-bottom: 18px;
-    }
-
-    form label {
-      display: block;
-      margin-top: 10px;
-      font-size: 14px;
-      color: var(--muted);
-    }
-
-    form input, form textarea {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      margin-top: 4px;
-      background: #071427;
-      color: #fff;
-      font-size: 14px;
-    }
-
-    button {
-      margin-top: 18px;
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      font-weight: 700;
-      color: #041018;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-
+    .desc { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 15px; }
+    .price { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .category { font-size: 13px; background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 18px; }
+    form label { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
+    form input, form textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; margin-top: 4px; background: #071427; color: #fff; font-size: 14px; }
+    button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; transition: transform 0.2s; }
     button:hover { transform: scale(1.02); }
-
-    .success {
-      margin-top: 18px;
-      background: rgba(74,144,226,0.1);
-      padding: 12px;
-      border-radius: 8px;
-      color: #a3ff6e;
-      text-align: center;
-      font-weight: 600;
-      display: none;
-    }
-
-    a.whatsapp {
-      display: block;
-      text-align: center;
-      background: #25d366;
-      color: #041018;
-      padding: 10px;
-      border-radius: 8px;
-      font-weight: 600;
-      text-decoration: none;
-      margin-top: 10px;
-      display: none;
-    }
-
-    .error {
-      margin-top: 18px;
-      background: rgba(239,68,68,0.1);
-      padding: 12px;
-      border-radius: 8px;
-      color: #ef4444;
-      text-align: center;
-      font-weight: 600;
-      display: none;
-    }
-
+    .success { margin-top: 18px; background: rgba(74,144,226,0.1); padding: 12px; border-radius: 8px; color: #a3ff6e; text-align: center; font-weight: 600; display: none; }
+    a.whatsapp { display: block; text-align: center; background: #25d366; color: #041018; padding: 10px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 10px; display: none; }
+    .error { margin-top: 18px; background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; color: #ef4444; text-align: center; font-weight: 600; display: none; }
   </style>
 </head>
 <body>
@@ -190,6 +109,7 @@
 
     let offerData = null;
     let providerId = null;
+    let providerInfo = null;
 
     async function loadOffer() {
       if (!offerId) {
@@ -231,13 +151,17 @@
         return;
       }
 
+      // Fetch provider info from users
+      const userSnap = await get(ref(db, `users/${providerId}`));
+      providerInfo = userSnap.exists() ? userSnap.val() : null;
+
       offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
       offerTitle.textContent = offerData.title || "Untitled Offer";
       offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
       offerDescription.textContent = offerData.description || "No description available.";
       offerCategory.textContent = offerData.category || "Uncategorized";
 
-      window.providerPhone = offerData.providerPhone || "+231000000000";
+      window.providerPhone = providerInfo?.phone || offerData.providerPhone || "+231000000000";
     }
 
     loadOffer();
@@ -256,10 +180,6 @@
         return;
       }
 
-      const submitBtn = requestForm.querySelector("button[type='submit']");
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Processing...";
-
       try {
         const dealData = {
           offerId,
@@ -273,11 +193,12 @@
           status: "pending",
           createdAt: new Date().toISOString(),
 
-          // Commission & finance metadata
+          // New provider info fields
+          providerName: providerInfo?.name || "",
+          providerEmail: providerInfo?.email || "",
+          providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
           commissionType: offerData.commissionType || "",
-          commissionValue: offerData.commissionValue || 0,
-          totalProducts: offerData.totalProducts || 0,
-          promotionBudget: offerData.promotionBudget || 0
+          commissionValue: offerData.commissionValue || 0
         };
 
         const newDealRef = await push(ref(db, "deals"), dealData);
@@ -295,8 +216,8 @@
         // Provider Notification
         await push(ref(db, `provider-notifications/${providerId}`), {
           type: "deal",
-          title: "New Deal Request",
-          message: `You have a new client request for "${dealData.offerTitle}".`,
+          title: "You Have a New Deal Request",
+          message: `A client requested your offer "${dealData.offerTitle}".`,
           dealId,
           ...dealData
         });
@@ -306,28 +227,25 @@
           await push(ref(db, `freelancer-notifications/${promoterId}`), {
             type: "deal",
             title: "You Generated a Deal!",
-            message: `Your shared link just converted into a deal for "${dealData.offerTitle}".`,
+            message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
             dealId,
             ...dealData
           });
         }
 
-        // Show success message and WhatsApp link
         requestForm.style.display = "none";
         successMsg.style.display = "block";
         successMsg.innerHTML = `
           ✅ Your request was received!<br>
           The provider will contact you shortly or you may reach them directly at:<br>
-          <strong>${window.providerPhone}</strong>`;
+          <strong>${dealData.providerPhone}</strong>`;
         whatsappBtn.style.display = "block";
-        whatsappBtn.href = `https://wa.me/${window.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+        whatsappBtn.href = `https://wa.me/${dealData.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
 
       } catch (err) {
         console.error(err);
         errorMsg.textContent = "Error submitting request: " + err.message;
         errorMsg.style.display = "block";
-        submitBtn.disabled = false; // Re-enable button on error
-        submitBtn.textContent = "Request This Offer"; // Reset button text
       }
     });
   </script>
