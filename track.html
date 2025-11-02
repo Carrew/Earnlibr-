@@ -172,7 +172,7 @@
 
   <script type="module">
     import { db } from "./firebase.js";
-    import { ref, get, push, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { ref, get, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
     const params = new URLSearchParams(window.location.search);
     const offerId = params.get("offer");
@@ -198,7 +198,6 @@
         return;
       }
 
-      // Search all offers to find the one with matching offerId
       const offersRef = ref(db, "offers");
       const snapshot = await get(offersRef);
 
@@ -257,6 +256,10 @@
         return;
       }
 
+      const submitBtn = requestForm.querySelector("button[type='submit']");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+
       try {
         const dealData = {
           offerId,
@@ -268,7 +271,13 @@
           clientContact,
           note,
           status: "pending",
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+
+          // Commission & finance metadata
+          commissionType: offerData.commissionType || "",
+          commissionValue: offerData.commissionValue || 0,
+          totalProducts: offerData.totalProducts || 0,
+          promotionBudget: offerData.promotionBudget || 0
         };
 
         const newDealRef = await push(ref(db, "deals"), dealData);
@@ -303,6 +312,7 @@
           });
         }
 
+        // Show success message and WhatsApp link
         requestForm.style.display = "none";
         successMsg.style.display = "block";
         successMsg.innerHTML = `
@@ -316,6 +326,8 @@
         console.error(err);
         errorMsg.textContent = "Error submitting request: " + err.message;
         errorMsg.style.display = "block";
+        submitBtn.disabled = false; // Re-enable button on error
+        submitBtn.textContent = "Request This Offer"; // Reset button text
       }
     });
   </script>
