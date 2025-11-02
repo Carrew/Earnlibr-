@@ -44,7 +44,7 @@
 
 <script type="module">
 import { db } from './firebase.js';
-import { ref, onValue, remove, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, onValue, remove, push, get, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
 const offersContainer = document.getElementById('offersContainer');
 
@@ -110,7 +110,6 @@ onValue(pendingRef, (snapshot) => {
         showNotification(card, 'Processing approval...', 'info');
 
         try {
-          // Get provider/user info
           const providerInfo = await getProviderInfo(uid);
 
           let cloudUrl = null;
@@ -137,6 +136,8 @@ onValue(pendingRef, (snapshot) => {
             status: 'active',
             verified: true,
             approvedAt: new Date().toISOString(),
+            paymentStatus: 'unpaid',          // NEW: payment status
+            paymentDeadline: null,            // Will be set on completion
             title: offer.title || 'Untitled Offer',
             description: offer.description || '',
             price: offer.price || 0,
