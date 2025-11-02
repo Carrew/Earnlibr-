@@ -110,13 +110,21 @@ if (!providerId) {
             }
           }
 
-          // Update promoter earnings
+          // 🚀 NEW: Save promoter earnings in dedicated node
           if (deal.promoterId && deal.promoterId !== 'direct') {
-            const promoterRef = ref(db, `users/${deal.promoterId}/earnings`);
-            const promoterSnap = await get(promoterRef);
-            const currentEarnings = promoterSnap.exists() ? promoterSnap.val() : { total:0, pending:0, paid:0 };
-            currentEarnings.total = parseFloat(currentEarnings.total||0) + commissionEarned;
-            await update(promoterRef, currentEarnings);
+            const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
+            await set(promoterRef, {
+              offerTitle: deal.offerTitle,
+              providerId: deal.providerId,
+              providerName: deal.providerName,
+              clientName: deal.clientName,
+              clientContact: deal.clientContact,
+              note: deal.note || '',
+              amount: commissionEarned,
+              createdAt: deal.createdAt,
+              completedAt: timestamp
+            });
+            await set(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), { lastUpdated: timestamp });
           }
 
           // Save completed deal with commissionEarned
@@ -129,7 +137,7 @@ if (!providerId) {
           await push(ref(db, `notifications/${deal.providerId}`), notifData);
           if(deal.promoterId && deal.promoterId!=='direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
           await push(ref(db, `admin-notifications`), {...notifData, dealId});
-          showNotif('✅ Deal completed and saved with commission.');
+          showNotif('✅ Deal completed and promoter earnings saved.');
         } catch(err) {
           console.error(err);
           showNotif('Error completing deal: '+err.message,'error');
