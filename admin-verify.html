@@ -123,33 +123,58 @@ onValue(pendingRef, (snapshot) => {
             cloudUrl = data.secure_url;
           }
 
+          // 🔹 Set up the new offer object with extended financial fields
           const approvedOffer = {   
             providerId: uid,
             providerName: providerInfo?.name || "Unknown",
             providerEmail: providerInfo?.email || "",
             providerPhone: providerInfo?.phone || offer.providerPhone || "+231000000000",
             role: providerInfo?.role || "provider",
-            promotionBudget: offer.promotionBudget || 0,
-            promoSpent: 0,
-            createdAt: offer.createdAt || new Date().toISOString(),
-            imageUrl: cloudUrl || offer.imageUrl,
-            status: 'active',
-            verified: true,
-            approvedAt: new Date().toISOString(),
-            paymentStatus: 'unpaid',          // NEW: payment status
-            paymentDeadline: null,            // Will be set on completion
+            
+            // Offer & Commission Details
             title: offer.title || 'Untitled Offer',
             description: offer.description || '',
-            price: offer.price || 0,
+            category: offer.category || 'Uncategorized',
             currency: offer.currency || '$',
+            price: offer.price || 0,
             commissionType: offer.commissionType || '',
             commissionValue: offer.commissionValue || 0,
             totalProducts: offer.totalProducts || 0,
-            category: offer.category || 'Uncategorized'
+            
+            // Promo/Financial Details
+            promotionBudget: offer.promotionBudget || 0,
+            promoSpent: 0,
+            amountOwed: 0,              // 💰 Total owed by provider for completed deals
+            amountPaid: 0,              // 💵 Total provider has paid
+            outstandingBalance: 0,      // amountOwed - amountPaid
+            nextBillingDate: null,      // 🗓️ To be assigned by system (weekly billing day)
+            lastBilledAt: null,         // Last time billed
+            paymentStatus: 'unpaid',
+            paymentDeadline: null,
+            paymentNotes: '',
+            
+            // Status & Metadata
+            status: 'active',
+            verified: true,
+            verifiedBy: 'superadmin',
+            approvedAt: new Date().toISOString(),
+            createdAt: offer.createdAt || new Date().toISOString(),
+            
+            // Tracking for reporting
+            providerStats: {
+              totalDeals: 0,
+              completedDeals: 0,
+              cancelledDeals: 0
+            }
           };
 
+          // Push to main offers DB
           await push(ref(db, 'offers/' + uid), approvedOffer);
+
+          // Remove from pending
           await remove(ref(db, `offers_pending/${uid}/${offerId}`));
+
+          // Notify provider
           await push(ref(db, `notifications/${uid}`), {
             title: 'Offer Approved ✅',
             message: `Your offer "${offer.title}" has been approved and is now live.`,
@@ -158,7 +183,7 @@ onValue(pendingRef, (snapshot) => {
           });
 
           offer.imageBase64 = null;
-          showNotification(card, 'Offer approved! Provider info saved.', 'success');
+          showNotification(card, 'Offer approved and saved with payment tracking fields.', 'success');
 
         } catch (err) {
           console.error(err);
@@ -168,6 +193,7 @@ onValue(pendingRef, (snapshot) => {
         }
       };
 
+      // Reject logic
       rejectBtn.onclick = async () => {
         const confirmReject = confirm('Are you sure you want to reject this offer?');
         if (!confirmReject) return;
