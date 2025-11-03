@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Provider Payments</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0b0d17;
+    color: #eef2f7;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    background: linear-gradient(90deg,#4a90e2,#a3ff6e);
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  .offer-card {
+    background: #0f1724;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 0 10px #0004;
+  }
+  .offer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .offer-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .status {
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  .status.unpaid { background: #ef4444; color: #fff; }
+  .status.paid { background: #4ade80; color: #041018; }
+  .status.pending { background: #facc15; color: #041018; }
+
+  .details {
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  .pay-btn {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    margin-top: 10px;
+  }
+  .pay-btn:disabled { background: #555; cursor: not-allowed; }
+
+  .notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #3b82f6;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+  }
+  .notification.success { background: #4ade80; color: #041018; }
+  .notification.error { background: #ef4444; }
+  .notification.info { background: #3b82f6; }
+</style>
+</head>
+<body>
+
+<h1>Provider Payment Dashboard</h1>
+<div id="offersContainer">Loading your offers...</div>
+
+<script type="module">
+import { db, auth } from './firebase.js';
+import { ref, onValue, update, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+const offersContainer = document.getElementById('offersContainer');
+
+function notify(message, type='info', duration=4000) {
+  const note = document.createElement('div');
+  note.className = `notification ${type}`;
+  note.innerText = message;
+  document.body.appendChild(note);
+  setTimeout(() => note.style.opacity = '0', duration - 500);
+  setTimeout(() => note.remove(), duration);
+}
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    offersContainer.innerHTML = '<p>Please log in as a provider to view your payments.</p>';
+    return;
+  }
+
+  const uid = user.uid;
+  const offersRef = ref(db, `offers/${uid}`);
+
+  onValue(offersRef, (snapshot) => {
+    offersContainer.innerHTML = '';
+    if (!snapshot.exists()) {
+      offersContainer.innerHTML = '<p>No offers found.</p>';
+      return;
+    }
+
+    snapshot.forEach(offerSnap => {
+      const offerId = offerSnap.key;
+      const offer = offerSnap.val();
+
+      const owed = offer.amountOwed || 0;
+      const paid = offer.amountPaid || 0;
+      const balance = owed - paid;
+
+      const card = document.createElement('div');
+      card.className = 'offer-card';
+      card.innerHTML = `
+        <div class="offer-header">
+          <span class="offer-title">${offer.title || 'Untitled Offer'}</span>
+          <span class="status ${offer.paymentStatus || 'unpaid'}">${offer.paymentStatus || 'unpaid'}</span>
+        </div>
+
+        <div class="details">
+          <p><strong>Promotion Budget:</strong> ${offer.promotionBudget || 0}</p>
+          <p><strong>Promo Spent:</strong> ${offer.promoSpent || 0}</p>
+          <p><strong>Amount Owed:</strong> ${owed}</p>
+          <p><strong>Amount Paid:</strong> ${paid}</p>
+          <p><strong>Outstanding:</strong> ${balance > 0 ? balance : 0}</p>
+          <p><strong>Next Billing Date:</strong> ${offer.nextBillingDate ? new Date(offer.nextBillingDate).toLocaleString() : 'Not Scheduled'}</p>
+          <p><strong>Payment Deadline:</strong> ${offer.paymentDeadline ? new Date(offer.paymentDeadline).toLocaleString() : 'N/A'}</p>
+        </div>
+      `;
+
+      const payBtn = document.createElement('button');
+      payBtn.className = 'pay-btn';
+      payBtn.innerText = offer.paymentStatus === 'paid' ? 'Paid' : 'Pay Now';
+      payBtn.disabled = offer.paymentStatus === 'paid';
+
+      payBtn.onclick = async () => {
+        payBtn.disabled = true;
+        payBtn.innerText = 'Processing...';
+        try {
+          // Send payment request (admin will verify)
+          await push(ref(db, `payment_requests/${uid}`), {
+            offerId,
+            providerId: uid,
+            amount: balance,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          });
+
+          // Update offer status to pending
+          await update(ref(db, `offers/${uid}/${offerId}`), {
+            paymentStatus: 'pending',
+            paymentNotes: 'Payment request submitted, awaiting admin verification.'
+          });
+
+          notify('Payment request sent successfully ✅', 'success');
+          payBtn.innerText = 'Pending Verification';
+        } catch (err) {
+          console.error(err);
+          notify('Error sending payment request: ' + err.message, 'error');
+          payBtn.disabled = false;
+          payBtn.innerText = 'Pay Now';
+        }
+      };
+
+      card.appendChild(payBtn);
+      offersContainer.appendChild(card);
+    });
+  });
+});
+</script>
+</body>
+</html>
