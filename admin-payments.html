@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Admin Payment Verification</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0a0e16;
+    color: #f1f5f9;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    background: linear-gradient(90deg, #a3ff6e, #4a90e2);
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  .payment-card {
+    background: #111827;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 0 10px #0006;
+  }
+  .details {
+    margin-top: 8px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .approve-btn, .reject-btn {
+    border: none;
+    padding: 8px 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .approve-btn {
+    background: #22c55e;
+    color: #041018;
+  }
+  .reject-btn {
+    background: #ef4444;
+    color: #fff;
+  }
+  .status {
+    font-weight: bold;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+  .pending { background: #facc15; color: #041018; }
+  .approved { background: #22c55e; color: #041018; }
+  .rejected { background: #ef4444; color: #fff; }
+
+  .notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #3b82f6;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+  }
+  .notification.success { background: #4ade80; color: #041018; }
+  .notification.error { background: #ef4444; }
+</style>
+</head>
+<body>
+
+<h1>Admin — Provider Payment Requests</h1>
+<div id="requestsContainer">Loading payment requests...</div>
+
+<script type="module">
+import { db, auth } from './firebase.js';
+import { ref, onValue, update, remove, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+const requestsContainer = document.getElementById('requestsContainer');
+
+function notify(message, type='info', duration=4000) {
+  const note = document.createElement('div');
+  note.className = `notification ${type}`;
+  note.innerText = message;
+  document.body.appendChild(note);
+  setTimeout(() => note.style.opacity = '0', duration - 500);
+  setTimeout(() => note.remove(), duration);
+}
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    requestsContainer.innerHTML = '<p>Please log in as an admin.</p>';
+    return;
+  }
+
+  // Replace with your admin check logic
+  const adminEmail = 'superadmin@earnlibr.com';
+  if (user.email !== adminEmail) {
+    requestsContainer.innerHTML = '<p>Access denied. Admins only.</p>';
+    return;
+  }
+
+  const paymentsRef = ref(db, 'payment_requests');
+
+  onValue(paymentsRef, (snapshot) => {
+    requestsContainer.innerHTML = '';
+    if (!snapshot.exists()) {
+      requestsContainer.innerHTML = '<p>No payment requests yet.</p>';
+      return;
+    }
+
+    snapshot.forEach(providerSnap => {
+      const providerId = providerSnap.key;
+      providerSnap.forEach(requestSnap => {
+        const reqId = requestSnap.key;
+        const req = requestSnap.val();
+
+        const card = document.createElement('div');
+        card.className = 'payment-card';
+        card.innerHTML = `
+          <strong>Provider ID:</strong> ${providerId}<br>
+          <strong>Offer ID:</strong> ${req.offerId}<br>
+          <strong>Amount:</strong> ${req.amount}<br>
+          <strong>Status:</strong> <span class="status ${req.status}">${req.status}</span>
+          <div class="details">
+            <p><strong>Date:</strong> ${new Date(req.createdAt).toLocaleString()}</p>
+          </div>
+        `;
+
+        const btns = document.createElement('div');
+        btns.className = 'btns';
+
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'approve-btn';
+        approveBtn.innerText = 'Approve';
+
+        const rejectBtn = document.createElement('button');
+        rejectBtn.className = 'reject-btn';
+        rejectBtn.innerText = 'Reject';
+
+        approveBtn.onclick = async () => {
+          try {
+            // Update offer
+            const offerRef = ref(db, `offers/${providerId}/${req.offerId}`);
+            const offerSnap = await get(offerRef);
+            if (offerSnap.exists()) {
+              const offer = offerSnap.val();
+              const newPaid = (offer.amountPaid || 0) + req.amount;
+              const owed = offer.amountOwed || 0;
+              const newStatus = newPaid >= owed ? 'paid' : 'partial';
+
+              await update(offerRef, {
+                amountPaid: newPaid,
+                paymentStatus: newStatus,
+                paymentNotes: 'Admin approved payment.',
+                lastPaymentAt: new Date().toISOString()
+              });
+            }
+
+            // Mark request as approved
+            await update(ref(db, `payment_requests/${providerId}/${reqId}`), {
+              status: 'approved',
+              verifiedAt: new Date().toISOString(),
+              verifiedBy: user.email
+            });
+
+            notify(`Payment of ${req.amount} approved ✅`, 'success');
+          } catch (err) {
+            console.error(err);
+            notify('Error approving payment: ' + err.message, 'error');
+          }
+        };
+
+        rejectBtn.onclick = async () => {
+          try {
+            await update(ref(db, `payment_requests/${providerId}/${reqId}`), {
+              status: 'rejected',
+              verifiedAt: new Date().toISOString(),
+              verifiedBy: user.email
+            });
+            notify('Payment rejected ❌', 'error');
+          } catch (err) {
+            notify('Error rejecting payment: ' + err.message, 'error');
+          }
+        };
+
+        btns.appendChild(approveBtn);
+        btns.appendChild(rejectBtn);
+        card.appendChild(btns);
+        requestsContainer.appendChild(card);
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>
