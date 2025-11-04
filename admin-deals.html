@@ -75,7 +75,7 @@
               const timestamp = new Date().toISOString();
               let commissionEarned = 0;
 
-              // Update offer promoSpent
+              // 1️⃣ Update offer financials
               if (deal.offerId && deal.providerId) {
                 const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
                 const offerSnap = await get(offerRef);
@@ -91,15 +91,24 @@
                   }
 
                   const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
-                  const offerUpdates = { promoSpent: newSpent };
+                  const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
+                  const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
+
+                  const offerUpdates = {
+                    promoSpent: newSpent,
+                    amountOwed: newAmountOwed,
+                    outstandingBalance: newOutstanding
+                  };
+
                   if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
                     offerUpdates.status = 'completed';
                   }
+
                   await update(offerRef, offerUpdates);
                 }
               }
 
-              // 🚀 NEW: Save promoter earnings in dedicated node
+              // 2️⃣ Save promoter earnings
               if (deal.promoterId && deal.promoterId !== 'direct') {
                 const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
                 await set(promoterRef, {
@@ -116,23 +125,34 @@
                 await set(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), { lastUpdated: timestamp });
               }
 
-              // Save full deal info + commissionEarned
+              // 3️⃣ Save completed deal with payment tracking
               await set(ref(db, `completed-deals/${dealId}`), {
                 ...deal,
                 status: 'completed',
                 completedAt: timestamp,
-                commissionEarned
+                commissionEarned,
+                providerPaid: false,     // tracks if provider has paid
+                paymentAmount: 0,        // amount paid
+                paymentNotes: ''         // optional admin notes
               });
 
+              // 4️⃣ Remove deal from active deals
               await remove(ref(db, `deals/${dealId}`));
               card.remove();
 
-              const notifData = { title: 'Deal Completed ✅', message: `Deal ${dealId} completed.`, type: 'completed', createdAt: timestamp, commissionEarned };
+              // 5️⃣ Notifications
+              const notifData = {
+                title: 'Deal Completed ✅',
+                message: `Deal ${dealId} completed.`,
+                type: 'completed',
+                createdAt: timestamp,
+                commissionEarned
+              };
               await push(ref(db, `notifications/${deal.providerId}`), notifData);
               if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('✅ Deal completed and promoter earnings saved.');
+              showNotif('✅ Deal completed, commission saved, and provider payment tracking set.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
