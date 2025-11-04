@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EarnLibr — Provider Bill</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-    h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-    .bill-container { margin-bottom: 20px; }
-    .currency-total { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
-    .currency-total h3 { margin: 0 0 10px 0; }
-    .offer-breakdown { background: #0f1724; padding: 10px; margin-bottom: 5px; border-radius: 10px; cursor: pointer; }
-    .deal-item { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; }
-    .btn-pay { background: #4ade80; color: #041018; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-    .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
-    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Provider Weekly Bill</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+  h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+  .bill-container { margin-bottom: 20px; }
+  .currency-total { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
+  .currency-total h3 { margin: 0 0 10px 0; }
+  .offer-breakdown { background: #0f1724; padding: 10px; margin-bottom: 5px; border-radius: 10px; cursor: pointer; }
+  .deal-item { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; }
+  .btn-pay { background: #4ade80; color: #041018; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+  .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
+  .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+  .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+</style>
 </head>
 <body>
 
@@ -26,7 +26,7 @@
 
 <script type="module">
 import { db } from './firebase.js';
-import { ref, get, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, get, push, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
 const providerId = "PROVIDER_ID_HERE"; // replace with logged-in provider ID
 const billContainer = document.getElementById('billContainer');
@@ -38,11 +38,16 @@ const showNotif = (msg, type='success') => {
   setTimeout(() => notif.style.display = 'none', 4000);
 };
 
+// Minimum thresholds
+const currencyThresholds = {
+  USD: 1,
+  LRD: 300
+};
+
 async function fetchProviderBill() {
   billContainer.innerHTML = "Loading...";
-  
+
   try {
-    // 1️⃣ Fetch all completed deals
     const dealsSnap = await get(ref(db, 'completed-deals'));
     if (!dealsSnap.exists()) {
       billContainer.innerHTML = "<p>No completed deals found.</p>";
@@ -52,7 +57,7 @@ async function fetchProviderBill() {
     const allDeals = dealsSnap.val();
     const unpaidDeals = [];
 
-    // Filter only provider's unpaid deals
+    // Filter unpaid deals for this provider
     Object.keys(allDeals).forEach(dealId => {
       const deal = allDeals[dealId];
       if (deal.providerId === providerId && !deal.providerPaid) {
@@ -65,8 +70,8 @@ async function fetchProviderBill() {
       return;
     }
 
-    // 2️⃣ Group by offer
-    const offersMap = {}; // key = offerId
+    // Group by offer
+    const offersMap = {};
     unpaidDeals.forEach(deal => {
       if (!offersMap[deal.offerId]) {
         offersMap[deal.offerId] = {
@@ -81,27 +86,30 @@ async function fetchProviderBill() {
       offersMap[deal.offerId].subtotal += parseFloat(deal.commissionEarned || 0);
     });
 
-    // 3️⃣ Group by currency for total per currency
+    // Group by currency
     const currencyTotals = {};
     Object.values(offersMap).forEach(offer => {
       if (!currencyTotals[offer.currency]) currencyTotals[offer.currency] = 0;
       currencyTotals[offer.currency] += offer.subtotal;
     });
 
-    // 4️⃣ Display per currency
+    // Display bills per currency (apply thresholds)
     billContainer.innerHTML = "";
     Object.keys(currencyTotals).forEach(currency => {
       const total = currencyTotals[currency];
+      const threshold = currencyThresholds[currency] || 0;
+
+      if (total < threshold) return; // skip tiny bills
+
       const currencyDiv = document.createElement('div');
       currencyDiv.className = "currency-total";
 
-      currencyDiv.innerHTML = `
-        <h3>Total Owed (${currency}): ${total.toFixed(2)}</h3>
-      `;
+      currencyDiv.innerHTML = `<h3>Total Owed (${currency}): ${total.toFixed(2)}</h3>`;
 
-      // Add per-offer breakdown (expandable)
+      // Offer breakdown
       Object.values(offersMap).forEach(offer => {
         if (offer.currency !== currency) return;
+
         const offerDiv = document.createElement('div');
         offerDiv.className = "offer-breakdown";
         offerDiv.innerHTML = `<strong>${offer.title}</strong> — Subtotal: ${offer.subtotal.toFixed(2)} ${currency} (${offer.deals.length} deals)`;
@@ -120,7 +128,7 @@ async function fetchProviderBill() {
         currencyDiv.appendChild(offerDiv);
       });
 
-      // Pay button (notify admin)
+      // Pay button: notify admin
       const payBtn = document.createElement('button');
       payBtn.className = 'btn-pay';
       payBtn.textContent = `Mark as Paid (${currency} ${total.toFixed(2)})`;
@@ -132,7 +140,7 @@ async function fetchProviderBill() {
             totalAmount: total,
             offers: Object.values(offersMap).filter(o => o.currency === currency),
             createdAt: new Date().toISOString(),
-            type: 'providerPaymentRequest'
+            type: 'providerPaymentNotification'
           });
           showNotif(`Payment notification sent to admin for ${currency} ${total.toFixed(2)}.`, 'success');
         } catch (err) {
@@ -151,9 +159,8 @@ async function fetchProviderBill() {
   }
 }
 
-// Initialize
+// Trigger weekly billing (or manual load)
 fetchProviderBill();
-
 </script>
 </body>
 </html>
