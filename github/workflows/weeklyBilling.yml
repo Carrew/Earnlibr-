@@ -1,26 +1,32 @@
-name: Weekly Billing
+name: Weekly Provider Billing
 
+# Runs every Thursday at 00:00 UTC
 on:
   schedule:
-    # Every Thursday at 00:00 UTC
     - cron: '0 0 * * 4'
 
 jobs:
-  run-billing:
+  generate-bills:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: '20'
 
+      # 3️⃣ Install dependencies (if you have any npm modules)
       - name: Install dependencies
         run: npm install
 
-      - name: Run Weekly Provider Bill
-        run: node weeklyProvidersBill.js
+      # 4️⃣ Run billing script
+      - name: Run provider billing
+        run: node scripts/weeklyProvidersBill.js
 
-      - name: Run Weekly Admin Bill
-        run: node weeklyAdminProvidersBill.js
+      - name: Run admin billing
+        run: node scripts/adminProvidersBill.js
