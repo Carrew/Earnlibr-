@@ -3,268 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EarnLibr — Wallet</title>
+  <title>EarnLibr — Promoter Wallet</title>
   <style>
-    :root {
-      --bg: #0b0d17;
-      --card: #0f1724;
-      --accent1: #4a90e2;
-      --accent2: #a3ff6e;
-      --muted: #bfc7d6;
-      --danger: #e74c3c;
-      --radius: 12px;
-    }
-
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, Arial;
-      background: linear-gradient(180deg,#071028 0%, #0b0d17 100%);
-      color: #eef2f7;
-      display: flex;
-      min-height: 100vh;
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 260px;
-      background: var(--card);
-      display: flex;
-      flex-direction: column;
-      padding: 20px;
-      border-right: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .logo img {
-      width: 44px;
-      height: 44px;
-      object-fit: cover;
-      border-radius: 8px;
-    }
-
-    .logo h2 {
-      font-size: 16px;
-      background: linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-      margin: 0;
-    }
-
-    .nav a {
-      display: block;
-      padding: 10px 12px;
-      border-radius: 10px;
-      text-decoration: none;
-      color: var(--muted);
-      font-weight: 600;
-      margin-bottom: 6px;
-      cursor: pointer;
-    }
-
-    .nav a.active, .nav a:hover {
-      color: #041018;
-      background: linear-gradient(90deg,var(--accent1),var(--accent2));
-    }
-
-    .profile {
-      margin-top: auto;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: linear-gradient(90deg,var(--accent1),var(--accent2));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: #041018;
-    }
-
-    .main {
-      flex: 1;
-      padding: 25px;
-      overflow-y: auto;
-    }
-
-    h1 {
-      font-size: 20px;
-      background: linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-      margin-bottom: 20px;
-    }
-
-    .balance-card {
-      background: rgba(255,255,255,0.02);
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .transactions {
-      display: grid;
-      gap: 12px;
-    }
-
-    .transaction {
-      background: rgba(255,255,255,0.02);
-      padding: 12px;
-      border-radius: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .transaction .type {
-      font-weight: 600;
-    }
-
-    .transaction .status {
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-
-    .status.pending { background: #facc1533; color: #fbbf24; }
-    .status.completed { background: #22c55e33; color: #4ade80; }
-    .status.failed { background: #ef444433; color: #f87171; }
-
-    /* MOBILE */
-    @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .sidebar { position: fixed; top: 0; left: -260px; height: 100%; z-index: 1001; transition: left 0.3s ease; }
-      .sidebar.active { left: 0; }
-      .menu-toggle {
-        background: var(--card);
-        color: #fff;
-        border: none;
-        padding: 12px 18px;
-        font-size: 20px;
-        cursor: pointer;
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 1100;
-        border-radius: 8px;
-      }
-      .main { padding-top: 60px; }
-    }
+    body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+    h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+    .wallet-summary { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+    .deal-item { background: #0f1724; padding: 10px; margin: 5px 0; border-radius: 8px; cursor: pointer; }
+    .deal-list { display: none; margin-top: 10px; }
+    .btn-withdraw { background: #4ade80; color: #041018; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
+    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
   </style>
 </head>
 <body>
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
-      <h2>EarnLibr</h2>
-    </div>
 
-    <nav class="nav">
-      <a href="freelancer-dashboard.html" class="">Dashboard</a>
-      <a href="offers.html" class="">Offers</a>
-      <a class="active">Wallet</a>
-      <a href="freelancer-notifications.html">Notifications</a>
-    </nav>
+<h1>Promoter Wallet</h1>
+<div id="notif" class="notif"></div>
+<div id="walletContainer">Loading wallet...</div>
 
-    <div class="profile">
-      <div id="avatar" class="avatar">F</div>
-      <div>
-        <div id="userName" style="font-weight:700;">Loading...</div>
-        <div id="userEmail" style="font-size:12px;color:var(--muted);">—</div>
+<script type="module">
+import { db } from './firebase.js';
+import { ref, get, update, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+const promoterId = "PROMOTER_ID_HERE"; // replace with logged-in promoter ID
+const walletContainer = document.getElementById('walletContainer');
+const notif = document.getElementById('notif');
+const showNotif = (msg, type='success') => {
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = 'block';
+  setTimeout(() => notif.style.display = 'none', 4000);
+};
+
+async function fetchWallet() {
+  walletContainer.innerHTML = "Loading wallet...";
+  try {
+    const promoterSnap = await get(ref(db, `promoter-earnings/${promoterId}`));
+    if (!promoterSnap.exists()) {
+      walletContainer.innerHTML = "<p>No earnings found yet.</p>";
+      return;
+    }
+
+    const promoterData = promoterSnap.val();
+    const deals = promoterData.deals || {};
+    const metadata = promoterData.metadata || {};
+    
+    // Filter deals not withdrawn
+    const withdrawableDeals = Object.entries(deals)
+      .filter(([dealId, deal]) => !deal.withdrawn)
+      .map(([dealId, deal]) => ({ id: dealId, ...deal }));
+
+    const totalWithdrawable = withdrawableDeals.reduce((acc, deal) => acc + parseFloat(deal.commissionAmount || 0), 0);
+    const lifetimeEarnings = parseFloat(metadata.totalLifetimeEarnings || 0);
+    const totalWithdrawn = parseFloat(metadata.totalWithdrawn || 0);
+
+    // Display summary
+    walletContainer.innerHTML = `
+      <div class="wallet-summary">
+        <p><strong>Current Balance:</strong> ${totalWithdrawable.toFixed(2)}</p>
+        <p><strong>Total Withdrawn:</strong> ${totalWithdrawn.toFixed(2)}</p>
+        <p><strong>Lifetime Earnings:</strong> ${lifetimeEarnings.toFixed(2)}</p>
       </div>
-    </div>
-  </aside>
+    `;
 
-  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    // Display deal list (expandable)
+    if (withdrawableDeals.length) {
+      const dealListDiv = document.createElement('div');
+      withdrawableDeals.forEach(deal => {
+        const dealDiv = document.createElement('div');
+        dealDiv.className = 'deal-item';
+        dealDiv.innerHTML = `<strong>${deal.offerTitle}</strong> — ${deal.commissionAmount.toFixed(2)} | Completed: ${new Date(deal.completedAt).toLocaleString()}`;
 
-  <!-- MAIN -->
-  <main class="main">
-    <h1>Wallet Overview</h1>
-    <div class="balance-card">
-      <div>
-        <div style="font-size:14px; color:var(--muted)">Total Balance</div>
-        <div id="totalBalance" style="font-size:22px; font-weight:700;">$0.00</div>
-      </div>
-      <div>
-        <div style="font-size:14px; color:var(--muted)">Pending</div>
-        <div id="pendingBalance" style="font-size:18px;">$0.00</div>
-      </div>
-      <div>
-        <div style="font-size:14px; color:var(--muted)">Withdrawn</div>
-        <div id="withdrawnBalance" style="font-size:18px;">$0.00</div>
-      </div>
-    </div>
+        const dealDetails = document.createElement('div');
+        dealDetails.className = 'deal-list';
+        dealDetails.innerHTML = `
+          <p>Provider: ${deal.providerName} (${deal.providerId})</p>
+          <p>Client: ${deal.clientName} | ${deal.clientContact}</p>
+          <p>Note: ${deal.note || 'None'}</p>
+        `;
 
-    <h2>Transaction History</h2>
-    <div id="transactions" class="transactions"></div>
-  </main>
+        dealDiv.onclick = () => {
+          dealDetails.style.display = dealDetails.style.display === 'none' ? 'block' : 'none';
+        };
+        dealDiv.appendChild(dealDetails);
+        walletContainer.appendChild(dealDiv);
+      });
 
-  <script type="module">
-    import { db } from "./firebase.js";
-    import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+      // Withdraw button
+      const withdrawBtn = document.createElement('button');
+      withdrawBtn.className = 'btn-withdraw';
+      withdrawBtn.textContent = `Request Withdrawal (${totalWithdrawable.toFixed(2)})`;
+      withdrawBtn.onclick = async () => {
+        try {
+          // 1️⃣ Mark deals as pending withdrawal
+          const updates = {};
+          withdrawableDeals.forEach(deal => {
+            updates[`promoter-earnings/${promoterId}/deals/${deal.id}/withdrawn`] = true;
+          });
+          await update(ref(db), updates);
 
-    const userSessionRaw = localStorage.getItem('userSession');
-    if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
-    const userSession = JSON.parse(userSessionRaw);
-    const userId = userSession.uid;
+          // 2️⃣ Notify admin
+          await push(ref(db, 'admin-notifications'), {
+            promoterId,
+            totalAmount: totalWithdrawable,
+            deals: withdrawableDeals.map(d => ({ id: d.id, offerTitle: d.offerTitle, amount: d.commissionAmount })),
+            type: 'promoterWithdrawalRequest',
+            createdAt: new Date().toISOString()
+          });
 
-    // Load profile info
-    document.getElementById('userName').textContent = userSession.name || "Freelancer";
-    document.getElementById('userEmail').textContent = userSession.email || "";
-    document.getElementById('avatar').textContent = (userSession.name || "F")[0].toUpperCase();
+          showNotif(`Withdrawal request sent for ${totalWithdrawable.toFixed(2)}.`, 'success');
+          fetchWallet(); // refresh wallet
+        } catch (err) {
+          console.error(err);
+          showNotif('Error requesting withdrawal: ' + err.message, 'error');
+        }
+      };
+      walletContainer.appendChild(withdrawBtn);
+    } else {
+      walletContainer.innerHTML += "<p>No withdrawable earnings at this time.</p>";
+    }
+  } catch (err) {
+    console.error(err);
+    walletContainer.innerHTML = "<p>Error loading wallet: " + err.message + "</p>";
+  }
+}
 
-    const totalBalanceEl = document.getElementById('totalBalance');
-    const pendingBalanceEl = document.getElementById('pendingBalance');
-    const withdrawnBalanceEl = document.getElementById('withdrawnBalance');
-    const transactionsEl = document.getElementById('transactions');
+// Initialize
+fetchWallet();
+</script>
 
-    const walletRef = ref(db, `wallets/${userId}`);
-    onValue(walletRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-
-      const data = snapshot.val();
-      totalBalanceEl.textContent = `$${(data.total || 0).toFixed(2)}`;
-      pendingBalanceEl.textContent = `$${(data.pending || 0).toFixed(2)}`;
-      withdrawnBalanceEl.textContent = `$${(data.withdrawn || 0).toFixed(2)}`;
-
-      transactionsEl.innerHTML = "";
-      if (data.transactions) {
-        Object.entries(data.transactions).sort((a,b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
-        .forEach(([id, t]) => {
-          const div = document.createElement('div');
-          div.className = 'transaction';
-          div.innerHTML = `
-            <div>
-              <div class="type">${t.type}</div>
-              <div class="desc" style="font-size:12px; color:var(--muted)">${t.description || ''}</div>
-            </div>
-            <div>
-              <div>${t.amount ? '$'+t.amount.toFixed(2) : '$0.00'}</div>
-              <div class="status ${t.status || 'pending'}">${t.status || 'pending'}</div>
-            </div>
-          `;
-          transactionsEl.appendChild(div);
-        });
-      }
-    });
-
-    window.toggleSidebar = () => {
-      document.querySelector('.sidebar').classList.toggle('active');
-    };
-  </script>
 </body>
 </html>
