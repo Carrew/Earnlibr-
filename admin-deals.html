@@ -108,35 +108,53 @@
                 }
               }
 
-              // 2️⃣ Save promoter earnings
+              // 2️⃣ Save promoter earnings (upgraded for wallet later)
               if (deal.promoterId && deal.promoterId !== 'direct') {
-                const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
-                await set(promoterRef, {
+                const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
+
+                // Save deal under promoter
+                await set(ref(promoterBaseRef, `deals/${dealId}`), {
+                  offerId: deal.offerId,
                   offerTitle: deal.offerTitle,
                   providerId: deal.providerId,
                   providerName: deal.providerName,
                   clientName: deal.clientName,
                   clientContact: deal.clientContact,
                   note: deal.note || '',
-                  amount: commissionEarned,
-                  createdAt: deal.createdAt,
-                  completedAt: timestamp
+                  commissionAmount: commissionEarned,
+                  completedAt: timestamp,
+                  withdrawn: false  // ready for future wallet implementation
                 });
-                await set(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), { lastUpdated: timestamp });
+
+                // Update promoter metadata
+                const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
+                let totalLifetime = commissionEarned;
+                let totalWithdrawn = 0;
+                if (metaSnap.exists()) {
+                  const meta = metaSnap.val();
+                  totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
+                  totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
+                }
+
+                await set(ref(promoterBaseRef, 'metadata'), {
+                  totalLifetimeEarnings: totalLifetime,
+                  totalWithdrawn: totalWithdrawn,
+                  lastUpdated: timestamp
+                });
               }
 
-              // 3️⃣ Save completed deal with payment tracking
+              // 3️⃣ Save completed deal with provider payment tracking
               await set(ref(db, `completed-deals/${dealId}`), {
                 ...deal,
                 status: 'completed',
                 completedAt: timestamp,
                 commissionEarned,
-                providerPaid: false,     // tracks if provider has paid
-                paymentAmount: 0,        // amount paid
-                paymentNotes: ''         // optional admin notes
+                providerPaid: false,
+                paymentAmount: 0,
+                paymentNotes: ''
               });
 
-              // 4️⃣ Remove deal from active deals
+              // 4️⃣ Remove from active deals
               await remove(ref(db, `deals/${dealId}`));
               card.remove();
 
@@ -152,7 +170,7 @@
               if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('✅ Deal completed, commission saved, and provider payment tracking set.');
+              showNotif('✅ Deal completed, commission saved, and promoter earnings structured for wallet.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
