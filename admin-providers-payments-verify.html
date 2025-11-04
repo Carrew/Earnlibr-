@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Admin Provider Payments</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+  h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+  .payment-container { margin-bottom: 20px; }
+  .provider-block { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
+  .currency-block { background: #0f1724; padding: 10px; margin-top: 10px; border-radius: 10px; }
+  .offer-breakdown { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; cursor: pointer; }
+  .deal-item { padding: 5px; margin: 2px 0; border-radius: 6px; font-size: 14px; background: #0b1122; }
+  .btn-verify { background: #4ade80; color: #041018; padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+  .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
+  .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+  .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+</style>
+</head>
+<body>
+
+<h1>Admin — Provider Payments</h1>
+<div id="notif" class="notif"></div>
+<div id="paymentsContainer" class="payment-container">Loading provider payments...</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { ref, get, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+const paymentsContainer = document.getElementById('paymentsContainer');
+const notif = document.getElementById('notif');
+const showNotif = (msg, type='success') => {
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = 'block';
+  setTimeout(() => notif.style.display = 'none', 4000);
+};
+
+async function fetchProviderPayments() {
+  paymentsContainer.innerHTML = "Loading...";
+
+  try {
+    const notificationsSnap = await get(ref(db, 'admin-notifications'));
+    if (!notificationsSnap.exists()) {
+      paymentsContainer.innerHTML = "<p>No provider payment notifications.</p>";
+      return;
+    }
+
+    const notifications = notificationsSnap.val();
+
+    // Filter only provider payment notifications
+    const providerPayments = Object.entries(notifications)
+      .filter(([id, n]) => n.type === 'providerPaymentNotification');
+
+    if (!providerPayments.length) {
+      paymentsContainer.innerHTML = "<p>No provider payment notifications.</p>";
+      return;
+    }
+
+    paymentsContainer.innerHTML = "";
+    providerPayments.forEach(([notifId, notifData]) => {
+      const providerDiv = document.createElement('div');
+      providerDiv.className = 'provider-block';
+
+      providerDiv.innerHTML = `
+        <h3>Provider: ${notifData.providerId}</h3>
+      `;
+
+      // Group by currency
+      const currencyDiv = document.createElement('div');
+      currencyDiv.className = 'currency-block';
+      currencyDiv.innerHTML = `<strong>Currency: ${notifData.currency} | Total: ${notifData.totalAmount.toFixed(2)}</strong>`;
+
+      // Offer breakdown
+      notifData.offers.forEach(offer => {
+        const offerDiv = document.createElement('div');
+        offerDiv.className = 'offer-breakdown';
+        offerDiv.innerHTML = `<strong>${offer.title}</strong> — Subtotal: ${offer.subtotal?.toFixed(2) || 0} (${offer.deals.length} deals)`;
+
+        const dealsList = document.createElement('div');
+        dealsList.style.display = 'none';
+        offer.deals.forEach(deal => {
+          const dealDiv = document.createElement('div');
+          dealDiv.className = 'deal-item';
+          dealDiv.textContent = `DealID: ${deal.id} | Client: ${deal.clientName} | Commission: ${deal.commissionEarned.toFixed(2)}`;
+          dealsList.appendChild(dealDiv);
+        });
+
+        offerDiv.appendChild(dealsList);
+        offerDiv.onclick = () => dealsList.style.display = dealsList.style.display === 'none' ? 'block' : 'none';
+        currencyDiv.appendChild(offerDiv);
+      });
+
+      // Verify Payment button
+      const verifyBtn = document.createElement('button');
+      verifyBtn.className = 'btn-verify';
+      verifyBtn.textContent = `Verify Payment (${notifData.currency} ${notifData.totalAmount.toFixed(2)})`;
+      verifyBtn.onclick = async () => {
+        try {
+          // Mark all deals as paid
+          for (const offer of notifData.offers) {
+            for (const deal of offer.deals) {
+              await update(ref(db, `completed-deals/${deal.id}`), {
+                providerPaid: true,
+                paymentAmount: deal.commissionEarned,
+                paymentNotes: 'Verified by admin'
+              });
+
+              // Optionally update offer amountPaid here if needed
+              // Example:
+              const offerRef = ref(db, `offers/${notifData.providerId}/${deal.offerId}`);
+              const offerSnap = await get(offerRef);
+              if (offerSnap.exists()) {
+                const offerData = offerSnap.val();
+                const newAmountPaid = (parseFloat(offerData.amountPaid || 0) + parseFloat(deal.commissionEarned || 0));
+                await update(offerRef, { amountPaid: newAmountPaid });
+              }
+            }
+          }
+
+          // Optionally remove notification after verification
+          await update(ref(db, `admin-notifications/${notifId}`), { verifiedAt: new Date().toISOString(), verified: true });
+          showNotif('Payment verified successfully.', 'success');
+          providerDiv.remove();
+        } catch (err) {
+          console.error(err);
+          showNotif('Error verifying payment: ' + err.message, 'error');
+        }
+      };
+
+      currencyDiv.appendChild(verifyBtn);
+      providerDiv.appendChild(currencyDiv);
+      paymentsContainer.appendChild(providerDiv);
+    });
+
+  } catch (err) {
+    console.error(err);
+    paymentsContainer.innerHTML = "<p>Error fetching provider payments: " + err.message + "</p>";
+  }
+}
+
+// Initialize
+fetchProviderPayments();
+</script>
+
+</body>
+</html>
