@@ -1,184 +1,159 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Provider Payments</title>
-<style>
-  body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: #0b0d17;
-    color: #eef2f7;
-    margin: 0;
-    padding: 20px;
-  }
-  h1 {
-    background: linear-gradient(90deg,#4a90e2,#a3ff6e);
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-  .offer-card {
-    background: #0f1724;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 0 10px #0004;
-  }
-  .offer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .offer-title {
-    font-size: 1.2rem;
-    font-weight: 700;
-  }
-  .status {
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 8px;
-  }
-  .status.unpaid { background: #ef4444; color: #fff; }
-  .status.paid { background: #4ade80; color: #041018; }
-  .status.pending { background: #facc15; color: #041018; }
-
-  .details {
-    margin-top: 10px;
-    line-height: 1.5;
-  }
-
-  .pay-btn {
-    background: #3b82f6;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 700;
-    margin-top: 10px;
-  }
-  .pay-btn:disabled { background: #555; cursor: not-allowed; }
-
-  .notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #3b82f6;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: bold;
-    opacity: 0.9;
-    transition: opacity 0.3s ease;
-  }
-  .notification.success { background: #4ade80; color: #041018; }
-  .notification.error { background: #ef4444; }
-  .notification.info { background: #3b82f6; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EarnLibr — Provider Bill</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+    h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+    .bill-container { margin-bottom: 20px; }
+    .currency-total { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
+    .currency-total h3 { margin: 0 0 10px 0; }
+    .offer-breakdown { background: #0f1724; padding: 10px; margin-bottom: 5px; border-radius: 10px; cursor: pointer; }
+    .deal-item { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; }
+    .btn-pay { background: #4ade80; color: #041018; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
+    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+  </style>
 </head>
 <body>
 
-<h1>Provider Payment Dashboard</h1>
-<div id="offersContainer">Loading your offers...</div>
+<h1>Provider Weekly Bill</h1>
+<div id="notif" class="notif"></div>
+<div id="billContainer" class="bill-container">Loading your bill...</div>
 
 <script type="module">
-import { db, auth } from './firebase.js';
-import { ref, onValue, update, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { db } from './firebase.js';
+import { ref, get, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-const offersContainer = document.getElementById('offersContainer');
+const providerId = "PROVIDER_ID_HERE"; // replace with logged-in provider ID
+const billContainer = document.getElementById('billContainer');
+const notif = document.getElementById('notif');
+const showNotif = (msg, type='success') => {
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = 'block';
+  setTimeout(() => notif.style.display = 'none', 4000);
+};
 
-function notify(message, type='info', duration=4000) {
-  const note = document.createElement('div');
-  note.className = `notification ${type}`;
-  note.innerText = message;
-  document.body.appendChild(note);
-  setTimeout(() => note.style.opacity = '0', duration - 500);
-  setTimeout(() => note.remove(), duration);
-}
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    offersContainer.innerHTML = '<p>Please log in as a provider to view your payments.</p>';
-    return;
-  }
-
-  const uid = user.uid;
-  const offersRef = ref(db, `offers/${uid}`);
-
-  onValue(offersRef, (snapshot) => {
-    offersContainer.innerHTML = '';
-    if (!snapshot.exists()) {
-      offersContainer.innerHTML = '<p>No offers found.</p>';
+async function fetchProviderBill() {
+  billContainer.innerHTML = "Loading...";
+  
+  try {
+    // 1️⃣ Fetch all completed deals
+    const dealsSnap = await get(ref(db, 'completed-deals'));
+    if (!dealsSnap.exists()) {
+      billContainer.innerHTML = "<p>No completed deals found.</p>";
       return;
     }
 
-    snapshot.forEach(offerSnap => {
-      const offerId = offerSnap.key;
-      const offer = offerSnap.val();
+    const allDeals = dealsSnap.val();
+    const unpaidDeals = [];
 
-      const owed = offer.amountOwed || 0;
-      const paid = offer.amountPaid || 0;
-      const balance = owed - paid;
+    // Filter only provider's unpaid deals
+    Object.keys(allDeals).forEach(dealId => {
+      const deal = allDeals[dealId];
+      if (deal.providerId === providerId && !deal.providerPaid) {
+        unpaidDeals.push({ id: dealId, ...deal });
+      }
+    });
 
-      const card = document.createElement('div');
-      card.className = 'offer-card';
-      card.innerHTML = `
-        <div class="offer-header">
-          <span class="offer-title">${offer.title || 'Untitled Offer'}</span>
-          <span class="status ${offer.paymentStatus || 'unpaid'}">${offer.paymentStatus || 'unpaid'}</span>
-        </div>
+    if (!unpaidDeals.length) {
+      billContainer.innerHTML = "<p>No unpaid deals for this week.</p>";
+      return;
+    }
 
-        <div class="details">
-          <p><strong>Promotion Budget:</strong> ${offer.promotionBudget || 0}</p>
-          <p><strong>Promo Spent:</strong> ${offer.promoSpent || 0}</p>
-          <p><strong>Amount Owed:</strong> ${owed}</p>
-          <p><strong>Amount Paid:</strong> ${paid}</p>
-          <p><strong>Outstanding:</strong> ${balance > 0 ? balance : 0}</p>
-          <p><strong>Next Billing Date:</strong> ${offer.nextBillingDate ? new Date(offer.nextBillingDate).toLocaleString() : 'Not Scheduled'}</p>
-          <p><strong>Payment Deadline:</strong> ${offer.paymentDeadline ? new Date(offer.paymentDeadline).toLocaleString() : 'N/A'}</p>
-        </div>
+    // 2️⃣ Group by offer
+    const offersMap = {}; // key = offerId
+    unpaidDeals.forEach(deal => {
+      if (!offersMap[deal.offerId]) {
+        offersMap[deal.offerId] = {
+          title: deal.offerTitle,
+          currency: deal.currency || 'USD',
+          deals: [],
+          subtotal: 0,
+          imageUrl: deal.offerImage || null
+        };
+      }
+      offersMap[deal.offerId].deals.push(deal);
+      offersMap[deal.offerId].subtotal += parseFloat(deal.commissionEarned || 0);
+    });
+
+    // 3️⃣ Group by currency for total per currency
+    const currencyTotals = {};
+    Object.values(offersMap).forEach(offer => {
+      if (!currencyTotals[offer.currency]) currencyTotals[offer.currency] = 0;
+      currencyTotals[offer.currency] += offer.subtotal;
+    });
+
+    // 4️⃣ Display per currency
+    billContainer.innerHTML = "";
+    Object.keys(currencyTotals).forEach(currency => {
+      const total = currencyTotals[currency];
+      const currencyDiv = document.createElement('div');
+      currencyDiv.className = "currency-total";
+
+      currencyDiv.innerHTML = `
+        <h3>Total Owed (${currency}): ${total.toFixed(2)}</h3>
       `;
 
+      // Add per-offer breakdown (expandable)
+      Object.values(offersMap).forEach(offer => {
+        if (offer.currency !== currency) return;
+        const offerDiv = document.createElement('div');
+        offerDiv.className = "offer-breakdown";
+        offerDiv.innerHTML = `<strong>${offer.title}</strong> — Subtotal: ${offer.subtotal.toFixed(2)} ${currency} (${offer.deals.length} deals)`;
+
+        const dealsList = document.createElement('div');
+        dealsList.style.display = 'none';
+        offer.deals.forEach(deal => {
+          const dealDiv = document.createElement('div');
+          dealDiv.className = "deal-item";
+          dealDiv.textContent = `DealID: ${deal.id} | Client: ${deal.clientName} | Commission: ${deal.commissionEarned.toFixed(2)}`;
+          dealsList.appendChild(dealDiv);
+        });
+
+        offerDiv.appendChild(dealsList);
+        offerDiv.onclick = () => dealsList.style.display = dealsList.style.display === 'none' ? 'block' : 'none';
+        currencyDiv.appendChild(offerDiv);
+      });
+
+      // Pay button (notify admin)
       const payBtn = document.createElement('button');
-      payBtn.className = 'pay-btn';
-      payBtn.innerText = offer.paymentStatus === 'paid' ? 'Paid' : 'Pay Now';
-      payBtn.disabled = offer.paymentStatus === 'paid';
-
+      payBtn.className = 'btn-pay';
+      payBtn.textContent = `Mark as Paid (${currency} ${total.toFixed(2)})`;
       payBtn.onclick = async () => {
-        payBtn.disabled = true;
-        payBtn.innerText = 'Processing...';
         try {
-          // Send payment request (admin will verify)
-          await push(ref(db, `payment_requests/${uid}`), {
-            offerId,
-            providerId: uid,
-            amount: balance,
-            status: 'pending',
-            createdAt: new Date().toISOString()
+          await push(ref(db, 'admin-notifications'), {
+            providerId,
+            currency,
+            totalAmount: total,
+            offers: Object.values(offersMap).filter(o => o.currency === currency),
+            createdAt: new Date().toISOString(),
+            type: 'providerPaymentRequest'
           });
-
-          // Update offer status to pending
-          await update(ref(db, `offers/${uid}/${offerId}`), {
-            paymentStatus: 'pending',
-            paymentNotes: 'Payment request submitted, awaiting admin verification.'
-          });
-
-          notify('Payment request sent successfully ✅', 'success');
-          payBtn.innerText = 'Pending Verification';
+          showNotif(`Payment notification sent to admin for ${currency} ${total.toFixed(2)}.`, 'success');
         } catch (err) {
           console.error(err);
-          notify('Error sending payment request: ' + err.message, 'error');
-          payBtn.disabled = false;
-          payBtn.innerText = 'Pay Now';
+          showNotif('Error sending payment notification: ' + err.message, 'error');
         }
       };
 
-      card.appendChild(payBtn);
-      offersContainer.appendChild(card);
+      currencyDiv.appendChild(payBtn);
+      billContainer.appendChild(currencyDiv);
     });
-  });
-});
+
+  } catch (err) {
+    console.error(err);
+    billContainer.innerHTML = "<p>Error fetching bill: " + err.message + "</p>";
+  }
+}
+
+// Initialize
+fetchProviderBill();
+
 </script>
 </body>
 </html>
