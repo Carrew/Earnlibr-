@@ -79,7 +79,7 @@ if (!providerId) {
         <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
       `;
 
-      // ✅ FULL MARK COMPLETED (same as admin)
+      // ✅ FULL MARK COMPLETED (like admin)
       card.querySelector('.complete').onclick = async () => {
         if (deal.status === 'completed') return showNotif('Already completed.', 'error');
         try {
@@ -117,24 +117,38 @@ if (!providerId) {
             }
           }
 
-          // 2️⃣ Save promoter earnings
+          // 2️⃣ Save promoter earnings (full admin-style)
           if (deal.promoterId && deal.promoterId !== 'direct') {
-            const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
-            await set(promoterRef, {
+            const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
+            await set(ref(promoterBaseRef, `deals/${dealId}`), {
+              offerId: deal.offerId,
               offerTitle: deal.offerTitle,
               providerId: deal.providerId,
               providerName: deal.providerName,
               clientName: deal.clientName,
               clientContact: deal.clientContact,
               note: deal.note || '',
-              amount: commissionEarned,
-              createdAt: deal.createdAt,
-              completedAt: timestamp
+              commissionAmount: commissionEarned,
+              completedAt: timestamp,
+              withdrawn: false
             });
-            await set(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), { lastUpdated: timestamp });
+
+            const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
+            let totalLifetime = commissionEarned;
+            let totalWithdrawn = 0;
+            if (metaSnap.exists()) {
+              const meta = metaSnap.val();
+              totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
+              totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
+            }
+            await set(ref(promoterBaseRef, 'metadata'), {
+              totalLifetimeEarnings: totalLifetime,
+              totalWithdrawn: totalWithdrawn,
+              lastUpdated: timestamp
+            });
           }
 
-          // 3️⃣ Save completed deal with payment tracking
+          // 3️⃣ Save completed deal with provider payment tracking
           await set(ref(db, `completed-deals/${dealId}`), {
             ...deal,
             status: 'completed',
@@ -145,7 +159,7 @@ if (!providerId) {
             paymentNotes: ''
           });
 
-          // 4️⃣ Remove deal from active deals
+          // 4️⃣ Remove from active deals
           await remove(ref(db, `deals/${dealId}`));
           card.style.opacity = '0';
           setTimeout(() => card.remove(), 500);
@@ -159,12 +173,10 @@ if (!providerId) {
             commissionEarned
           };
           await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if (deal.promoterId && deal.promoterId !== 'direct') {
-            await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-          }
+          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
           await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-          showNotif('✅ Deal completed successfully and all financials updated.');
+          showNotif('✅ Deal completed and promoter earnings saved like admin.');
         } catch (err) {
           console.error(err);
           showNotif('Error completing deal: ' + err.message, 'error');
@@ -187,9 +199,7 @@ if (!providerId) {
             createdAt: timestamp
           };
           await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if (deal.promoterId && deal.promoterId !== 'direct') {
-            await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-          }
+          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
           await push(ref(db, `admin-notifications`), { ...notifData, dealId });
           showNotif('❌ Deal cancelled successfully.');
         } catch (err) {
