@@ -1,117 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Admin Provider Bills</title>
-<style>
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.bill-container { margin-bottom: 20px; }
-.provider-bill { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
-.offer-breakdown { background: #0f1724; padding: 10px; margin-bottom: 5px; border-radius: 10px; cursor: pointer; }
-.deal-item { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; }
-.btn-confirm { background: #4ade80; color: #041018; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-.notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
-.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Send Weekly Bills</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0d17;
+      color: #eef2f7;
+      padding: 20px;
+    }
+    h1 {
+      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .provider-card {
+      background: #0f1724;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    .provider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .provider-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    button {
+      background: #4ade80;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #041018;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .offer-breakdown {
+      background: #1a2235;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      display: none;
+    }
+    .offer {
+      border-bottom: 1px solid #2b3145;
+      padding: 5px 0;
+    }
+    .notif {
+      background: #1a2235;
+      border-left: 4px solid #4ade80;
+      color: #a3ff6e;
+      padding: 10px;
+      margin-bottom: 20px;
+      display: none;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
+  <h1>Admin — Send Weekly Bills</h1>
+  <div id="notif" class="notif"></div>
+  <div id="providersContainer">Loading pending bills...</div>
 
-<h1>Admin — Provider Bills</h1>
-<div id="notif" class="notif"></div>
-<div id="billContainer" class="bill-container">Loading provider bills...</div>
+  <script type="module">
+    import { db } from './firebase.js';
+    import { ref, onValue, push, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-<script type="module">
-import { db } from './firebase.js';
-import { ref, get, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    const providersContainer = document.getElementById('providersContainer');
+    const notif = document.getElementById('notif');
+    const showNotif = (msg) => {
+      notif.textContent = msg;
+      notif.style.display = 'block';
+      setTimeout(() => notif.style.display = 'none', 4000);
+    };
 
-const billContainer = document.getElementById('billContainer');
-const notif = document.getElementById('notif');
-const showNotif = (msg, type='success') => {
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display = 'block';
-  setTimeout(() => notif.style.display = 'none', 4000);
-};
+    const THRESHOLDS = { USD: 1, LRD: 300 };
 
-async function fetchAdminBills() {
-  billContainer.innerHTML = "Loading...";
-  try {
-    const billsSnap = await get(ref(db, 'provider-bills'));
-    if (!billsSnap.exists()) {
-      billContainer.innerHTML = "<p>No provider bills found.</p>";
-      return;
-    }
-
-    const providerBills = billsSnap.val();
-    billContainer.innerHTML = "";
-
-    for (const [providerId, bills] of Object.entries(providerBills)) {
-      const providerDiv = document.createElement('div');
-      providerDiv.className = "provider-bill";
-      providerDiv.innerHTML = `<h3>Provider: ${providerId}</h3>`;
-
-      for (const [billId, bill] of Object.entries(bills)) {
-        for (const [currency, total] of Object.entries(bill.totalPerCurrency)) {
-          const currencyDiv = document.createElement('div');
-          currencyDiv.innerHTML = `<strong>${currency} Total:</strong> ${total.toFixed(2)}`;
-
-          // Offer breakdown
-          bill.offers.filter(o => o.currency === currency).forEach(offer => {
-            const offerDiv = document.createElement('div');
-            offerDiv.className = "offer-breakdown";
-            offerDiv.innerHTML = `<strong>${offer.offerTitle}</strong> — Subtotal: ${offer.subtotal.toFixed(2)} (${offer.deals.length} deals)`;
-
-            const dealsList = document.createElement('div');
-            dealsList.style.display = 'none';
-            offer.deals.forEach(deal => {
-              const dealDiv = document.createElement('div');
-              dealDiv.className = "deal-item";
-              dealDiv.textContent = `DealID: ${deal.id} | Client: ${deal.clientName} | Commission: ${deal.commissionEarned.toFixed(2)}`;
-              dealsList.appendChild(dealDiv);
-            });
-
-            offerDiv.appendChild(dealsList);
-            offerDiv.onclick = () => dealsList.style.display = dealsList.style.display === 'none' ? 'block' : 'none';
-            currencyDiv.appendChild(offerDiv);
-          });
-
-          // Confirm Payment button
-          const confirmBtn = document.createElement('button');
-          confirmBtn.className = 'btn-confirm';
-          confirmBtn.textContent = `Confirm Payment (${currency} ${total.toFixed(2)})`;
-          confirmBtn.onclick = async () => {
-            try {
-              // Mark all deals in this bill as providerPaid
-              for (const offer of bill.offers.filter(o => o.currency === currency)) {
-                for (const deal of offer.deals) {
-                  await update(ref(db, `completed-deals/${deal.id}`), { providerPaid: true });
-                }
-              }
-              showNotif(`Payment confirmed for provider ${providerId}, ${currency} ${total.toFixed(2)}.`, 'success');
-            } catch (err) {
-              console.error(err);
-              showNotif('Error confirming payment: ' + err.message, 'error');
-            }
-          };
-
-          currencyDiv.appendChild(confirmBtn);
-          providerDiv.appendChild(currencyDiv);
-        }
+    const dealsRef = ref(db, 'completed-deals');
+    onValue(dealsRef, async (snapshot) => {
+      providersContainer.innerHTML = '';
+      if (!snapshot.exists()) {
+        providersContainer.innerHTML = '<p>No completed unpaid deals found.</p>';
+        return;
       }
 
-      billContainer.appendChild(providerDiv);
-    }
+      const deals = snapshot.val();
+      const grouped = {};
 
-  } catch (err) {
-    console.error(err);
-    billContainer.innerHTML = "<p>Error fetching provider bills: " + err.message + "</p>";
-  }
-}
+      // Group deals by provider
+      Object.keys(deals).forEach(id => {
+        const d = deals[id];
+        if (d.providerPaid) return; // skip paid
+        const provId = d.providerId;
+        if (!grouped[provId]) grouped[provId] = { name: d.providerName, offers: {}, totals: {} };
 
-fetchAdminBills();
-</script>
+        if (!grouped[provId].offers[d.offerId]) {
+          grouped[provId].offers[d.offerId] = {
+            offerTitle: d.offerTitle,
+            currency: d.currency || 'USD',
+            total: 0,
+            deals: []
+          };
+        }
+
+        const offer = grouped[provId].offers[d.offerId];
+        offer.total += parseFloat(d.commissionEarned || 0);
+        offer.deals.push({ id, ...d });
+
+        const curr = offer.currency;
+        if (!grouped[provId].totals[curr]) grouped[provId].totals[curr] = 0;
+        grouped[provId].totals[curr] += parseFloat(d.commissionEarned || 0);
+      });
+
+      Object.keys(grouped).forEach(provId => {
+        const provider = grouped[provId];
+        const card = document.createElement('div');
+        card.className = 'provider-card';
+
+        let totalsHTML = '';
+        Object.entries(provider.totals).forEach(([curr, amt]) => {
+          totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
+        });
+
+        const header = `
+          <div class="provider-header">
+            <h2>${provider.name} (${provId})</h2>
+            <button class="sendBill">Send Bill</button>
+          </div>
+          <div>${totalsHTML}</div>
+          <button class="toggleOffers">Show Offer Breakdown</button>
+          <div class="offer-breakdown"></div>
+        `;
+        card.innerHTML = header;
+        providersContainer.appendChild(card);
+
+        const breakdown = card.querySelector('.offer-breakdown');
+        Object.values(provider.offers).forEach(offer => {
+          const offerDiv = document.createElement('div');
+          offerDiv.className = 'offer';
+          offerDiv.innerHTML = `
+            <strong>${offer.offerTitle}</strong><br>
+            ${offer.currency} ${offer.total.toFixed(2)} from ${offer.deals.length} deal(s)
+          `;
+          breakdown.appendChild(offerDiv);
+        });
+
+        card.querySelector('.toggleOffers').onclick = () => {
+          breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // Send Bill
+        card.querySelector('.sendBill').onclick = async () => {
+          const eligible = Object.entries(provider.totals).some(([curr, amt]) => amt >= (THRESHOLDS[curr] || 0));
+          if (!eligible) return showNotif(`Provider ${provider.name} does not meet billing threshold.`);
+
+          const timestamp = new Date().toISOString();
+          const billId = push(ref(db, `bills/${provId}`)).key;
+          const billData = {
+            providerId: provId,
+            providerName: provider.name,
+            totals: provider.totals,
+            offers: provider.offers,
+            createdAt: timestamp,
+            status: 'pending'
+          };
+
+          await set(ref(db, `bills/${provId}/${billId}`), billData);
+          await push(ref(db, 'admin-bills'), { billId, ...billData });
+          await push(ref(db, `notifications/${provId}`), {
+            title: 'New Weekly Bill',
+            message: 'A new bill has been generated for your account.',
+            createdAt: timestamp,
+            type: 'billing'
+          });
+
+          showNotif(`✅ Bill sent to ${provider.name}`);
+        };
+      });
+    });
+  </script>
 </body>
 </html>
