@@ -1,148 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Admin Provider Payments</title>
-<style>
-  body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-  h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-  .payment-container { margin-bottom: 20px; }
-  .provider-block { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
-  .currency-block { background: #0f1724; padding: 10px; margin-top: 10px; border-radius: 10px; }
-  .offer-breakdown { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; cursor: pointer; }
-  .deal-item { padding: 5px; margin: 2px 0; border-radius: 6px; font-size: 14px; background: #0b1122; }
-  .btn-verify { background: #4ade80; color: #041018; padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-  .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
-  .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-  .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Admin Payment Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0d17;
+      color: #eef2f7;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 20px;
+    }
+    .bill-card {
+      background: #0f1724;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      border-left: 4px solid #facc15;
+    }
+    .bill-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .btn.verify { background: #4ade80; color: #041018; }
+    .btn.reject { background: #ef4444; color: #fff; }
+    .offer-breakdown {
+      background: #1a2235;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      display: none;
+    }
+    .offer {
+      border-bottom: 1px solid #2b3145;
+      padding: 5px 0;
+    }
+    .notif {
+      background: #1a2235;
+      padding: 10px;
+      border-left: 4px solid #4ade80;
+      border-radius: 8px;
+      color: #a3ff6e;
+      margin-bottom: 20px;
+      display: none;
+    }
+  </style>
 </head>
 <body>
+  <h1>Admin — Payment Verification</h1>
+  <div id="notif" class="notif"></div>
+  <div id="verifyContainer">Loading...</div>
 
-<h1>Admin — Provider Payments</h1>
-<div id="notif" class="notif"></div>
-<div id="paymentsContainer" class="payment-container">Loading provider payments...</div>
+  <script type="module">
+    import { db } from './firebase.js';
+    import { ref, get, update, onValue, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-<script type="module">
-import { db } from './firebase.js';
-import { ref, get, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    const container = document.getElementById('verifyContainer');
+    const notif = document.getElementById('notif');
+    const showNotif = (msg) => {
+      notif.textContent = msg;
+      notif.style.display = 'block';
+      setTimeout(() => notif.style.display = 'none', 4000);
+    };
 
-const paymentsContainer = document.getElementById('paymentsContainer');
-const notif = document.getElementById('notif');
-const showNotif = (msg, type='success') => {
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display = 'block';
-  setTimeout(() => notif.style.display = 'none', 4000);
-};
+    const billsRef = ref(db, 'bills');
+    onValue(billsRef, async (snapshot) => {
+      container.innerHTML = '';
+      if (!snapshot.exists()) {
+        container.innerHTML = '<p>No bills available.</p>';
+        return;
+      }
 
-async function fetchProviderPayments() {
-  paymentsContainer.innerHTML = "Loading...";
+      const providers = snapshot.val();
+      Object.keys(providers).forEach((providerId) => {
+        const providerBills = providers[providerId];
+        Object.keys(providerBills)
+          .filter(billId => providerBills[billId].status === 'paid_pending_verification')
+          .forEach((billId) => {
+            const bill = providerBills[billId];
+            const card = document.createElement('div');
+            card.className = 'bill-card';
 
-  try {
-    const notificationsSnap = await get(ref(db, 'admin-notifications'));
-    if (!notificationsSnap.exists()) {
-      paymentsContainer.innerHTML = "<p>No provider payment notifications.</p>";
-      return;
-    }
+            let totalsHTML = '';
+            Object.entries(bill.totals).forEach(([curr, amt]) => {
+              totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
+            });
 
-    const notifications = notificationsSnap.val();
+            card.innerHTML = `
+              <div class="bill-header">
+                <h3>${bill.providerName} — ${billId.slice(-6)}</h3>
+                <span>Status: ${bill.status.replace('_', ' ')}</span>
+              </div>
+              <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
+              <div>${totalsHTML}</div>
+              <button class="toggleOffers">Show Offer Breakdown</button>
+              <div class="offer-breakdown"></div>
+              <br>
+              <button class="btn verify">✅ Verify Payment</button>
+              <button class="btn reject">❌ Reject Payment</button>
+            `;
 
-    // Filter only provider payment notifications
-    const providerPayments = Object.entries(notifications)
-      .filter(([id, n]) => n.type === 'providerPaymentNotification');
+            const breakdown = card.querySelector('.offer-breakdown');
+            Object.values(bill.offers).forEach(offer => {
+              const offerDiv = document.createElement('div');
+              offerDiv.className = 'offer';
+              offerDiv.innerHTML = `
+                <strong>${offer.offerTitle}</strong><br>
+                ${offer.currency} ${offer.total.toFixed(2)} (${offer.deals.length} deals)
+              `;
+              breakdown.appendChild(offerDiv);
+            });
 
-    if (!providerPayments.length) {
-      paymentsContainer.innerHTML = "<p>No provider payment notifications.</p>";
-      return;
-    }
+            card.querySelector('.toggleOffers').onclick = () => {
+              breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
+            };
 
-    paymentsContainer.innerHTML = "";
-    providerPayments.forEach(([notifId, notifData]) => {
-      const providerDiv = document.createElement('div');
-      providerDiv.className = 'provider-block';
+            // ✅ Verify Payment
+            card.querySelector('.verify').onclick = async () => {
+              if (!confirm('Confirm verifying this provider payment?')) return;
+              const timestamp = new Date().toISOString();
 
-      providerDiv.innerHTML = `
-        <h3>Provider: ${notifData.providerId}</h3>
-      `;
+              try {
+                // Update all related deals as paid
+                for (const offer of Object.values(bill.offers)) {
+                  for (const deal of offer.deals) {
+                    await update(ref(db, `completed-deals/${deal.id}`), {
+                      providerPaid: true,
+                      paymentAmount: deal.commissionEarned,
+                      paymentNotes: `Verified by admin on ${new Date().toLocaleString()}`
+                    });
+                  }
+                }
 
-      // Group by currency
-      const currencyDiv = document.createElement('div');
-      currencyDiv.className = 'currency-block';
-      currencyDiv.innerHTML = `<strong>Currency: ${notifData.currency} | Total: ${notifData.totalAmount.toFixed(2)}</strong>`;
+                // Mark bill as verified
+                await update(ref(db, `bills/${providerId}/${billId}`), {
+                  status: 'verified',
+                  verifiedAt: timestamp
+                });
 
-      // Offer breakdown
-      notifData.offers.forEach(offer => {
-        const offerDiv = document.createElement('div');
-        offerDiv.className = 'offer-breakdown';
-        offerDiv.innerHTML = `<strong>${offer.title}</strong> — Subtotal: ${offer.subtotal?.toFixed(2) || 0} (${offer.deals.length} deals)`;
+                await push(ref(db, `notifications/${providerId}`), {
+                  title: 'Payment Verified ✅',
+                  message: `Your payment for Bill ${billId} has been confirmed.`,
+                  createdAt: timestamp,
+                  type: 'payment_verified'
+                });
 
-        const dealsList = document.createElement('div');
-        dealsList.style.display = 'none';
-        offer.deals.forEach(deal => {
-          const dealDiv = document.createElement('div');
-          dealDiv.className = 'deal-item';
-          dealDiv.textContent = `DealID: ${deal.id} | Client: ${deal.clientName} | Commission: ${deal.commissionEarned.toFixed(2)}`;
-          dealsList.appendChild(dealDiv);
-        });
+                showNotif(`✅ Payment verified for ${bill.providerName}`);
+                card.remove();
+              } catch (err) {
+                console.error(err);
+                showNotif('Error verifying: ' + err.message);
+              }
+            };
 
-        offerDiv.appendChild(dealsList);
-        offerDiv.onclick = () => dealsList.style.display = dealsList.style.display === 'none' ? 'block' : 'none';
-        currencyDiv.appendChild(offerDiv);
-      });
+            // ❌ Reject Payment
+            card.querySelector('.reject').onclick = async () => {
+              if (!confirm('Reject this payment and return it to pending?')) return;
+              const timestamp = new Date().toISOString();
 
-      // Verify Payment button
-      const verifyBtn = document.createElement('button');
-      verifyBtn.className = 'btn-verify';
-      verifyBtn.textContent = `Verify Payment (${notifData.currency} ${notifData.totalAmount.toFixed(2)})`;
-      verifyBtn.onclick = async () => {
-        try {
-          // Mark all deals as paid
-          for (const offer of notifData.offers) {
-            for (const deal of offer.deals) {
-              await update(ref(db, `completed-deals/${deal.id}`), {
-                providerPaid: true,
-                paymentAmount: deal.commissionEarned,
-                paymentNotes: 'Verified by admin'
+              await update(ref(db, `bills/${providerId}/${billId}`), {
+                status: 'pending',
+                rejectionNote: 'Admin rejected payment verification',
+                updatedAt: timestamp
               });
 
-              // Optionally update offer amountPaid here if needed
-              // Example:
-              const offerRef = ref(db, `offers/${notifData.providerId}/${deal.offerId}`);
-              const offerSnap = await get(offerRef);
-              if (offerSnap.exists()) {
-                const offerData = offerSnap.val();
-                const newAmountPaid = (parseFloat(offerData.amountPaid || 0) + parseFloat(deal.commissionEarned || 0));
-                await update(offerRef, { amountPaid: newAmountPaid });
-              }
-            }
-          }
+              await push(ref(db, `notifications/${providerId}`), {
+                title: 'Payment Rejected ❌',
+                message: `Your payment for Bill ${billId} was rejected. Contact support.`,
+                createdAt: timestamp,
+                type: 'payment_rejected'
+              });
 
-          // Optionally remove notification after verification
-          await update(ref(db, `admin-notifications/${notifId}`), { verifiedAt: new Date().toISOString(), verified: true });
-          showNotif('Payment verified successfully.', 'success');
-          providerDiv.remove();
-        } catch (err) {
-          console.error(err);
-          showNotif('Error verifying payment: ' + err.message, 'error');
-        }
-      };
+              showNotif(`❌ Payment rejected for ${bill.providerName}`);
+              card.remove();
+            };
 
-      currencyDiv.appendChild(verifyBtn);
-      providerDiv.appendChild(currencyDiv);
-      paymentsContainer.appendChild(providerDiv);
+            container.appendChild(card);
+          });
+      });
     });
-
-  } catch (err) {
-    console.error(err);
-    paymentsContainer.innerHTML = "<p>Error fetching provider payments: " + err.message + "</p>";
-  }
-}
-
-// Initialize
-fetchProviderPayments();
-</script>
-
+  </script>
 </body>
 </html>
