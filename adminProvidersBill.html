@@ -177,6 +177,7 @@
       const timestamp = new Date().toISOString();
       const billId = push(ref(db, `bills/${provId}`)).key;
       const billData = {
+        billId,
         providerId: provId,
         providerName: provider.name,
         totals: provider.totals,
@@ -185,14 +186,21 @@
         status: 'pending'
       };
 
+      // Save bill to provider’s node and admin node
       await set(ref(db, `bills/${provId}/${billId}`), billData);
-      await push(ref(db, 'admin-bills'), { billId, ...billData });
-      await push(ref(db, `notifications/${provId}`), {
-        title: 'New Weekly Bill',
-        message: 'A new bill has been generated for your account.',
+      await set(ref(db, `admin-bills/${billId}`), billData);
+
+      // Send structured notification under provider-notifications
+      const notifRef = ref(db, `provider-notifications/${provId}`);
+      const notifData = {
+        type: 'billing',
+        title: 'New Weekly Bill Generated',
+        message: `Your weekly bill is ready for review.`,
+        billId,
         createdAt: timestamp,
-        type: 'billing'
-      });
+        status: 'unread'
+      };
+      await push(notifRef, notifData);
 
       showNotif(`✅ Bill sent to ${provider.name}`);
     }
@@ -204,12 +212,14 @@
       }
       sendAllBtn.disabled = true;
       showNotif('Sending bills to all eligible providers...');
+
       for (const [provId, provider] of Object.entries(grouped)) {
         const eligible = Object.entries(provider.totals).some(
           ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
         );
         if (eligible) await sendBillToProvider(provId, provider);
       }
+
       showNotif('🎉 All eligible bills sent.');
       sendAllBtn.disabled = false;
     };
