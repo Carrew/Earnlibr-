@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — Send Weekly Bills</title>
   <style>
     body {
@@ -16,6 +16,18 @@
       -webkit-background-clip: text;
       color: transparent;
     }
+    .controls { margin-bottom: 20px; }
+    .btn {
+      background: #4ade80;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #041018;
+      margin-right: 10px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .provider-card {
       background: #0f1724;
       border-radius: 12px;
@@ -29,23 +41,6 @@
       align-items: center;
       margin-bottom: 10px;
     }
-    .provider-header h2 {
-      margin: 0;
-      font-size: 18px;
-    }
-    button {
-      background: #4ade80;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      color: #041018;
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
     .offer-breakdown {
       background: #1a2235;
       border-radius: 8px;
@@ -53,10 +48,7 @@
       margin-top: 10px;
       display: none;
     }
-    .offer {
-      border-bottom: 1px solid #2b3145;
-      padding: 5px 0;
-    }
+    .offer { border-bottom: 1px solid #2b3145; padding: 5px 0; }
     .notif {
       background: #1a2235;
       border-left: 4px solid #4ade80;
@@ -70,25 +62,34 @@
 </head>
 <body>
   <h1>Admin — Send Weekly Bills</h1>
+
+  <div class="controls">
+    <button id="sendAll" class="btn">📤 Send All Eligible Bills</button>
+  </div>
+
   <div id="notif" class="notif"></div>
   <div id="providersContainer">Loading pending bills...</div>
 
   <script type="module">
     import { db } from './firebase.js';
-    import { ref, onValue, push, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    import { ref, onValue, push, set, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
     const providersContainer = document.getElementById('providersContainer');
     const notif = document.getElementById('notif');
+    const sendAllBtn = document.getElementById('sendAll');
+    const THRESHOLDS = { USD: 1, LRD: 300 };
+
     const showNotif = (msg) => {
       notif.textContent = msg;
       notif.style.display = 'block';
       setTimeout(() => notif.style.display = 'none', 4000);
     };
 
-    const THRESHOLDS = { USD: 1, LRD: 300 };
+    let grouped = {};
 
+    // Fetch all unpaid deals
     const dealsRef = ref(db, 'completed-deals');
-    onValue(dealsRef, async (snapshot) => {
+    onValue(dealsRef, (snapshot) => {
       providersContainer.innerHTML = '';
       if (!snapshot.exists()) {
         providersContainer.innerHTML = '<p>No completed unpaid deals found.</p>';
@@ -96,12 +97,12 @@
       }
 
       const deals = snapshot.val();
-      const grouped = {};
+      grouped = {};
 
       // Group deals by provider
       Object.keys(deals).forEach(id => {
         const d = deals[id];
-        if (d.providerPaid) return; // skip paid
+        if (d.providerPaid) return;
         const provId = d.providerId;
         if (!grouped[provId]) grouped[provId] = { name: d.providerName, offers: {}, totals: {} };
 
@@ -123,6 +124,7 @@
         grouped[provId].totals[curr] += parseFloat(d.commissionEarned || 0);
       });
 
+      // Render each provider card
       Object.keys(grouped).forEach(provId => {
         const provider = grouped[provId];
         const card = document.createElement('div');
@@ -135,11 +137,11 @@
 
         const header = `
           <div class="provider-header">
-            <h2>${provider.name} (${provId})</h2>
-            <button class="sendBill">Send Bill</button>
+            <h2>${provider.name || 'Unnamed Provider'} (${provId})</h2>
+            <button class="btn sendBill">Send Bill</button>
           </div>
           <div>${totalsHTML}</div>
-          <button class="toggleOffers">Show Offer Breakdown</button>
+          <button class="btn toggleOffers">Show Breakdown</button>
           <div class="offer-breakdown"></div>
         `;
         card.innerHTML = header;
@@ -160,35 +162,57 @@
           breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
         };
 
-        // Send Bill
-        card.querySelector('.sendBill').onclick = async () => {
-          const eligible = Object.entries(provider.totals).some(([curr, amt]) => amt >= (THRESHOLDS[curr] || 0));
-          if (!eligible) return showNotif(`Provider ${provider.name} does not meet billing threshold.`);
-
-          const timestamp = new Date().toISOString();
-          const billId = push(ref(db, `bills/${provId}`)).key;
-          const billData = {
-            providerId: provId,
-            providerName: provider.name,
-            totals: provider.totals,
-            offers: provider.offers,
-            createdAt: timestamp,
-            status: 'pending'
-          };
-
-          await set(ref(db, `bills/${provId}/${billId}`), billData);
-          await push(ref(db, 'admin-bills'), { billId, ...billData });
-          await push(ref(db, `notifications/${provId}`), {
-            title: 'New Weekly Bill',
-            message: 'A new bill has been generated for your account.',
-            createdAt: timestamp,
-            type: 'billing'
-          });
-
-          showNotif(`✅ Bill sent to ${provider.name}`);
-        };
+        // Send bill for one provider
+        card.querySelector('.sendBill').onclick = () => sendBillToProvider(provId, provider);
       });
     });
+
+    // Function: Send bill to single provider
+    async function sendBillToProvider(provId, provider) {
+      const eligible = Object.entries(provider.totals).some(
+        ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
+      );
+      if (!eligible) return showNotif(`Provider ${provider.name} below threshold.`);
+
+      const timestamp = new Date().toISOString();
+      const billId = push(ref(db, `bills/${provId}`)).key;
+      const billData = {
+        providerId: provId,
+        providerName: provider.name,
+        totals: provider.totals,
+        offers: provider.offers,
+        createdAt: timestamp,
+        status: 'pending'
+      };
+
+      await set(ref(db, `bills/${provId}/${billId}`), billData);
+      await push(ref(db, 'admin-bills'), { billId, ...billData });
+      await push(ref(db, `notifications/${provId}`), {
+        title: 'New Weekly Bill',
+        message: 'A new bill has been generated for your account.',
+        createdAt: timestamp,
+        type: 'billing'
+      });
+
+      showNotif(`✅ Bill sent to ${provider.name}`);
+    }
+
+    // Function: Send bills to all eligible providers
+    sendAllBtn.onclick = async () => {
+      if (!grouped || !Object.keys(grouped).length) {
+        return showNotif('No providers with unpaid deals.');
+      }
+      sendAllBtn.disabled = true;
+      showNotif('Sending bills to all eligible providers...');
+      for (const [provId, provider] of Object.entries(grouped)) {
+        const eligible = Object.entries(provider.totals).some(
+          ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
+        );
+        if (eligible) await sendBillToProvider(provId, provider);
+      }
+      showNotif('🎉 All eligible bills sent.');
+      sendAllBtn.disabled = false;
+    };
   </script>
 </body>
 </html>
