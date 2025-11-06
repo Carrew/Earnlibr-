@@ -185,6 +185,7 @@
           offerId,
           offerTitle: offerData.title,
           offerPrice: offerData.price,
+          offerCurrency: offerData.currency || "$",  // ← Added currency field
           providerId,
           promoterId,
           clientName,
@@ -193,7 +194,7 @@
           status: "pending",
           createdAt: new Date().toISOString(),
 
-          // New provider info fields
+          // Provider info fields
           providerName: providerInfo?.name || "",
           providerEmail: providerInfo?.email || "",
           providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
