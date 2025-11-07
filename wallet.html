@@ -1,215 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Admin Deals Management</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Promoter Wallet — EarnLibr</title>
   <style>
     body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-    h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-    .deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); }
-    .deal-card.completed { border-left: 4px solid #4ade80; }
-    .deal-card.cancelled { border-left: 4px solid #ef4444; }
-    .deal-info { margin-bottom: 10px; font-size: 14px; }
-    .deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
-    .complete { background: #4ade80; color: #041018; }
-    .cancel { background: #ef4444; color: #fff; }
-    .timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
-    .notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
-    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+    h1 { background: linear-gradient(90deg, #4ade80, #22d3ee); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+    .wallet { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    .balance { font-size: 18px; margin-bottom: 10px; }
+    .deal-card { background: #1a2235; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+    .deal-info { font-size: 14px; margin-bottom: 4px; }
+    .btn { background: #4ade80; border: none; color: #041018; font-weight: bold; border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-top: 10px; }
+    .btn.request { background: #22d3ee; }
+    .notif { background: #1a2235; border-left: 4px solid #4ade80; color: #a3ff6e; padding: 10px; margin-bottom: 20px; border-radius: 8px; display: none; }
   </style>
 </head>
 <body>
-  <h1>Admin — Deals Management</h1>
+  <h1>Promoter Wallet</h1>
   <div id="notif" class="notif"></div>
-  <div id="dealsContainer">Loading deals...</div>
+
+  <div id="walletContainer" class="wallet">
+    Loading wallet...
+  </div>
 
   <script type="module">
     import { db } from './firebase.js';
-    import { ref, onValue, update, push, get, set, remove } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+    import { ref, onValue, push, get, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-    const dealsContainer = document.getElementById('dealsContainer');
+    const walletContainer = document.getElementById('walletContainer');
     const notif = document.getElementById('notif');
-    const showNotif = (message, type = 'success') => {
-      notif.textContent = message;
-      notif.className = `notif ${type}`;
+    const showNotif = (msg, type = 'success') => {
+      notif.textContent = msg;
       notif.style.display = 'block';
-      setTimeout(() => (notif.style.display = 'none'), 4000);
+      notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
+      setTimeout(() => notif.style.display = 'none', 4000);
     };
 
-    const dealsRef = ref(db, 'deals');
-    onValue(dealsRef, async (snapshot) => {
-      dealsContainer.innerHTML = '';
+    // ⚡ Replace with logged-in promoter ID
+    const promoterId = "promoter123";
+
+    const promoterRef = ref(db, `promoter-earnings/${promoterId}`);
+    onValue(promoterRef, async (snapshot) => {
+      walletContainer.innerHTML = '';
       if (!snapshot.exists()) {
-        dealsContainer.innerHTML = '<p>No deals found.</p>';
+        walletContainer.innerHTML = '<p>No wallet data found.</p>';
         return;
       }
 
-      const dealsData = snapshot.val();
-      Object.keys(dealsData)
-        .sort((a, b) => new Date(dealsData[b].createdAt) - new Date(dealsData[a].createdAt))
-        .forEach(async (dealId) => {
-          const deal = dealsData[dealId];
+      const data = snapshot.val();
+      const metadata = data.metadata || {};
+      const deals = data.deals || {};
 
-          const card = document.createElement('div');
-          card.className = 'deal-card ' + (deal.status || '');
-          card.innerHTML = `
-            <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-            <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle || 'N/A'}</div>
-            <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'} (${deal.providerId})</div>
-            <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId !== 'direct' ? deal.promoterName || 'Unknown' : 'Direct'} (${deal.promoterId})</div>
-            <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
-            <div class="deal-info"><strong>Note:</strong> ${deal.note || 'None'}</div>
-            <div class="deal-actions">
-              <button class="complete">Mark Completed</button>
-              <button class="cancel">Mark Cancelled</button>
-            </div>
-            <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
+      const currentBalance = metadata.currentBalance || 0;
+      const lifetimeEarnings = metadata.totalLifetimeEarnings || 0;
+      const totalWithdrawn = metadata.totalWithdrawn || 0;
+
+      walletContainer.innerHTML = `
+        <div class="balance"><strong>Current Balance:</strong> $${currentBalance.toFixed(2)}</div>
+        <div class="balance"><strong>Total Lifetime Earnings:</strong> $${lifetimeEarnings.toFixed(2)}</div>
+        <div class="balance"><strong>Total Withdrawn:</strong> $${totalWithdrawn.toFixed(2)}</div>
+      `;
+
+      // Pending deals for withdrawal
+      const pendingDeals = Object.entries(deals).filter(([_, d]) => d.withdrawn === false);
+      if (pendingDeals.length === 0) {
+        walletContainer.innerHTML += '<p>No pending deals for withdrawal.</p>';
+      } else {
+        walletContainer.innerHTML += '<h3>Pending Deals:</h3>';
+        pendingDeals.forEach(([dealId, deal]) => {
+          const dealDiv = document.createElement('div');
+          dealDiv.className = 'deal-card';
+          dealDiv.innerHTML = `
+            <div class="deal-info"><strong>Deal:</strong> ${deal.offerTitle} (${deal.currency || 'USD'} ${deal.commissionAmount.toFixed(2)})</div>
+            <div class="deal-info"><strong>Provider:</strong> ${deal.providerName}</div>
+            <div class="deal-info"><strong>Client:</strong> ${deal.clientName}</div>
+            <div class="deal-info"><strong>Completed At:</strong> ${new Date(deal.completedAt).toLocaleString()}</div>
           `;
-
-          // ✅ MARK COMPLETED (Promoter Wallet Upgrade)
-          card.querySelector('.complete').onclick = async () => {
-            if (deal.status === 'completed') return showNotif('Already completed.', 'error');
-            try {
-              const timestamp = new Date().toISOString();
-              let commissionEarned = 0;
-
-              // 1️⃣ Update offer financials
-              if (deal.offerId && deal.providerId) {
-                const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
-                const offerSnap = await get(offerRef);
-                if (offerSnap.exists()) {
-                  const offerData = offerSnap.val();
-
-                  if (offerData.commissionType === 'percentage') {
-                    commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
-                  } else if (offerData.commissionType === 'fixed') {
-                    commissionEarned = parseFloat(offerData.commissionValue || 0);
-                  } else {
-                    commissionEarned = parseFloat(deal.commissionValue || 0);
-                  }
-
-                  const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
-                  const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
-                  const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
-
-                  const offerUpdates = {
-                    promoSpent: newSpent,
-                    amountOwed: newAmountOwed,
-                    outstandingBalance: newOutstanding
-                  };
-
-                  if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
-                    offerUpdates.status = 'completed';
-                  }
-
-                  await update(offerRef, offerUpdates);
-                }
-              }
-
-              // 2️⃣ Save promoter earnings
-              if (deal.promoterId && deal.promoterId !== 'direct') {
-                const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
-
-                await set(ref(promoterBaseRef, `deals/${dealId}`), {
-                  offerId: deal.offerId,
-                  offerTitle: deal.offerTitle,
-                  providerId: deal.providerId,
-                  providerName: deal.providerName,
-                  clientName: deal.clientName,
-                  clientContact: deal.clientContact,
-                  note: deal.note || '',
-                  commissionAmount: commissionEarned,
-                  withdrawn: false,
-                  currency: deal.currency || 'USD',
-                  completedAt: timestamp
-                });
-
-                const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
-                let totalLifetime = commissionEarned;
-                let totalWithdrawn = 0;
-
-                if (metaSnap.exists()) {
-                  const meta = metaSnap.val();
-                  totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
-                  totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
-                }
-
-                const currentBalance = totalLifetime - totalWithdrawn;
-
-                await update(ref(promoterBaseRef, 'metadata'), {
-                  totalLifetimeEarnings: totalLifetime,
-                  totalWithdrawn: totalWithdrawn,
-                  currentBalance: currentBalance,
-                  lastUpdated: timestamp
-                });
-
-                const wrSnap = await get(ref(promoterBaseRef, 'withdrawalRequests'));
-                if (!wrSnap.exists()) {
-                  await set(ref(promoterBaseRef, 'withdrawalRequests'), {});
-                }
-              }
-
-              // 3️⃣ Save completed deal
-              await set(ref(db, `completed-deals/${dealId}`), {
-                ...deal,
-                status: 'completed',
-                completedAt: timestamp,
-                commissionEarned,
-                providerPaid: false,
-                paymentAmount: 0,
-                paymentNotes: ''
-              });
-
-              // 4️⃣ Remove from active deals
-              await remove(ref(db, `deals/${dealId}`));
-              card.remove();
-
-              // 5️⃣ Notifications
-              const notifData = {
-                title: 'Deal Completed ✅',
-                message: `Deal ${dealId} completed. Your wallet balance is now ${commissionEarned.toFixed(2)} ${deal.currency || 'USD'}.`,
-                type: 'completed',
-                createdAt: timestamp,
-                commissionEarned
-              };
-
-              await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct') {
-                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-              }
-              await push(ref(db, `admin-notifications`), { ...notifData, dealId });
-
-              showNotif('✅ Deal completed, promoter wallet updated.');
-            } catch (err) {
-              console.error(err);
-              showNotif('Error completing deal: ' + err.message, 'error');
-            }
-          };
-
-          // ❌ MARK CANCELLED
-          card.querySelector('.cancel').onclick = async () => {
-            if (deal.status === 'cancelled') return showNotif('Already cancelled.', 'error');
-            try {
-              const timestamp = new Date().toISOString();
-              await remove(ref(db, `deals/${dealId}`));
-              card.remove();
-
-              const notifData = { title: 'Deal Cancelled ❌', message: `Deal ${dealId} cancelled.`, type: 'cancelled', createdAt: timestamp };
-              await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-              await push(ref(db, `admin-notifications`), { ...notifData, dealId });
-
-              showNotif('❌ Deal cancelled and removed.');
-            } catch (err) {
-              console.error(err);
-              showNotif('Error cancelling deal: ' + err.message, 'error');
-            }
-          };
-
-          dealsContainer.appendChild(card);
+          walletContainer.appendChild(dealDiv);
         });
+
+        // Withdrawal request button
+        const withdrawBtn = document.createElement('button');
+        withdrawBtn.className = 'btn request';
+        withdrawBtn.textContent = 'Request Withdrawal';
+        withdrawBtn.onclick = async () => {
+          if (!confirm('Confirm withdrawal request for all pending deals?')) return;
+
+          try {
+            const timestamp = new Date().toISOString();
+            const withdrawalId = `wr-${Date.now()}`;
+
+            // Create withdrawal request
+            await push(ref(db, `withdrawal-requests`), {
+              promoterId,
+              dealIds: pendingDeals.map(([id]) => id),
+              amount: currentBalance,
+              status: 'pending',
+              requestedAt: timestamp
+            });
+
+            // Mark all deals as withdrawn = true in promoter-earnings (FIFO basis)
+            let updates = {};
+            pendingDeals.forEach(([dealId, _]) => {
+              updates[`promoter-earnings/${promoterId}/deals/${dealId}/withdrawn`] = true;
+            });
+
+            // Update promoter metadata
+            updates[`promoter-earnings/${promoterId}/metadata/currentBalance`] = 0;
+            updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
+
+            await update(ref(db), updates);
+
+            showNotif(`✅ Withdrawal request submitted for $${currentBalance.toFixed(2)}.`);
+          } catch (err) {
+            console.error(err);
+            showNotif('Error requesting withdrawal: ' + err.message, 'error');
+          }
+        };
+
+        walletContainer.appendChild(withdrawBtn);
+      }
     });
   </script>
 </body>
