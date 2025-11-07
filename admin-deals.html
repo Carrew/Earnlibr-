@@ -76,9 +76,10 @@
               const currency = deal.currency || 'USD';
               let commissionEarned = 0;
 
-              // 1️⃣ Get platform settings
-              const platformSnap = await get(ref(db, 'platform-settings/commissionPercentage'));
-              const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.val()) : 20;
+              // 1️⃣ Get platform settings (MODIFIED PATH)
+              const platformSnap = await get(ref(db, 'platform-settings/commission'));
+              const platformData = platformSnap.exists() ? platformSnap.val() : { percentage: 20 };
+              const platformPercentage = parseFloat(platformData.percentage);
 
               // 2️⃣ Calculate commission
               if (deal.offerId && deal.providerId) {
