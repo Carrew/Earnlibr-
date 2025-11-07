@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EarnLibr — Admin Deals Management</title>
   <style>
     body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
@@ -68,7 +68,7 @@
             <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
           `;
 
-          // ✅ MARK COMPLETED
+          // ✅ MARK COMPLETED (Promoter Wallet Upgrade)
           card.querySelector('.complete').onclick = async () => {
             if (deal.status === 'completed') return showNotif('Already completed.', 'error');
             try {
@@ -108,11 +108,10 @@
                 }
               }
 
-              // 2️⃣ Save promoter earnings (upgraded for wallet later)
+              // 2️⃣ Save promoter earnings
               if (deal.promoterId && deal.promoterId !== 'direct') {
                 const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
 
-                // Save deal under promoter
                 await set(ref(promoterBaseRef, `deals/${dealId}`), {
                   offerId: deal.offerId,
                   offerTitle: deal.offerTitle,
@@ -122,28 +121,37 @@
                   clientContact: deal.clientContact,
                   note: deal.note || '',
                   commissionAmount: commissionEarned,
-                  completedAt: timestamp,
-                  withdrawn: false  // ready for future wallet implementation
+                  withdrawn: false,
+                  currency: deal.currency || 'USD',
+                  completedAt: timestamp
                 });
 
-                // Update promoter metadata
                 const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
                 let totalLifetime = commissionEarned;
                 let totalWithdrawn = 0;
+
                 if (metaSnap.exists()) {
                   const meta = metaSnap.val();
                   totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
                   totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
                 }
 
-                await set(ref(promoterBaseRef, 'metadata'), {
+                const currentBalance = totalLifetime - totalWithdrawn;
+
+                await update(ref(promoterBaseRef, 'metadata'), {
                   totalLifetimeEarnings: totalLifetime,
                   totalWithdrawn: totalWithdrawn,
+                  currentBalance: currentBalance,
                   lastUpdated: timestamp
                 });
+
+                const wrSnap = await get(ref(promoterBaseRef, 'withdrawalRequests'));
+                if (!wrSnap.exists()) {
+                  await set(ref(promoterBaseRef, 'withdrawalRequests'), {});
+                }
               }
 
-              // 3️⃣ Save completed deal with provider payment tracking
+              // 3️⃣ Save completed deal
               await set(ref(db, `completed-deals/${dealId}`), {
                 ...deal,
                 status: 'completed',
@@ -161,16 +169,19 @@
               // 5️⃣ Notifications
               const notifData = {
                 title: 'Deal Completed ✅',
-                message: `Deal ${dealId} completed.`,
+                message: `Deal ${dealId} completed. Your wallet balance is now ${commissionEarned.toFixed(2)} ${deal.currency || 'USD'}.`,
                 type: 'completed',
                 createdAt: timestamp,
                 commissionEarned
               };
+
               await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              if (deal.promoterId && deal.promoterId !== 'direct') {
+                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+              }
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-              showNotif('✅ Deal completed, commission saved, and promoter earnings structured for wallet.');
+              showNotif('✅ Deal completed, promoter wallet updated.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
