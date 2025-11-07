@@ -45,7 +45,7 @@ if (!providerId) {
   dealsContainer.innerHTML = '<p>Error: Provider not logged in.</p>';
 } else {
   const dealsRef = ref(db, 'deals');
-  onValue(dealsRef, async (snapshot) => {
+  onValue(dealsRef, async snapshot => {
     dealsContainer.innerHTML = '';
     if (!snapshot.exists()) {
       dealsContainer.innerHTML = '<p>No deals found.</p>';
@@ -54,15 +54,15 @@ if (!providerId) {
 
     const dealsData = snapshot.val();
     const providerDeals = Object.keys(dealsData)
-      .filter(id => dealsData[id].providerId === providerId)
-      .sort((a,b) => new Date(dealsData[b].createdAt) - new Date(dealsData[a].createdAt));
+      .filter(id => dealsData[id]?.providerId === providerId)
+      .sort((a, b) => new Date(dealsData[b]?.createdAt || 0) - new Date(dealsData[a]?.createdAt || 0));
 
-    if (providerDeals.length === 0) {
+    if (!providerDeals.length) {
       dealsContainer.innerHTML = '<p>No deals found for your offers yet.</p>';
       return;
     }
 
-    providerDeals.forEach(async dealId => {
+    for (const dealId of providerDeals) {
       const deal = dealsData[dealId];
       const card = document.createElement('div');
       card.className = 'deal-card ' + (deal.status || '');
@@ -79,104 +79,78 @@ if (!providerId) {
         <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
       `;
 
-      // ✅ FULL MARK COMPLETED (like admin)
+      // ✅ MARK COMPLETED (full admin-grade)
       card.querySelector('.complete').onclick = async () => {
         if (deal.status === 'completed') return showNotif('Already completed.', 'error');
         try {
           const timestamp = new Date().toISOString();
           card.querySelector('.complete').disabled = true;
           let commissionEarned = 0;
+          const currency = deal.currency || 'USD';
 
-          // 1️⃣ Update offer financials
+          // Update offer financials
           if (deal.offerId && deal.providerId) {
             const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
             const offerSnap = await get(offerRef);
             if (offerSnap.exists()) {
               const offerData = offerSnap.val();
-              if (offerData.commissionType === 'percentage') {
-                commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
-              } else if (offerData.commissionType === 'fixed') {
-                commissionEarned = parseFloat(offerData.commissionValue || 0);
-              } else {
-                commissionEarned = parseFloat(deal.commissionValue || 0);
-              }
+              if (offerData.commissionType === 'percentage') commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
+              else if (offerData.commissionType === 'fixed') commissionEarned = parseFloat(offerData.commissionValue || 0);
+              else commissionEarned = parseFloat(deal.commissionValue || 0);
 
-              const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
-              const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
-              const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
+              const newSpent = (parseFloat(offerData.promoSpent) || 0) + commissionEarned;
+              const newAmountOwed = (parseFloat(offerData.amountOwed) || 0) + commissionEarned;
+              const newOutstanding = newAmountOwed - (parseFloat(offerData.amountPaid) || 0);
 
-              const offerUpdates = {
-                promoSpent: newSpent,
-                amountOwed: newAmountOwed,
-                outstandingBalance: newOutstanding
-              };
-              if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
-                offerUpdates.status = 'completed';
-              }
+              const offerUpdates = { promoSpent: newSpent, amountOwed: newAmountOwed, outstandingBalance: newOutstanding };
+              if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) offerUpdates.status = 'completed';
               await update(offerRef, offerUpdates);
             }
           }
 
-          // 2️⃣ Save promoter earnings (full admin-style)
+          // Update promoter earnings
           if (deal.promoterId && deal.promoterId !== 'direct') {
-            const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
-            await set(ref(promoterBaseRef, `deals/${dealId}`), {
-              offerId: deal.offerId,
-              offerTitle: deal.offerTitle,
-              providerId: deal.providerId,
-              providerName: deal.providerName,
-              clientName: deal.clientName,
-              clientContact: deal.clientContact,
-              note: deal.note || '',
-              commissionAmount: commissionEarned,
-              completedAt: timestamp,
-              withdrawn: false
+            const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}`);
+            await set(ref(promoterRef, `deals/${dealId}`), {
+              offerId: deal.offerId, offerTitle: deal.offerTitle, providerId: deal.providerId,
+              providerName: deal.providerName, clientName: deal.clientName, clientContact: deal.clientContact,
+              note: deal.note || '', commissionAmount: commissionEarned, withdrawn: false, currency, completedAt: timestamp
             });
 
-            const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
-            let totalLifetime = commissionEarned;
-            let totalWithdrawn = 0;
-            if (metaSnap.exists()) {
-              const meta = metaSnap.val();
-              totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
-              totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
-            }
-            await set(ref(promoterBaseRef, 'metadata'), {
-              totalLifetimeEarnings: totalLifetime,
-              totalWithdrawn: totalWithdrawn,
-              lastUpdated: timestamp
-            });
+            const metaSnap = await get(ref(promoterRef, 'metadata'));
+            const metadata = metaSnap.exists() ? metaSnap.val() : {};
+            metadata.totalLifetimeEarnings = metadata.totalLifetimeEarnings || {};
+            metadata.totalWithdrawn = metadata.totalWithdrawn || {};
+            metadata.currentBalance = metadata.currentBalance || {};
+
+            metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + commissionEarned;
+            metadata.currentBalance[currency] = metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0);
+            metadata.lastUpdated = timestamp;
+
+            await update(ref(promoterRef, 'metadata'), metadata);
+
+            // Ensure withdrawalRequests exists
+            const wrSnap = await get(ref(promoterRef, 'withdrawalRequests'));
+            if (!wrSnap.exists()) await set(ref(promoterRef, 'withdrawalRequests'), {});
           }
 
-          // 3️⃣ Save completed deal with provider payment tracking
-          await set(ref(db, `completed-deals/${dealId}`), {
-            ...deal,
-            status: 'completed',
-            completedAt: timestamp,
-            commissionEarned,
-            providerPaid: false,
-            paymentAmount: 0,
-            paymentNotes: ''
-          });
+          // Save completed deal
+          await set(ref(db, `completed-deals/${dealId}`), { ...deal, status: 'completed', completedAt: timestamp, commissionEarned, providerPaid: false, paymentAmount: 0, paymentNotes: '' });
 
-          // 4️⃣ Remove from active deals
+          // Remove from active deals
           await remove(ref(db, `deals/${dealId}`));
           card.style.opacity = '0';
           setTimeout(() => card.remove(), 500);
 
-          // 5️⃣ Notifications
-          const notifData = {
-            title: 'Deal Completed ✅',
-            message: `Deal ${dealId} completed.`,
-            type: 'completed',
-            createdAt: timestamp,
-            commissionEarned
-          };
-          await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-          await push(ref(db, `admin-notifications`), { ...notifData, dealId });
+          // Push notifications
+          const notifData = { title: 'Deal Completed ✅', message: `Deal ${dealId} completed.`, type: 'completed', createdAt: timestamp, commissionEarned, currency };
+          await Promise.all([
+            push(ref(db, `notifications/${deal.providerId}`), notifData),
+            deal.promoterId && deal.promoterId !== 'direct' ? push(ref(db, `notifications/${deal.promoterId}`), notifData) : null,
+            push(ref(db, 'admin-notifications'), { ...notifData, dealId })
+          ]);
 
-          showNotif('✅ Deal completed and promoter earnings saved like admin.');
+          showNotif('✅ Deal completed, promoter earnings updated.');
         } catch (err) {
           console.error(err);
           showNotif('Error completing deal: ' + err.message, 'error');
@@ -192,15 +166,13 @@ if (!providerId) {
           card.style.opacity = '0';
           setTimeout(() => card.remove(), 500);
 
-          const notifData = {
-            title: 'Deal Cancelled ❌',
-            message: `Deal ${dealId} cancelled by provider.`,
-            type: 'cancelled',
-            createdAt: timestamp
-          };
-          await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-          await push(ref(db, `admin-notifications`), { ...notifData, dealId });
+          const notifData = { title: 'Deal Cancelled ❌', message: `Deal ${dealId} cancelled by provider.`, type: 'cancelled', createdAt: timestamp };
+          await Promise.all([
+            push(ref(db, `notifications/${deal.providerId}`), notifData),
+            deal.promoterId && deal.promoterId !== 'direct' ? push(ref(db, `notifications/${deal.promoterId}`), notifData) : null,
+            push(ref(db, 'admin-notifications'), { ...notifData, dealId })
+          ]);
+
           showNotif('❌ Deal cancelled successfully.');
         } catch (err) {
           console.error(err);
@@ -209,7 +181,7 @@ if (!providerId) {
       };
 
       dealsContainer.appendChild(card);
-    });
+    }
   });
 }
 </script>
