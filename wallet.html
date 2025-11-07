@@ -19,10 +19,7 @@
 <body>
   <h1>Promoter Wallet</h1>
   <div id="notif" class="notif"></div>
-
-  <div id="walletContainer" class="wallet">
-    Loading wallet...
-  </div>
+  <div id="walletContainer" class="wallet">Loading wallet...</div>
 
   <script type="module">
     import { db } from './firebase.js';
@@ -37,8 +34,7 @@
       setTimeout(() => notif.style.display = 'none', 4000);
     };
 
-    // ⚡ Replace with logged-in promoter ID
-    const promoterId = "promoter123";
+    const promoterId = "promoter123"; // Replace with logged-in promoter
 
     const promoterRef = ref(db, `promoter-earnings/${promoterId}`);
     onValue(promoterRef, async (snapshot) => {
@@ -52,22 +48,26 @@
       const metadata = data.metadata || {};
       const deals = data.deals || {};
 
-      const currentBalance = metadata.currentBalance || 0;
-      const lifetimeEarnings = metadata.totalLifetimeEarnings || 0;
-      const totalWithdrawn = metadata.totalWithdrawn || 0;
+      const balances = metadata.currentBalance || {};
+      const lifetimeEarnings = metadata.totalLifetimeEarnings || {};
+      const totalWithdrawn = metadata.totalWithdrawn || {};
 
-      walletContainer.innerHTML = `
-        <div class="balance"><strong>Current Balance:</strong> $${currentBalance.toFixed(2)}</div>
-        <div class="balance"><strong>Total Lifetime Earnings:</strong> $${lifetimeEarnings.toFixed(2)}</div>
-        <div class="balance"><strong>Total Withdrawn:</strong> $${totalWithdrawn.toFixed(2)}</div>
-      `;
+      // Display balances per currency
+      Object.keys(balances).forEach(currency => {
+        walletContainer.innerHTML += `
+          <div class="balance"><strong>Current Balance (${currency}):</strong> ${balances[currency].toFixed(2)}</div>
+          <div class="balance"><strong>Total Lifetime Earnings (${currency}):</strong> ${(lifetimeEarnings[currency] || 0).toFixed(2)}</div>
+          <div class="balance"><strong>Total Withdrawn (${currency}):</strong> ${(totalWithdrawn[currency] || 0).toFixed(2)}</div>
+        `;
 
-      // Pending deals for withdrawal
-      const pendingDeals = Object.entries(deals).filter(([_, d]) => d.withdrawn === false);
-      if (pendingDeals.length === 0) {
-        walletContainer.innerHTML += '<p>No pending deals for withdrawal.</p>';
-      } else {
-        walletContainer.innerHTML += '<h3>Pending Deals:</h3>';
+        // Deals pending for this currency
+        const pendingDeals = Object.entries(deals).filter(([_, d]) => d.withdrawn === false && (d.currency || 'USD') === currency);
+        if (pendingDeals.length === 0) {
+          walletContainer.innerHTML += `<p>No pending ${currency} deals for withdrawal.</p>`;
+          return;
+        }
+
+        walletContainer.innerHTML += `<h3>Pending ${currency} Deals:</h3>`;
         pendingDeals.forEach(([dealId, deal]) => {
           const dealDiv = document.createElement('div');
           dealDiv.className = 'deal-card';
@@ -80,39 +80,39 @@
           walletContainer.appendChild(dealDiv);
         });
 
-        // Withdrawal request button
+        // Withdrawal request per currency
         const withdrawBtn = document.createElement('button');
         withdrawBtn.className = 'btn request';
-        withdrawBtn.textContent = 'Request Withdrawal';
+        withdrawBtn.textContent = `Request ${currency} Withdrawal`;
         withdrawBtn.onclick = async () => {
-          if (!confirm('Confirm withdrawal request for all pending deals?')) return;
-
+          if (!confirm(`Confirm withdrawal request for all pending ${currency} deals?`)) return;
           try {
             const timestamp = new Date().toISOString();
-            const withdrawalId = `wr-${Date.now()}`;
+            const withdrawalId = `wr-${currency}-${Date.now()}`;
+
+            const amount = pendingDeals.reduce((sum, [_, d]) => sum + d.commissionAmount, 0);
 
             // Create withdrawal request
             await push(ref(db, `withdrawal-requests`), {
               promoterId,
               dealIds: pendingDeals.map(([id]) => id),
-              amount: currentBalance,
+              currency,
+              amount,
               status: 'pending',
               requestedAt: timestamp
             });
 
-            // Mark all deals as withdrawn = true in promoter-earnings (FIFO basis)
+            // Mark deals withdrawn and update currentBalance
             let updates = {};
             pendingDeals.forEach(([dealId, _]) => {
               updates[`promoter-earnings/${promoterId}/deals/${dealId}/withdrawn`] = true;
             });
-
-            // Update promoter metadata
-            updates[`promoter-earnings/${promoterId}/metadata/currentBalance`] = 0;
+            updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${currency}`] = 0;
             updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
 
             await update(ref(db), updates);
 
-            showNotif(`✅ Withdrawal request submitted for $${currentBalance.toFixed(2)}.`);
+            showNotif(`✅ ${currency} withdrawal request submitted for ${amount.toFixed(2)}.`);
           } catch (err) {
             console.error(err);
             showNotif('Error requesting withdrawal: ' + err.message, 'error');
@@ -120,7 +120,7 @@
         };
 
         walletContainer.appendChild(withdrawBtn);
-      }
+      });
     });
   </script>
 </body>
