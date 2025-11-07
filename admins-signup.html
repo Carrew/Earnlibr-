@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarnLibr — Admin Signup</title>
+  <style>
+    body { font-family: Arial; background:#0b0d17; color:#eef2f7; padding:20px; }
+    h1 { background: linear-gradient(90deg,#4ade80,#22d3ee); -webkit-background-clip:text;color:transparent;margin-bottom:20px;}
+    .container { background:#0f1724;padding:20px;border-radius:12px;max-width:400px;box-shadow:0 4px 10px rgba(0,0,0,0.4);}
+    input { width:100%; padding:10px;margin-bottom:15px;border-radius:6px;border:none;background:#1a2235;color:#eef2f7;}
+    button { padding:10px 15px;border-radius:6px;border:none;background:#4ade80;color:#041018;font-weight:bold;cursor:pointer;}
+    button:hover{opacity:0.9;}
+    .notif { padding:10px;background:#1a2235;border-radius:8px;margin-bottom:15px;display:none;}
+    .notif.success{border-left:4px solid #4ade80;color:#a3ff6e;}
+    .notif.error{border-left:4px solid #ef4444;color:#ff8c8c;}
+  </style>
+</head>
+<body>
+  <h1>Admin Signup</h1>
+  <div class="container">
+    <input type="text" id="name" placeholder="Full Name" />
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="signupBtn">Create Admin</button>
+    <div id="notif" class="notif"></div>
+  </div>
+
+  <script type="module">
+    import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
+    import { db } from './firebase.js';
+    import { ref, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+    const auth = getAuth();
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const signupBtn = document.getElementById('signupBtn');
+    const notif = document.getElementById('notif');
+
+    const showNotif = (msg, type='success') => {
+      notif.textContent = msg;
+      notif.className = `notif ${type}`;
+      notif.style.display = 'block';
+      setTimeout(()=>notif.style.display='none',4000);
+    };
+
+    signupBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if(!name || !email || !password){
+        return showNotif('All fields are required','error');
+      }
+
+      try {
+        // Create user in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+
+        // Save extra admin data in database
+        await set(ref(db, `admins/${uid}`), {
+          name,
+          email,
+          role: 'admin', // or 'superadmin' if you want
+          createdAt: new Date().toISOString()
+        });
+
+        showNotif('✅ Admin account created successfully!');
+        nameInput.value = '';
+        emailInput.value = '';
+        passwordInput.value = '';
+      } catch(err) {
+        console.error(err);
+        showNotif(err.message,'error');
+      }
+    };
+  </script>
+</body>
+</html>
