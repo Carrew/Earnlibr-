@@ -1,145 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EarnLibr — Admin Promoter Withdrawals</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-    h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-    .withdrawal-card { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
-    .deal-item { background: #0f1724; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; cursor: pointer; }
-    .deal-list { display: none; margin-top: 10px; }
-    .btn { padding: 8px 16px; margin-right: 8px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    .btn-approve { background: #4ade80; color: #041018; }
-    .btn-reject { background: #ef4444; color: #fff; }
-    .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
-    .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-    .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Promoter Withdrawals</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; padding: 20px; }
+  h1 { background: linear-gradient(90deg, #4ade80, #22d3ee); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+  .notif { background: #1a2235; padding: 10px; border-left: 4px solid #4ade80; border-radius: 8px; color: #a3ff6e; margin-bottom: 20px; display: none; }
+  .request-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+  .deal-info { font-size: 14px; margin-bottom: 5px; }
+  .btn { padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; border: none; margin-right: 10px; }
+  .btn.approve { background: #4ade80; color: #041018; }
+  .btn.reject { background: #ef4444; color: #fff; }
+  .deals-list { background: #1a2235; padding: 10px; border-radius: 8px; margin-top: 10px; }
+</style>
 </head>
 <body>
-
-<h1>Admin — Promoter Withdrawal Requests</h1>
+<h1>Promoter Withdrawal Requests</h1>
 <div id="notif" class="notif"></div>
-<div id="withdrawalsContainer">Loading withdrawal requests...</div>
+<div id="requestsContainer">Loading withdrawal requests...</div>
 
 <script type="module">
 import { db } from './firebase.js';
-import { ref, get, update, remove } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, onValue, update, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-const withdrawalsContainer = document.getElementById('withdrawalsContainer');
+const container = document.getElementById('requestsContainer');
 const notif = document.getElementById('notif');
 const showNotif = (msg, type='success') => {
   notif.textContent = msg;
-  notif.className = `notif ${type}`;
   notif.style.display = 'block';
+  notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
   setTimeout(() => notif.style.display = 'none', 4000);
 };
 
-async function fetchWithdrawals() {
-  withdrawalsContainer.innerHTML = "Loading withdrawal requests...";
-  try {
-    const snapshot = await get(ref(db, 'admin-notifications'));
-    if (!snapshot.exists()) {
-      withdrawalsContainer.innerHTML = "<p>No pending withdrawals.</p>";
-      return;
-    }
-
-    const notifications = snapshot.val();
-    const pendingWithdrawals = Object.entries(notifications)
-      .filter(([key, n]) => n.type === 'promoterWithdrawalRequest');
-
-    if (!pendingWithdrawals.length) {
-      withdrawalsContainer.innerHTML = "<p>No pending withdrawals.</p>";
-      return;
-    }
-
-    withdrawalsContainer.innerHTML = '';
-    for (const [notifId, request] of pendingWithdrawals) {
-      const card = document.createElement('div');
-      card.className = 'withdrawal-card';
-      card.innerHTML = `
-        <p><strong>Promoter ID:</strong> ${request.promoterId}</p>
-        <p><strong>Total Amount:</strong> ${request.totalAmount.toFixed(2)}</p>
-        <p><strong>Requested At:</strong> ${new Date(request.createdAt).toLocaleString()}</p>
-      `;
-
-      const dealsDiv = document.createElement('div');
-      request.deals.forEach(deal => {
-        const dealDiv = document.createElement('div');
-        dealDiv.className = 'deal-item';
-        dealDiv.textContent = `${deal.offerTitle} — ${deal.amount.toFixed(2)}`;
-        dealsDiv.appendChild(dealDiv);
-      });
-      card.appendChild(dealsDiv);
-
-      // Approve button
-      const approveBtn = document.createElement('button');
-      approveBtn.className = 'btn btn-approve';
-      approveBtn.textContent = 'Approve';
-      approveBtn.onclick = async () => {
-        try {
-          const updates = {};
-          const promoterRef = ref(db, `promoter-earnings/${request.promoterId}`);
-          const promoterSnap = await get(promoterRef);
-          const promoterData = promoterSnap.exists() ? promoterSnap.val() : {};
-          const metadata = promoterData.metadata || {};
-          const totalWithdrawn = parseFloat(metadata.totalWithdrawn || 0);
-          const totalLifetime = parseFloat(metadata.totalLifetimeEarnings || 0);
-
-          // 1️⃣ Update metadata totals
-          updates[`promoter-earnings/${request.promoterId}/metadata/totalWithdrawn`] = totalWithdrawn + request.totalAmount;
-          updates[`promoter-earnings/${request.promoterId}/metadata/totalLifetimeEarnings`] = Math.max(totalLifetime, totalWithdrawn + request.totalAmount);
-
-          await update(ref(db), updates);
-
-          // 2️⃣ Remove notification
-          await remove(ref(db, `admin-notifications/${notifId}`));
-          showNotif(`Withdrawal approved for ${request.totalAmount.toFixed(2)}`, 'success');
-          fetchWithdrawals();
-        } catch (err) {
-          console.error(err);
-          showNotif('Error approving withdrawal: ' + err.message, 'error');
-        }
-      };
-
-      // Reject button
-      const rejectBtn = document.createElement('button');
-      rejectBtn.className = 'btn btn-reject';
-      rejectBtn.textContent = 'Reject';
-      rejectBtn.onclick = async () => {
-        try {
-          // Reset withdrawn flag on deals
-          const updates = {};
-          request.deals.forEach(deal => {
-            updates[`promoter-earnings/${request.promoterId}/deals/${deal.id}/withdrawn`] = false;
-          });
-          await update(ref(db), updates);
-
-          // Remove notification
-          await remove(ref(db, `admin-notifications/${notifId}`));
-          showNotif('Withdrawal rejected and deals reset.', 'error');
-          fetchWithdrawals();
-        } catch (err) {
-          console.error(err);
-          showNotif('Error rejecting withdrawal: ' + err.message, 'error');
-        }
-      };
-
-      card.appendChild(approveBtn);
-      card.appendChild(rejectBtn);
-      withdrawalsContainer.appendChild(card);
-    }
-  } catch (err) {
-    console.error(err);
-    withdrawalsContainer.innerHTML = "<p>Error loading withdrawal requests: " + err.message + "</p>";
+const withdrawalsRef = ref(db, 'withdrawal-requests');
+onValue(withdrawalsRef, async (snapshot) => {
+  container.innerHTML = '';
+  if (!snapshot.exists()) {
+    container.innerHTML = '<p>No pending withdrawal requests.</p>';
+    return;
   }
+
+  const requests = snapshot.val();
+  Object.entries(requests)
+    .filter(([_, r]) => r.status === 'pending')
+    .sort((a,b) => new Date(b[1].requestedAt) - new Date(a[1].requestedAt))
+    .forEach(([reqId, request]) => renderRequestCard(reqId, request));
+});
+
+async function renderRequestCard(reqId, request) {
+  const card = document.createElement('div');
+  card.className = 'request-card';
+
+  let dealsHTML = '';
+  for (const dealId of request.dealIds) {
+    const dealSnap = await get(ref(db, `promoter-earnings/${request.promoterId}/deals/${dealId}`));
+    if (dealSnap.exists()) {
+      const deal = dealSnap.val();
+      dealsHTML += `<div class="deal-info">• ${deal.offerTitle} - $${deal.commissionAmount.toFixed(2)} | Client: ${deal.clientName}</div>`;
+    }
+  }
+
+  card.innerHTML = `
+    <div><strong>Promoter:</strong> ${request.promoterId}</div>
+    <div><strong>Amount Requested:</strong> $${request.amount.toFixed(2)}</div>
+    <div><strong>Requested At:</strong> ${new Date(request.requestedAt).toLocaleString()}</div>
+    <div class="deals-list">${dealsHTML}</div>
+    <button class="btn approve">✅ Approve</button>
+    <button class="btn reject">❌ Reject</button>
+  `;
+
+  card.querySelector('.approve').onclick = async () => {
+    if (!confirm('Approve this withdrawal request?')) return;
+    try {
+      const timestamp = new Date().toISOString();
+      let updates = {};
+      // Update withdrawal request status
+      updates[`withdrawal-requests/${reqId}/status`] = 'approved';
+      updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
+
+      // Update promoter metadata: add to totalWithdrawn
+      const metaRef = ref(db, `promoter-earnings/${request.promoterId}/metadata`);
+      const metaSnap = await get(metaRef);
+      const meta = metaSnap.exists() ? metaSnap.val() : {};
+      const prevWithdrawn = parseFloat(meta.totalWithdrawn || 0);
+      updates[`promoter-earnings/${request.promoterId}/metadata/totalWithdrawn`] = prevWithdrawn + request.amount;
+      updates[`promoter-earnings/${request.promoterId}/metadata/lastUpdated`] = timestamp;
+      
+      // Send notification to promoter
+      await push(ref(db, `notifications/${request.promoterId}`), {
+        title: 'Withdrawal Approved ✅',
+        message: `Your withdrawal of $${request.amount.toFixed(2)} has been approved.`,
+        createdAt: timestamp,
+        type: 'withdrawal_approved',
+        requestId: reqId
+      });
+
+      await update(ref(db), updates);
+      showNotif('✅ Withdrawal approved.');
+      card.remove();
+    } catch (err) {
+      console.error(err);
+      showNotif('Error approving withdrawal: ' + err.message, 'error');
+    }
+  };
+
+  card.querySelector('.reject').onclick = async () => {
+    if (!confirm('Reject this withdrawal request?')) return;
+    try {
+      const timestamp = new Date().toISOString();
+      let updates = {};
+      // Update request status
+      updates[`withdrawal-requests/${reqId}/status`] = 'rejected';
+      updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
+
+      // Reset promoter deals withdrawn=false
+      request.dealIds.forEach(dealId => {
+        updates[`promoter-earnings/${request.promoterId}/deals/${dealId}/withdrawn`] = false;
+      });
+
+      // Send notification to promoter
+      await push(ref(db, `notifications/${request.promoterId}`), {
+        title: 'Withdrawal Rejected ❌',
+        message: `Your withdrawal of $${request.amount.toFixed(2)} has been rejected. You can request again later.`,
+        createdAt: timestamp,
+        type: 'withdrawal_rejected',
+        requestId: reqId
+      });
+
+      await update(ref(db), updates);
+      showNotif('❌ Withdrawal rejected.');
+      card.remove();
+    } catch (err) {
+      console.error(err);
+      showNotif('Error rejecting withdrawal: ' + err.message, 'error');
+    }
+  };
+
+  container.appendChild(card);
 }
-
-// Initialize
-fetchWithdrawals();
 </script>
-
 </body>
 </html>
