@@ -1,186 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Promoter Wallet — EarnLibr</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0b0d17;
-      color: #eef2f7;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      background: linear-gradient(90deg, #4ade80, #22d3ee);
-      -webkit-background-clip: text;
-      color: transparent;
-      margin-bottom: 20px;
-    }
-    .wallet {
-      background: #0f1724;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-    }
-    .balance {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    .deal-card {
-      background: #1a2235;
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .deal-info {
-      font-size: 14px;
-      margin-bottom: 4px;
-    }
-    .btn {
-      background: #4ade80;
-      border: none;
-      color: #041018;
-      font-weight: bold;
-      border-radius: 6px;
-      padding: 6px 12px;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: 0.3s;
-    }
-    .btn:hover { opacity: 0.9; }
-    .btn.request { background: #22d3ee; }
-    .notif {
-      background: #1a2235;
-      border-left: 4px solid #4ade80;
-      color: #a3ff6e;
-      padding: 10px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      display: none;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Promoter Wallet — EarnLibr</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #0b0d17;
+    color: #eef2f7;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    background: linear-gradient(90deg, #4ade80, #22d3ee);
+    -webkit-background-clip: text;
+    color: transparent;
+    margin-bottom: 20px;
+  }
+  .wallet {
+    background: #0f1724;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .balance {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  .btn {
+    background: #22d3ee;
+    border: none;
+    color: #041018;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s;
+  }
+  .btn:hover { opacity: 0.9; }
+  .notif {
+    background: #1a2235;
+    border-left: 4px solid #4ade80;
+    color: #a3ff6e;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    display: none;
+  }
+</style>
 </head>
 <body>
-  <h1>Promoter Wallet</h1>
-  <div id="notif" class="notif"></div>
-  <div id="walletContainer" class="wallet">Loading wallet...</div>
+<h1>Promoter Wallet</h1>
+<div id="notif" class="notif"></div>
+<div id="walletContainer" class="wallet">Loading wallet...</div>
 
-  <script type="module">
-    import { db } from './firebase.js';
-    import { ref, onValue, push, get, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+<script type="module">
+import { db } from './firebase.js';
+import { ref, onValue, push, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-    const walletContainer = document.getElementById('walletContainer');
-    const notif = document.getElementById('notif');
-    const showNotif = (msg, type = 'success') => {
-      notif.textContent = msg;
-      notif.style.display = 'block';
-      notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
-      setTimeout(() => notif.style.display = 'none', 4000);
-    };
+const walletContainer = document.getElementById('walletContainer');
+const notif = document.getElementById('notif');
+const showNotif = (msg, type = 'success') => {
+  notif.textContent = msg;
+  notif.style.display = 'block';
+  notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
+  setTimeout(() => notif.style.display = 'none', 4000);
+};
 
-    const promoterId = "promoter123"; // Replace with logged-in promoter UID
-    const promoterRef = ref(db, `promoter-earnings/${promoterId}`);
+const promoterId = "promoter123"; // Replace with logged-in promoter UID
+const promoterRef = ref(db, `promoter-earnings/${promoterId}`);
 
-    onValue(promoterRef, async (snapshot) => {
-      walletContainer.innerHTML = '';
-      if (!snapshot.exists()) {
-        walletContainer.innerHTML = '<p>No wallet data found.</p>';
-        return;
-      }
+onValue(promoterRef, async (snapshot) => {
+  walletContainer.innerHTML = '';
+  if (!snapshot.exists()) {
+    walletContainer.innerHTML = '<p>No wallet data found.</p>';
+    return;
+  }
 
-      const data = snapshot.val();
-      const metadata = data.metadata || {};
-      const deals = data.deals || {};
+  const data = snapshot.val();
+  const metadata = data.metadata || {};
+  const deals = data.deals || {};
 
-      const balances = metadata.currentBalance || {};
-      const lifetimeEarnings = metadata.totalLifetimeEarnings || {};
-      const totalWithdrawn = metadata.totalWithdrawn || {};
+  const balances = metadata.currentBalance || {};
+  const lifetimeEarnings = metadata.totalLifetimeEarnings || {};
+  const totalWithdrawn = metadata.totalWithdrawn || {};
 
-      Object.keys(balances).forEach(currency => {
-        const curBalance = balances[currency] || 0;
-        const curLifetime = lifetimeEarnings[currency] || 0;
-        const curWithdrawn = totalWithdrawn[currency] || 0;
+  Object.keys(balances).forEach(currency => {
+    const curBalance = balances[currency] || 0;
+    const curLifetime = lifetimeEarnings[currency] || 0;
+    const curWithdrawn = totalWithdrawn[currency] || 0;
 
-        walletContainer.innerHTML += `
-          <div class="balance"><strong>💰 Current Balance (${currency}):</strong> ${curBalance.toFixed(2)}</div>
-          <div class="balance"><strong>📈 Total Lifetime Earnings (${currency}):</strong> ${curLifetime.toFixed(2)}</div>
-          <div class="balance"><strong>🏦 Total Withdrawn (${currency}):</strong> ${curWithdrawn.toFixed(2)}</div>
-        `;
+    walletContainer.innerHTML += `
+      <div class="balance"><strong>💰 Current Balance (${currency}):</strong> ${curBalance.toFixed(2)}</div>
+      <div class="balance"><strong>📈 Total Lifetime Earnings (${currency}):</strong> ${curLifetime.toFixed(2)}</div>
+      <div class="balance"><strong>🏦 Total Withdrawn (${currency}):</strong> ${curWithdrawn.toFixed(2)}</div>
+    `;
 
-        // Pending deals for this currency
-        const pendingDeals = Object.entries(deals)
-          .filter(([_, d]) => d.withdrawn === false && (d.currency || 'USD') === currency);
+    // If balance exists, show withdrawal button
+    if (curBalance > 0) {
+      const withdrawBtn = document.createElement('button');
+      withdrawBtn.className = 'btn';
+      withdrawBtn.textContent = `Request ${currency} Withdrawal`;
 
-        if (pendingDeals.length > 0) {
-          walletContainer.innerHTML += `<h3>Pending ${currency} Deals:</h3>`;
-          pendingDeals.forEach(([dealId, deal]) => {
-            const dealDiv = document.createElement('div');
-            dealDiv.className = 'deal-card';
-            dealDiv.innerHTML = `
-              <div class="deal-info"><strong>Deal:</strong> ${deal.offerTitle}</div>
-              <div class="deal-info"><strong>Commission:</strong> ${(deal.commissionAmount || 0).toFixed(2)} ${currency}</div>
-              <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'}</div>
-              <div class="deal-info"><strong>Client:</strong> ${deal.clientName || 'N/A'}</div>
-              <div class="deal-info"><strong>Completed At:</strong> ${new Date(deal.completedAt).toLocaleString()}</div>
-            `;
-            walletContainer.appendChild(dealDiv);
+      withdrawBtn.onclick = async () => {
+        if (!confirm(`Confirm withdrawal request of ${curBalance.toFixed(2)} ${currency}?`)) return;
+        withdrawBtn.disabled = true;
+
+        try {
+          const timestamp = new Date().toISOString();
+          const withdrawalId = `wr-${currency}-${Date.now()}`;
+
+          // Get all pending deals for this currency (still in backend)
+          const pendingDeals = Object.entries(deals)
+            .filter(([_, d]) => d.withdrawn === false && (d.currency || 'USD') === currency)
+            .map(([id]) => id);
+
+          if (pendingDeals.length === 0) {
+            showNotif(`No valid ${currency} earnings to withdraw.`, 'error');
+            withdrawBtn.disabled = false;
+            return;
+          }
+
+          // Create withdrawal request
+          await push(ref(db, `withdrawal-requests`), {
+            withdrawalId,
+            promoterId,
+            currency,
+            dealIds: pendingDeals,
+            amount: curBalance,
+            status: 'pending',
+            requestedAt: timestamp
           });
 
-          const withdrawBtn = document.createElement('button');
-          withdrawBtn.className = 'btn request';
-          withdrawBtn.textContent = `Request ${currency} Withdrawal`;
+          // Mark deals withdrawn and reset current balance
+          let updates = {};
+          pendingDeals.forEach(dealId => {
+            updates[`promoter-earnings/${promoterId}/deals/${dealId}/withdrawn`] = true;
+          });
+          updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${currency}`] = 0;
+          updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
 
-          withdrawBtn.onclick = async () => {
-            if (!confirm(`Confirm withdrawal for all pending ${currency} deals?`)) return;
-            withdrawBtn.disabled = true;
-            try {
-              const timestamp = new Date().toISOString();
-              const withdrawalId = `wr-${currency}-${Date.now()}`;
-              const amount = pendingDeals.reduce((sum, [_, d]) => sum + (d.commissionAmount || 0), 0);
-
-              if (amount <= 0) {
-                showNotif(`No valid ${currency} earnings to withdraw.`, 'error');
-                withdrawBtn.disabled = false;
-                return;
-              }
-
-              // Create withdrawal request
-              await push(ref(db, `withdrawal-requests`), {
-                withdrawalId,
-                promoterId,
-                currency,
-                dealIds: pendingDeals.map(([id]) => id),
-                amount,
-                status: 'pending',
-                requestedAt: timestamp
-              });
-
-              // Mark deals withdrawn and reset balance
-              let updates = {};
-              pendingDeals.forEach(([dealId]) => {
-                updates[`promoter-earnings/${promoterId}/deals/${dealId}/withdrawn`] = true;
-              });
-              updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${currency}`] = 0;
-              updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
-
-              await update(ref(db), updates);
-
-              showNotif(`✅ ${currency} withdrawal request submitted for ${amount.toFixed(2)}.`);
-            } catch (err) {
-              console.error(err);
-              showNotif('Error submitting withdrawal: ' + err.message, 'error');
-              withdrawBtn.disabled = false;
-            }
-          };
-          walletContainer.appendChild(withdrawBtn);
-        } else {
-          walletContainer.innerHTML += `<p>No pending ${currency} deals for withdrawal.</p>`;
+          await update(ref(db), updates);
+          showNotif(`✅ ${currency} withdrawal request submitted for ${curBalance.toFixed(2)}.`);
+        } catch (err) {
+          console.error(err);
+          showNotif('Error submitting withdrawal: ' + err.message, 'error');
+          withdrawBtn.disabled = false;
         }
-      });
-    });
-  </script>
+      };
+
+      walletContainer.appendChild(withdrawBtn);
+    }
+  });
+});
+</script>
 </body>
 </html>
