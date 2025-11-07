@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Admin Deals Management</title>
+  <title>EarnLibr — Admin Deals Management & Promoter Wallet</title>
   <style>
     body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
     h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-    .deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); }
+    .deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
     .deal-card.completed { border-left: 4px solid #4ade80; }
     .deal-card.cancelled { border-left: 4px solid #ef4444; }
     .deal-info { margin-bottom: 10px; font-size: 14px; }
@@ -21,7 +21,7 @@
   </style>
 </head>
 <body>
-  <h1>Admin — Deals Management</h1>
+  <h1>Admin — Deals Management & Promoter Wallet</h1>
   <div id="notif" class="notif"></div>
   <div id="dealsContainer">Loading deals...</div>
 
@@ -74,6 +74,7 @@
             try {
               const timestamp = new Date().toISOString();
               let commissionEarned = 0;
+              const currency = deal.currency || 'USD';
 
               // 1️⃣ Update offer financials
               if (deal.offerId && deal.providerId) {
@@ -81,7 +82,6 @@
                 const offerSnap = await get(offerRef);
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
-
                   if (offerData.commissionType === 'percentage') {
                     commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
                   } else if (offerData.commissionType === 'fixed') {
@@ -112,6 +112,7 @@
               if (deal.promoterId && deal.promoterId !== 'direct') {
                 const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
 
+                // Create deal entry under promoter
                 await set(ref(promoterBaseRef, `deals/${dealId}`), {
                   offerId: deal.offerId,
                   offerTitle: deal.offerTitle,
@@ -122,33 +123,29 @@
                   note: deal.note || '',
                   commissionAmount: commissionEarned,
                   withdrawn: false,
-                  currency: deal.currency || 'USD',
+                  currency: currency,
                   completedAt: timestamp
                 });
 
+                // 2a️⃣ Update metadata dynamically per currency
                 const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
-                let totalLifetime = commissionEarned;
-                let totalWithdrawn = 0;
+                let metadata = {};
+                if (metaSnap.exists()) metadata = metaSnap.val();
 
-                if (metaSnap.exists()) {
-                  const meta = metaSnap.val();
-                  totalLifetime += parseFloat(meta.totalLifetimeEarnings || 0);
-                  totalWithdrawn = parseFloat(meta.totalWithdrawn || 0);
-                }
+                metadata.totalLifetimeEarnings = metadata.totalLifetimeEarnings || {};
+                metadata.totalWithdrawn = metadata.totalWithdrawn || {};
+                metadata.currentBalance = metadata.currentBalance || {};
 
-                const currentBalance = totalLifetime - totalWithdrawn;
+                metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + commissionEarned;
+                metadata.currentBalance[currency] = (metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0));
 
-                await update(ref(promoterBaseRef, 'metadata'), {
-                  totalLifetimeEarnings: totalLifetime,
-                  totalWithdrawn: totalWithdrawn,
-                  currentBalance: currentBalance,
-                  lastUpdated: timestamp
-                });
+                metadata.lastUpdated = timestamp;
 
+                await update(ref(promoterBaseRef, 'metadata'), metadata);
+
+                // Ensure withdrawalRequests node exists
                 const wrSnap = await get(ref(promoterBaseRef, 'withdrawalRequests'));
-                if (!wrSnap.exists()) {
-                  await set(ref(promoterBaseRef, 'withdrawalRequests'), {});
-                }
+                if (!wrSnap.exists()) await set(ref(promoterBaseRef, 'withdrawalRequests'), {});
               }
 
               // 3️⃣ Save completed deal
@@ -169,16 +166,14 @@
               // 5️⃣ Notifications
               const notifData = {
                 title: 'Deal Completed ✅',
-                message: `Deal ${dealId} completed. Your wallet balance is now ${commissionEarned.toFixed(2)} ${deal.currency || 'USD'}.`,
+                message: `Deal ${dealId} completed. Promoter balance updated: ${commissionEarned.toFixed(2)} ${currency}.`,
                 type: 'completed',
                 createdAt: timestamp,
-                commissionEarned
+                commissionEarned,
+                currency
               };
-
               await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct') {
-                await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-              }
+              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
               await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
               showNotif('✅ Deal completed, promoter wallet updated.');
