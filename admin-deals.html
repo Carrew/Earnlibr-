@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Admin Deals Management & Promoter Wallet</title>
+  <title>EarnLibr — Admin Deals Management & Platform Earnings</title>
   <style>
     body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
     h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
@@ -21,7 +21,7 @@
   </style>
 </head>
 <body>
-  <h1>Admin — Deals Management & Promoter Wallet</h1>
+  <h1>Admin — Deals Management & Platform Earnings</h1>
   <div id="notif" class="notif"></div>
   <div id="dealsContainer">Loading deals...</div>
 
@@ -39,6 +39,7 @@
     };
 
     const dealsRef = ref(db, 'deals');
+
     onValue(dealsRef, async (snapshot) => {
       dealsContainer.innerHTML = '';
       if (!snapshot.exists()) {
@@ -51,7 +52,6 @@
         .sort((a, b) => new Date(dealsData[b].createdAt) - new Date(dealsData[a].createdAt))
         .forEach(async (dealId) => {
           const deal = dealsData[dealId];
-
           const card = document.createElement('div');
           card.className = 'deal-card ' + (deal.status || '');
           card.innerHTML = `
@@ -68,20 +68,25 @@
             <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
           `;
 
-          // ✅ MARK COMPLETED (Promoter Wallet Upgrade)
+          // ✅ MARK COMPLETED
           card.querySelector('.complete').onclick = async () => {
             if (deal.status === 'completed') return showNotif('Already completed.', 'error');
             try {
               const timestamp = new Date().toISOString();
-              let commissionEarned = 0;
               const currency = deal.currency || 'USD';
+              let commissionEarned = 0;
 
-              // 1️⃣ Update offer financials
+              // 1️⃣ Get platform settings
+              const platformSnap = await get(ref(db, 'platform-settings/commissionPercentage'));
+              const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.val()) : 20;
+
+              // 2️⃣ Calculate commission
               if (deal.offerId && deal.providerId) {
                 const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
                 const offerSnap = await get(offerRef);
                 if (offerSnap.exists()) {
                   const offerData = offerSnap.val();
+
                   if (offerData.commissionType === 'percentage') {
                     commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
                   } else if (offerData.commissionType === 'fixed') {
@@ -90,6 +95,10 @@
                     commissionEarned = parseFloat(deal.commissionValue || 0);
                   }
 
+                  const platformShare = (commissionEarned * platformPercentage) / 100;
+                  const promoterNet = commissionEarned - platformShare;
+
+                  // 3️⃣ Update offer financials
                   const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
                   const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
                   const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
@@ -105,78 +114,86 @@
                   }
 
                   await update(offerRef, offerUpdates);
+
+                  // 4️⃣ Update promoter wallet
+                  if (deal.promoterId && deal.promoterId !== 'direct') {
+                    const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
+
+                    await set(ref(promoterBaseRef, `deals/${dealId}`), {
+                      offerId: deal.offerId,
+                      offerTitle: deal.offerTitle,
+                      providerId: deal.providerId,
+                      providerName: deal.providerName,
+                      clientName: deal.clientName,
+                      clientContact: deal.clientContact,
+                      note: deal.note || '',
+                      commissionAmount: promoterNet,
+                      withdrawn: false,
+                      currency: currency,
+                      completedAt: timestamp,
+                      platformTax: platformShare,
+                      fullCommission: commissionEarned
+                    });
+
+                    const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
+                    let metadata = metaSnap.exists() ? metaSnap.val() : {
+                      totalLifetimeEarnings: {}, totalWithdrawn: {}, currentBalance: {}
+                    };
+
+                    metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + promoterNet;
+                    metadata.currentBalance[currency] =
+                      metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0);
+                    metadata.lastUpdated = timestamp;
+
+                    await update(ref(promoterBaseRef, 'metadata'), metadata);
+                  }
+
+                  // 5️⃣ Update platform earnings
+                  const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
+                  const platformEarningsSnap = await get(platformEarningsRef);
+                  let platformData = platformEarningsSnap.exists() ? platformEarningsSnap.val() : {
+                    totalRevenue: 0, dealsCount: 0, lastUpdated: ''
+                  };
+                  platformData.totalRevenue += platformShare;
+                  platformData.dealsCount += 1;
+                  platformData.lastUpdated = timestamp;
+                  await set(platformEarningsRef, platformData);
+
+                  // 6️⃣ Move deal to completed
+                  await set(ref(db, `completed-deals/${dealId}`), {
+                    ...deal,
+                    status: 'completed',
+                    completedAt: timestamp,
+                    commissionEarned,
+                    promoterNet,
+                    platformShare,
+                    providerPaid: false,
+                    paymentAmount: 0,
+                    paymentNotes: ''
+                  });
+
+                  await remove(ref(db, `deals/${dealId}`));
+                  card.remove();
+
+                  // 7️⃣ Notifications
+                  const notifData = {
+                    title: 'Deal Completed ✅',
+                    message: `Deal ${dealId} completed. Promoter earned ${promoterNet.toFixed(2)} ${currency} after ${platformPercentage}% platform share.`,
+                    type: 'completed',
+                    createdAt: timestamp,
+                    commissionEarned,
+                    promoterNet,
+                    platformShare,
+                    currency
+                  };
+
+                  await push(ref(db, `notifications/${deal.providerId}`), notifData);
+                  if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+                  await push(ref(db, `admin-notifications`), { ...notifData, dealId });
+
+                  showNotif(`✅ Deal completed. ${platformPercentage}% platform share applied.`);
                 }
               }
-
-              // 2️⃣ Save promoter earnings
-              if (deal.promoterId && deal.promoterId !== 'direct') {
-                const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
-
-                // Create deal entry under promoter
-                await set(ref(promoterBaseRef, `deals/${dealId}`), {
-                  offerId: deal.offerId,
-                  offerTitle: deal.offerTitle,
-                  providerId: deal.providerId,
-                  providerName: deal.providerName,
-                  clientName: deal.clientName,
-                  clientContact: deal.clientContact,
-                  note: deal.note || '',
-                  commissionAmount: commissionEarned,
-                  withdrawn: false,
-                  currency: currency,
-                  completedAt: timestamp
-                });
-
-                // 2a️⃣ Update metadata dynamically per currency
-                const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
-                let metadata = {};
-                if (metaSnap.exists()) metadata = metaSnap.val();
-
-                metadata.totalLifetimeEarnings = metadata.totalLifetimeEarnings || {};
-                metadata.totalWithdrawn = metadata.totalWithdrawn || {};
-                metadata.currentBalance = metadata.currentBalance || {};
-
-                metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + commissionEarned;
-                metadata.currentBalance[currency] = (metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0));
-
-                metadata.lastUpdated = timestamp;
-
-                await update(ref(promoterBaseRef, 'metadata'), metadata);
-
-                // Ensure withdrawalRequests node exists
-                const wrSnap = await get(ref(promoterBaseRef, 'withdrawalRequests'));
-                if (!wrSnap.exists()) await set(ref(promoterBaseRef, 'withdrawalRequests'), {});
-              }
-
-              // 3️⃣ Save completed deal
-              await set(ref(db, `completed-deals/${dealId}`), {
-                ...deal,
-                status: 'completed',
-                completedAt: timestamp,
-                commissionEarned,
-                providerPaid: false,
-                paymentAmount: 0,
-                paymentNotes: ''
-              });
-
-              // 4️⃣ Remove from active deals
-              await remove(ref(db, `deals/${dealId}`));
-              card.remove();
-
-              // 5️⃣ Notifications
-              const notifData = {
-                title: 'Deal Completed ✅',
-                message: `Deal ${dealId} completed. Promoter balance updated: ${commissionEarned.toFixed(2)} ${currency}.`,
-                type: 'completed',
-                createdAt: timestamp,
-                commissionEarned,
-                currency
-              };
-              await push(ref(db, `notifications/${deal.providerId}`), notifData);
-              if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-              await push(ref(db, `admin-notifications`), { ...notifData, dealId });
-
-              showNotif('✅ Deal completed, promoter wallet updated.');
             } catch (err) {
               console.error(err);
               showNotif('Error completing deal: ' + err.message, 'error');
