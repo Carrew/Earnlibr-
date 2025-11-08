@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Integrated Payment Verification</title>
+  <title>Admin — Payment Verification</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -24,7 +24,7 @@
       padding: 15px;
       margin-bottom: 20px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      border-left: 4px solid #facc15; /* paid_pending_verification color */
+      border-left: 4px solid #facc15; /* pending color */
     }
     .bill-header {
       display: flex;
@@ -42,17 +42,6 @@
     }
     .btn.verify { background: #4ade80; color: #041018; }
     .btn.reject { background: #ef4444; color: #fff; }
-    .offer-breakdown {
-      background: #1a2235;
-      border-radius: 8px;
-      padding: 10px;
-      margin-top: 10px;
-      display: none;
-    }
-    .offer {
-      border-bottom: 1px solid #2b3145;
-      padding: 5px 0;
-    }
     .notif {
       background: #1a2235;
       padding: 10px;
@@ -74,7 +63,7 @@
   </style>
 </head>
 <body>
-  <h1>Admin — Integrated Payment Verification</h1>
+  <h1>Admin — Payment Verification</h1>
   <div id="notif" class="notif"></div>
   <div id="verifyContainer">Loading bills pending verification...</div>
 
@@ -108,7 +97,7 @@
     function renderBillCard(billId, bill) {
       const card = document.createElement('div');
       card.className = 'bill-card';
-      card.id = billId; // ✅ Assign ID for removal after processing
+      card.id = billId;
 
       let totalsHTML = '';
       Object.entries(bill.totals).forEach(([curr, amt]) => {
@@ -118,31 +107,14 @@
       card.innerHTML = `
         <div class="bill-header">
           <h3>${bill.providerName} — Bill #${billId.slice(-6)}</h3>
-          <span class="status ${bill.status}">${bill.status.replace('_', ' ')}</span>
+          <span class="status">${bill.status.replace('_', ' ')}</span>
         </div>
         <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
         <div>${totalsHTML}</div>
-        <button class="toggleOffers">Show Offer Breakdown</button>
-        <div class="offer-breakdown"></div>
         <br>
         <button class="btn verify">✅ Verify Payment</button>
         <button class="btn reject">❌ Reject Payment</button>
       `;
-
-      const breakdown = card.querySelector('.offer-breakdown');
-      Object.values(bill.offers).forEach(offer => {
-        const offerDiv = document.createElement('div');
-        offerDiv.className = 'offer';
-        offerDiv.innerHTML = `
-          <strong>${offer.offerTitle}</strong><br>
-          ${offer.currency} ${offer.total.toFixed(2)} (${offer.deals.length} deals)
-        `;
-        breakdown.appendChild(offerDiv);
-      });
-
-      card.querySelector('.toggleOffers').onclick = () => {
-        breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
-      };
 
       card.querySelector('.verify').onclick = () => processVerification(billId, bill, 'verified');
       card.querySelector('.reject').onclick = () => processVerification(billId, bill, 'pending');
@@ -171,10 +143,10 @@
           const offerRefPath = `offers/${providerId}/${offer.offerId}`;
           const offerSnap = await get(ref(db, offerRefPath));
           const currentAmountPaid = offerSnap.exists() ? parseFloat(offerSnap.val().amountPaid || 0) : 0;
-          const currentTotalOwed = offerSnap.exists() ? parseFloat(offerSnap.val().outstandingBalance || 0) : 0;
+          const currentOutstanding = offerSnap.exists() ? parseFloat(offerSnap.val().outstandingBalance || 0) : 0;
 
           updates[`${offerRefPath}/amountPaid`] = currentAmountPaid + totalPaid;
-          updates[`${offerRefPath}/outstandingBalance`] = Math.max(currentTotalOwed - totalPaid, 0);
+          updates[`${offerRefPath}/outstandingBalance`] = Math.max(currentOutstanding - totalPaid, 0);
         }
 
         updates[`bills/${providerId}/${billId}/verifiedAt`] = timestamp;
