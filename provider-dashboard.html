@@ -139,83 +139,96 @@
 </div>
 
 <script type="module">
-  import { auth, db } from "./firebase.js";
-  import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-  import { ref, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { auth, db } from "./firebase.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { ref, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-  // --- Sidebar Toggle ---
-  const sidebar = document.getElementById('sidebar');
-  const menuToggle = document.getElementById('menuToggle');
-  menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('visible');
-    menuToggle.querySelector('i').className = sidebar.classList.contains('visible') ? 'fas fa-times' : 'fas fa-bars';
-  });
+// --- Sidebar Toggle ---
+const sidebar = document.getElementById('sidebar');
+const menuToggle = document.getElementById('menuToggle');
+menuToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('visible');
+  menuToggle.querySelector('i').className = sidebar.classList.contains('visible') ? 'fas fa-times' : 'fas fa-bars';
+});
 
-  // --- Navigation ---
-  function navigate(url){
-    sidebar.classList.remove('visible');
-    menuToggle.querySelector('i').className = 'fas fa-bars';
-    window.location.href = url;
-  }
+// --- Navigation ---
+function navigate(url){
+  sidebar.classList.remove('visible');
+  menuToggle.querySelector('i').className = 'fas fa-bars';
+  window.location.href = url;
+}
 
-  const navLinks = {
-    'nav-dashboard':'provider-dashboard.html',
-    'nav-create-offer':'providers-create-offer.html',
-    'nav-manage-offers':'providers-manage-offers.html',
-    'nav-deals':'providers-deals.html',
-    'nav-notifs':'provider-notification.html',
-    'nav-bills':'providers-bills.html',
-    'createOfferBtn':'providers-create-offer.html'
-  };
+const navLinks = {
+  'nav-dashboard':'provider-dashboard.html',
+  'nav-create-offer':'providers-create-offer.html',
+  'nav-manage-offers':'providers-manage-offers.html',
+  'nav-deals':'providers-deals.html',
+  'nav-notifs':'provider-notification.html',
+  'nav-bills':'providers-bills.html',
+  'createOfferBtn':'providers-create-offer.html'
+};
 
-  Object.keys(navLinks).forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.addEventListener('click', ()=>navigate(navLinks[id]));
-  });
+Object.keys(navLinks).forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('click', ()=>navigate(navLinks[id]));
+});
 
-  document.querySelectorAll('.grid-card').forEach(card=>{
-    card.addEventListener('click', ()=>navigate(card.getAttribute('onclick').match(/'([^']+)'/)[1]));
-  });
+document.querySelectorAll('.grid-card').forEach(card=>{
+  card.addEventListener('click', ()=>navigate(card.getAttribute('onclick').match(/'([^']+)'/)[1]));
+});
 
-  // --- Logout ---
-  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-    try{ await signOut(auth); }catch(e){}
+// --- Logout ---
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  try{ await signOut(auth); }catch(e){}
+  localStorage.removeItem('userSession');
+  window.location.href='login.html';
+});
+
+// --- Secure Session & Role Enforcement ---
+const sessionRaw = localStorage.getItem('userSession');
+if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'); }
+const session = JSON.parse(sessionRaw);
+if(session.role !== 'provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
+
+// --- Firebase Auth Check ---
+onAuthStateChanged(auth, async (user) => {
+  if(!user || user.uid !== session.uid || !user.emailVerified){
     localStorage.removeItem('userSession');
     window.location.href='login.html';
-  });
+  } else {
+    loadProviderData();
+  }
+});
 
-  // --- Enforce Role & Session ---
-  const sessionRaw = localStorage.getItem('userSession');
-  if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'); }
+// --- Load Provider Data ---
+function fmt(n){ return Number(n||0).toLocaleString(); }
 
-  const session = JSON.parse(sessionRaw);
-  if(!session.role || session.role !== 'provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
+const avatarEl = document.getElementById('avatar');
+document.getElementById('providerName').textContent = session.name;
+document.getElementById('providerEmail').textContent = session.email;
+document.getElementById('providerRole').textContent = `Role: ${session.role}`;
+document.getElementById('providerPhone').textContent = session.phone||'—';
+document.getElementById('providerCountry').textContent = session.country||'—';
+document.getElementById('providerReferral').textContent = `Referral: ${session.referralCode||'—'}`;
+document.getElementById('providerCreated').textContent = `Joined: ${session.createdAt||'—'}`;
+avatarEl.textContent = session.name.charAt(0).toUpperCase();
+document.getElementById('greet').textContent = `Welcome back, ${session.name}`;
 
-  // --- Load Session Data ---
-  const avatarEl = document.getElementById('avatar');
-  document.getElementById('providerName').textContent = session.name;
-  document.getElementById('providerEmail').textContent = session.email;
-  document.getElementById('providerRole').textContent = `Role: ${session.role}`;
-  document.getElementById('providerPhone').textContent = session.phone||'—';
-  document.getElementById('providerCountry').textContent = session.country||'—';
-  document.getElementById('providerReferral').textContent = `Referral: ${session.referralCode||'—'}`;
-  document.getElementById('providerCreated').textContent = `Joined: ${session.createdAt||'—'}`;
-  avatarEl.textContent = session.name.charAt(0).toUpperCase();
-  document.getElementById('greet').textContent = `Welcome back, ${session.name}`;
-
-  const fmt = n=>Number(n||0).toLocaleString();
-  const userRef = ref(db, `users/${session.uid}`);
-
-  async function loadProviderData(){
+async function loadProviderData(){
+  try {
+    const userRef = ref(db, `users/${session.uid}`);
     const snap = await get(userRef);
-    const data = snap.exists()? snap.val():{};
+    const data = snap.exists()? snap.val() : {};
+
     document.getElementById('totalOffers').textContent = data.totalOffers||0;
     document.getElementById('totalVerified').textContent = data.totalVerified||0;
     document.getElementById('totalGenerated').textContent = `$${fmt(data.totalGenerated)}`;
     document.getElementById('totalSpent').textContent = `$${fmt(data.totalSpent)}`;
+  } catch(err){
+    console.error('Failed to load provider data', err);
   }
-
-  loadProviderData();
+}
 </script>
+
 </body>
 </html>
