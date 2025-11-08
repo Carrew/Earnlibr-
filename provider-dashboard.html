@@ -4,448 +4,218 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>EarnLibr — Provider Dashboard</title>
-
   <style>
     :root {
-      --bg: #0b0d17;
-      --card: #0f1724;
-      --accent1: #4a90e2;
-      --accent2: #a3ff6e;
-      --muted: #bfc7d6;
-      --danger: #e74c3c;
-      --glass: rgba(255, 255, 255, 0.02);
-      --glass-2: rgba(255, 255, 255, 0.015);
-      --radius: 12px;
+      --bg:#0b0d17;
+      --card:#0f1724;
+      --accent1:#4a90e2;
+      --accent2:#a3ff6e;
+      --muted:#bfc7d6;
+      --danger:#ef4444;
+      --radius:12px;
+      --glass: rgba(255,255,255,0.02);
+      --glass2: rgba(255,255,255,0.015);
     }
 
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: Inter, system-ui, Arial;
-      background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
-      color: #eef2f7;
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Inter,system-ui,Arial; background: var(--bg); color:#eef2f7; min-height:100vh; }
+
+    .wrap { 
+      max-width:1200px; 
+      margin:28px auto; 
+      padding:20px; 
+      display:grid; 
+      grid-template-columns: 1fr; 
+      gap:20px; 
+      position: relative; 
     }
 
-    .wrap {
-      max-width: 1200px;
-      margin: 28px auto;
-      padding: 20px;
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 20px;
-    }
-
-    .card {
-      background: linear-gradient(180deg, var(--glass), var(--glass-2));
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.03);
-      overflow: hidden;
-    }
+    .card { background: linear-gradient(180deg, var(--glass), var(--glass2)); border-radius:var(--radius); padding:18px; box-shadow:0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
 
     /* Sidebar */
-    .sidebar {
-      height: calc(100vh - 80px);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      position: sticky;
-      top: 20px;
+    .sidebar { 
+      position: absolute; top:0; left:0; width:260px; z-index:100; height:100%; display:flex; flex-direction:column; gap:14px; 
+      transform: translateX(-100%); transition: transform 0.3s ease-in-out; background: var(--bg); padding-top:28px;
     }
+    .sidebar.visible { transform: translateX(0); }
 
-    .logo {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    }
+    .main { min-height:80vh; display:flex; flex-direction:column; gap:18px; grid-column:1 / -1; }
 
-    .logo img {
-      width: 44px;
-      height: 44px;
-      object-fit: cover;
-      border-radius: 8px;
-    }
+    #menuToggle { position: sticky; top:10px; z-index:110; width:40px; height:40px; display:flex; align-items:center; justify-content:center; margin-left:-8px; font-size:18px; color: var(--accent2); cursor:pointer; }
 
-    .logo h2 {
-      font-size: 16px;
-      margin: 0;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-    }
+    /* Sidebar content */
+    .logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03);}
+    .logo img { width:44px;height:44px;border-radius:8px; }
+    .logo h2 { font-size:16px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+    .nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+    .nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
+    .nav a.active, .nav a:hover { color:#041018; background:linear-gradient(90deg,var(--accent1),var(--accent2)); box-shadow:0 6px 18px rgba(32,90,255,0.08); }
 
-    .nav {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:6px; }
+    .avatar { width:44px;height:44px;border-radius:10px;background:linear-gradient(90deg,var(--accent1),var(--accent2)); display:flex;align-items:center;justify-content:center;font-weight:700;color:#041018;font-size:18px; }
+    .profile-info div { font-size:13px; color:var(--muted); }
+    .profile-info strong { color:#fff; font-weight:700; }
 
-    .nav a {
-      display: block;
-      padding: 10px 12px;
-      border-radius: 10px;
-      text-decoration: none;
-      color: var(--muted);
-      font-weight: 600;
-      cursor: pointer;
-    }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .greeting h1 { font-size:20px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+    .greeting p { margin:4px 0 0 0; color:var(--muted); font-size:13px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    .stat { padding:14px; border-radius:10px; background:linear-gradient(180deg,rgba(255,255,255,0.01), rgba(255,255,255,0.008)); }
+    .stat h3 { margin:0 0 6px 0; font-size:12px; color:var(--muted); }
+    .stat p { margin:0; font-size:18px; font-weight:700; }
 
-    .nav a.active, .nav a:hover {
-      color: #041018;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      box-shadow: 0 6px 18px rgba(32, 90, 255, 0.08);
-    }
-
-    .profile {
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.03);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: #041018;
-      font-size: 18px;
-    }
-
-    .profile-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .profile-info div {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .profile-info strong {
-      color: #fff;
-      font-weight: 700;
-    }
-
-    /* Main content */
-    .main {
-      min-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .greeting h1 {
-      font-size: 20px;
-      margin: 0;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      -webkit-background-clip: text;
-      color: transparent;
-    }
-
-    .greeting p {
-      margin: 4px 0 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-    }
-
-    .stat {
-      padding: 14px;
-      border-radius: 10px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
-    }
-
-    .stat h3 {
-      margin: 0 0 6px 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .stat p {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .content {
-      display: grid;
-      grid-template-columns: 1fr 360px;
-      gap: 12px;
-      align-items: start;
-    }
-
-    .offers-preview {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .offer-card {
-      display: flex;
-      gap: 12px;
-      padding: 12px;
-      align-items: center;
-      border-radius: 10px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
-    }
-
-    .offer-title {
-      font-weight: 700;
-      margin: 0 0 6px 0;
-    }
-
-    .offer-sub {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .progress {
-      height: 8px;
-      background: rgba(255,255,255,0.04);
-      border-radius: 6px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .progress > i {
-      display: block;
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      width: 0%;
-    }
-
-    .btn {
-      display: inline-block;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 0;
-      font-weight: 700;
-      cursor: pointer;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      color: #041018;
-      text-decoration: none;
-    }
-
-    .link-plain {
-      color: var(--accent2);
-      text-decoration: none;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .muted {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    @media (max-width:980px) {
-      .wrap { grid-template-columns: 1fr; padding: 14px; }
-      .sidebar { position: relative; height: auto; }
-      .content { grid-template-columns: 1fr; }
-      .stats-grid { grid-template-columns: repeat(2,1fr); }
-    }
+    .grid-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:18px; }
+    .grid-card { background:var(--card); border-radius:12px; padding:25px 15px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: transform 0.2s, box-shadow 0.2s; }
+    .grid-card:hover { transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.6); }
+    .grid-card i { font-size:36px; margin-bottom:10px; color:var(--accent1); }
+    .grid-card span { font-size:16px; font-weight:600; color:#eef2f7; text-align:center; }
+    .btn { display:inline-block; padding:10px 12px; border-radius:10px; border:0; font-weight:700; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; text-decoration:none; }
+    .muted { color:var(--muted); font-size:13px; }
   </style>
+  <script src="https://kit.fontawesome.com/a2b6f38c57.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <div class="wrap">
-    <aside class="card sidebar">
-      <div class="logo">
-        <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
-        <div>
-          <h2>EarnLibr</h2>
-          <div style="font-size:12px;color:var(--muted)">Provider Panel</div>
-        </div>
+
+<div class="wrap">
+  <div id="menuToggle"><i class="fas fa-bars"></i></div>
+
+  <aside class="card sidebar" id="sidebar">
+    <div class="logo">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
+      <div>
+        <h2>EarnLibr</h2>
+        <div style="font-size:12px;color:var(--muted)">Provider Panel</div>
       </div>
-
-      <nav class="nav">
-        <a id="nav-dashboard" class="active">Dashboard</a>
-        <a id="nav-offers">Offers</a>
-        <a id="nav-deals">Deals</a> <a id="nav-notifs">Notifications</a>
-      </nav>
-
-      <div class="profile">
-        <div class="avatar" id="avatar">P</div>
-        <div class="profile-info">
-          <div><strong id="providerName">Loading...</strong></div>
-          <div id="providerEmail" class="muted">—</div>
-          <div id="providerRole">—</div>
-          <div id="providerPhone">—</div>
-          <div id="providerCountry">—</div>
-          <div id="providerReferral">—</div>
-          <div id="providerCreated">—</div>
-        </div>
-        <div style="margin-top:6px">
-          <button id="logoutBtn" class="btn" style="padding:8px 10px;">Logout</button>
-        </div>
+    </div>
+    <nav class="nav">
+      <a id="nav-dashboard" class="active">Dashboard</a>
+      <a id="nav-create-offer">Create Offer</a>
+      <a id="nav-manage-offers">Manage Offers</a>
+      <a id="nav-deals">Deals</a>
+      <a id="nav-notifs">Notifications</a>
+      <a id="nav-bills">Bills & Payments</a>
+    </nav>
+    <div class="profile">
+      <div class="avatar" id="avatar">P</div>
+      <div class="profile-info">
+        <div><strong id="providerName">Loading...</strong></div>
+        <div id="providerEmail" class="muted">—</div>
+        <div id="providerRole">—</div>
+        <div id="providerPhone">—</div>
+        <div id="providerCountry">—</div>
+        <div id="providerReferral">—</div>
+        <div id="providerCreated">—</div>
       </div>
-    </aside>
+      <div style="margin-top:6px"><button id="logoutBtn" class="btn" style="padding:8px 10px;">Logout</button></div>
+    </div>
+  </aside>
 
-    <main class="main card">
-      <div class="top">
-        <div class="greeting">
-          <h1 id="greet">Welcome back</h1>
-          <p id="subg" class="muted">Here's a quick summary of your promotions on EarnLibr.</p>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="text-align:right;">
-            <div class="muted">Trust Score</div>
-            <div id="trustScore" style="font-weight:800; font-size:18px;">--</div>
-          </div>
-          <a id="createOfferBtn" class="btn">Create Offer</a>
-        </div>
+  <main class="main card">
+    <div class="top">
+      <div class="greeting">
+        <h1 id="greet">Welcome back</h1>
+        <p id="subg" class="muted">Here's a quick overview of your activity on EarnLibr.</p>
       </div>
-
-      <div class="stats-grid">
-        <div class="stat"><h3>Total Offers</h3><p id="totalOffers">—</p></div>
-        <div class="stat"><h3>Verified Deals</h3><p id="totalVerified">—</p></div>
-        <div class="stat"><h3>Total Generated</h3><p id="totalGenerated">$—</p></div>
-        <div class="stat"><h3>Total Spent</h3><p id="totalSpent">$—</p></div>
+      <div style="display:flex; gap:12px;">
+        <a id="createOfferBtn" class="btn">Create Offer</a>
       </div>
+    </div>
 
-      <div class="content">
-        <section>
-          <h3 style="margin:0 0 10px 0;">Top Offers</h3>
-          <div class="offers-preview" id="offersList">
-            <div class="muted">Loading offers…</div>
-          </div>
-          <div style="margin-top:12px;">
-            <a id="viewAllOffers" class="link-plain">View all offers</a>
-          </div>
-        </section>
+    <div class="stats-grid">
+      <div class="stat"><h3>Total Offers</h3><p id="totalOffers">—</p></div>
+      <div class="stat"><h3>Verified Deals</h3><p id="totalVerified">—</p></div>
+      <div class="stat"><h3>Total Generated</h3><p id="totalGenerated">$—</p></div>
+      <div class="stat"><h3>Total Spent</h3><p id="totalSpent">$—</p></div>
+    </div>
 
-        <aside class="right-column">
-          <div class="card small">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-size:13px; color:var(--muted)">Recent Activity</div>
-                <div id="recentActivity" style="font-size:14px; font-weight:700; margin-top:6px;">No recent activity</div>
-              </div>
-            </div>
-            <div style="margin-top:10px;">
-              <a id="viewNotifs" class="link-plain">View notifications</a>
-            </div>
-          </div>
+    <div class="grid-cards">
+      <div class="grid-card" onclick="navigate('providers-create-offer.html')"><i class="fas fa-plus-circle"></i><span>Create Offer</span></div>
+      <div class="grid-card" onclick="navigate('providers-manage-offers.html')"><i class="fas fa-edit"></i><span>Manage Offers</span></div>
+      <div class="grid-card" onclick="navigate('providers-deals.html')"><i class="fas fa-briefcase"></i><span>Deals</span></div>
+      <div class="grid-card" onclick="navigate('provider-notification.html')"><i class="fas fa-bell"></i><span>Notifications</span></div>
+      <div class="grid-card" onclick="navigate('providers-bills.html')"><i class="fas fa-file-invoice-dollar"></i><span>Bills & Payments</span></div>
+    </div>
+  </main>
+</div>
 
-          <div class="card small">
-            <div style="font-size:13px; color:var(--muted)">Account</div>
-            <div style="margin-top:8px; font-weight:700;" id="accountBalances">—</div>
-            <div style="margin-top:8px;">
-              <a id="goPayments" class="link-plain">Payments & invoices</a>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </main>
-  </div>
+<script type="module">
+  import { auth, db } from "./firebase.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+  import { ref, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+  // --- Sidebar Toggle ---
+  const sidebar = document.getElementById('sidebar');
+  const menuToggle = document.getElementById('menuToggle');
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('visible');
+    menuToggle.querySelector('i').className = sidebar.classList.contains('visible') ? 'fas fa-times' : 'fas fa-bars';
+  });
 
-    const providerNameEl = document.getElementById('providerName');
-    const providerEmailEl = document.getElementById('providerEmail');
-    const providerRoleEl = document.getElementById('providerRole');
-    const providerPhoneEl = document.getElementById('providerPhone');
-    const providerCountryEl = document.getElementById('providerCountry');
-    const providerReferralEl = document.getElementById('providerReferral');
-    const providerCreatedEl = document.getElementById('providerCreated');
-    const avatarEl = document.getElementById('avatar');
-    const greetEl = document.getElementById('greet');
-    const trustEl = document.getElementById('trustScore');
-    const totalOffersEl = document.getElementById('totalOffers');
-    const totalVerifiedEl = document.getElementById('totalVerified');
-    const totalGeneratedEl = document.getElementById('totalGenerated');
-    const totalSpentEl = document.getElementById('totalSpent');
-    const offersListEl = document.getElementById('offersList');
-    const recentActivityEl = document.getElementById('recentActivity');
-    const accountBalancesEl = document.getElementById('accountBalances');
+  // --- Navigation ---
+  function navigate(url){
+    sidebar.classList.remove('visible');
+    menuToggle.querySelector('i').className = 'fas fa-bars';
+    window.location.href = url;
+  }
 
-    const navOffers = document.getElementById('nav-offers');
-    const navNotifs = document.getElementById('nav-notifs');
-    const navDashboard = document.getElementById('nav-dashboard');
-    const navDeals = document.getElementById('nav-deals'); // 🟢 NEW: Get the Deals link
-    const viewAllOffersBtn = document.getElementById('viewAllOffers');
-    const createOfferBtn = document.getElementById('createOfferBtn');
-    const viewNotifsBtn = document.getElementById('viewNotifs');
-    const goPaymentsBtn = document.getElementById('goPayments');
-    const logoutBtn = document.getElementById('logoutBtn');
+  const navLinks = {
+    'nav-dashboard':'provider-dashboard.html',
+    'nav-create-offer':'providers-create-offer.html',
+    'nav-manage-offers':'providers-manage-offers.html',
+    'nav-deals':'providers-deals.html',
+    'nav-notifs':'provider-notification.html',
+    'nav-bills':'providers-bills.html',
+    'createOfferBtn':'providers-create-offer.html'
+  };
 
-    // Navigation
-    navOffers.addEventListener('click', () => window.location.href = 'manage-offers.html');
-    navNotifs.addEventListener('click', () => window.location.href = 'notifications.html');
-    navDashboard.addEventListener('click', () => window.location.href = 'provider-dashboard.html');
-    navDeals.addEventListener('click', () => window.location.href = 'providers-deals.html'); // 🟢 NEW: Add listener for Deals
-    viewAllOffersBtn.addEventListener('click', () => window.location.href = 'manage-offers.html');
-    createOfferBtn.addEventListener('click', () => window.location.href = 'create-offer.html');
-    viewNotifsBtn.addEventListener('click', () => window.location.href = 'notifications.html');
-    goPaymentsBtn.addEventListener('click', () => window.location.href = 'provider-payments.html');
+  Object.keys(navLinks).forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('click', ()=>navigate(navLinks[id]));
+  });
 
-    logoutBtn.addEventListener('click', async () => {
-      try { await signOut(auth); } catch(e) {}
-      localStorage.removeItem('userSession');
-      window.location.href = 'login.html';
-    });
+  document.querySelectorAll('.grid-card').forEach(card=>{
+    card.addEventListener('click', ()=>navigate(card.getAttribute('onclick').match(/'([^']+)'/)[1]));
+  });
 
-    // Load session
-    const userSessionRaw = localStorage.getItem('userSession');
-    if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No user session'); }
+  // --- Logout ---
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    try{ await signOut(auth); }catch(e){}
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+  });
 
-    const userSession = JSON.parse(userSessionRaw);
-    providerNameEl.textContent = userSession.name || 'Provider';
-    providerEmailEl.textContent = userSession.email || '—';
-    providerRoleEl.textContent = `Role: ${userSession.role || '—'}`;
-    providerPhoneEl.textContent = `Phone: ${userSession.phone || '—'}`;
-    providerCountryEl.textContent = `Country: ${userSession.country || '—'}`;
-    providerReferralEl.textContent = `Referral: ${userSession.referralCode || '—'}`;
-    providerCreatedEl.textContent = `Joined: ${userSession.createdAt || '—'}`;
-    avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
-    greetEl.textContent = `Welcome back, ${userSession.name || 'Provider'}`;
+  // --- Enforce Role & Session ---
+  const sessionRaw = localStorage.getItem('userSession');
+  if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'); }
 
-    const fmt = n => Number(n || 0).toLocaleString();
+  const session = JSON.parse(sessionRaw);
+  if(!session.role || session.role !== 'provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-    const userRef = ref(db, `users/${userSession.uid}`);
-    const offersRef = ref(db, `offers/${userSession.uid}`);
+  // --- Load Session Data ---
+  const avatarEl = document.getElementById('avatar');
+  document.getElementById('providerName').textContent = session.name;
+  document.getElementById('providerEmail').textContent = session.email;
+  document.getElementById('providerRole').textContent = `Role: ${session.role}`;
+  document.getElementById('providerPhone').textContent = session.phone||'—';
+  document.getElementById('providerCountry').textContent = session.country||'—';
+  document.getElementById('providerReferral').textContent = `Referral: ${session.referralCode||'—'}`;
+  document.getElementById('providerCreated').textContent = `Joined: ${session.createdAt||'—'}`;
+  avatarEl.textContent = session.name.charAt(0).toUpperCase();
+  document.getElementById('greet').textContent = `Welcome back, ${session.name}`;
 
-    async function loadProviderData() {
-      const snap = await get(userRef);
-      const providerData = snap.exists() ? snap.val() : {};
-      accountBalancesEl.innerHTML = `Wallet: $${fmt(providerData.walletBalance)}<br/>Pending: $${fmt(providerData.pending)} • Paid: $${fmt(providerData.paid)}`;
+  const fmt = n=>Number(n||0).toLocaleString();
+  const userRef = ref(db, `users/${session.uid}`);
 
-      onValue(offersRef, (offersSnap) => {
-        const offers = offersSnap.exists() ? offersSnap.val() : {};
-        const entries = Object.values(offers);
-        totalOffersEl.textContent = entries.length;
-      });
-    }
+  async function loadProviderData(){
+    const snap = await get(userRef);
+    const data = snap.exists()? snap.val():{};
+    document.getElementById('totalOffers').textContent = data.totalOffers||0;
+    document.getElementById('totalVerified').textContent = data.totalVerified||0;
+    document.getElementById('totalGenerated').textContent = `$${fmt(data.totalGenerated)}`;
+    document.getElementById('totalSpent').textContent = `$${fmt(data.totalSpent)}`;
+  }
 
-    loadProviderData();
-  </script>
+  loadProviderData();
+</script>
 </body>
-  </html>
-            
+</html>
