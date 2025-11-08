@@ -3,16 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Provider Weekly Bill</title>
+<title>Provider Weekly Bill</title>
 <style>
   body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
   h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-  .bill-container { margin-bottom: 20px; }
-  .currency-total { background: #1a2235; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
-  .currency-total h3 { margin: 0 0 10px 0; }
-  .offer-breakdown { background: #0f1724; padding: 10px; margin-bottom: 5px; border-radius: 10px; cursor: pointer; }
-  .deal-item { background: #171f34; padding: 8px; margin: 5px 0; border-radius: 8px; font-size: 14px; }
-  .btn-pay { background: #4ade80; color: #041018; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+  .bill-card { background: #0f1724; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+  .offer { border-bottom: 1px solid #2b3145; padding: 8px 0; cursor: pointer; }
+  .deal-item { font-size: 13px; margin-left: 15px; padding: 2px 0; }
+  .btn-pay { background: #4ade80; color: #041018; padding: 8px 16px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
   .notif { display: none; margin-bottom: 20px; padding: 10px; border-radius: 8px; }
   .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
   .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
@@ -22,11 +20,11 @@
 
 <h1>Provider Weekly Bill</h1>
 <div id="notif" class="notif"></div>
-<div id="billContainer" class="bill-container">Loading your bill...</div>
+<div id="billContainer">Loading your bills...</div>
 
 <script type="module">
 import { db } from './firebase.js';
-import { ref, get, push, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, get, push, update, onValue } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
 const providerId = "PROVIDER_ID_HERE"; // replace with logged-in provider ID
 const billContainer = document.getElementById('billContainer');
@@ -38,129 +36,86 @@ const showNotif = (msg, type='success') => {
   setTimeout(() => notif.style.display = 'none', 4000);
 };
 
-// Minimum thresholds
-const currencyThresholds = {
-  USD: 1,
-  LRD: 300
-};
-
-async function fetchProviderBill() {
-  billContainer.innerHTML = "Loading...";
-
-  try {
-    const dealsSnap = await get(ref(db, 'completed-deals'));
-    if (!dealsSnap.exists()) {
-      billContainer.innerHTML = "<p>No completed deals found.</p>";
-      return;
-    }
-
-    const allDeals = dealsSnap.val();
-    const unpaidDeals = [];
-
-    // Filter unpaid deals for this provider
-    Object.keys(allDeals).forEach(dealId => {
-      const deal = allDeals[dealId];
-      if (deal.providerId === providerId && !deal.providerPaid) {
-        unpaidDeals.push({ id: dealId, ...deal });
-      }
-    });
-
-    if (!unpaidDeals.length) {
-      billContainer.innerHTML = "<p>No unpaid deals for this week.</p>";
-      return;
-    }
-
-    // Group by offer
-    const offersMap = {};
-    unpaidDeals.forEach(deal => {
-      if (!offersMap[deal.offerId]) {
-        offersMap[deal.offerId] = {
-          title: deal.offerTitle,
-          currency: deal.currency || 'USD',
-          deals: [],
-          subtotal: 0,
-          imageUrl: deal.offerImage || null
-        };
-      }
-      offersMap[deal.offerId].deals.push(deal);
-      offersMap[deal.offerId].subtotal += parseFloat(deal.commissionEarned || 0);
-    });
-
-    // Group by currency
-    const currencyTotals = {};
-    Object.values(offersMap).forEach(offer => {
-      if (!currencyTotals[offer.currency]) currencyTotals[offer.currency] = 0;
-      currencyTotals[offer.currency] += offer.subtotal;
-    });
-
-    // Display bills per currency (apply thresholds)
-    billContainer.innerHTML = "";
-    Object.keys(currencyTotals).forEach(currency => {
-      const total = currencyTotals[currency];
-      const threshold = currencyThresholds[currency] || 0;
-
-      if (total < threshold) return; // skip tiny bills
-
-      const currencyDiv = document.createElement('div');
-      currencyDiv.className = "currency-total";
-
-      currencyDiv.innerHTML = `<h3>Total Owed (${currency}): ${total.toFixed(2)}</h3>`;
-
-      // Offer breakdown
-      Object.values(offersMap).forEach(offer => {
-        if (offer.currency !== currency) return;
-
-        const offerDiv = document.createElement('div');
-        offerDiv.className = "offer-breakdown";
-        offerDiv.innerHTML = `<strong>${offer.title}</strong> — Subtotal: ${offer.subtotal.toFixed(2)} ${currency} (${offer.deals.length} deals)`;
-
-        const dealsList = document.createElement('div');
-        dealsList.style.display = 'none';
-        offer.deals.forEach(deal => {
-          const dealDiv = document.createElement('div');
-          dealDiv.className = "deal-item";
-          dealDiv.textContent = `DealID: ${deal.id} | Client: ${deal.clientName} | Commission: ${deal.commissionEarned.toFixed(2)}`;
-          dealsList.appendChild(dealDiv);
-        });
-
-        offerDiv.appendChild(dealsList);
-        offerDiv.onclick = () => dealsList.style.display = dealsList.style.display === 'none' ? 'block' : 'none';
-        currencyDiv.appendChild(offerDiv);
-      });
-
-      // Pay button: notify admin
-      const payBtn = document.createElement('button');
-      payBtn.className = 'btn-pay';
-      payBtn.textContent = `Mark as Paid (${currency} ${total.toFixed(2)})`;
-      payBtn.onclick = async () => {
-        try {
-          await push(ref(db, 'admin-notifications'), {
-            providerId,
-            currency,
-            totalAmount: total,
-            offers: Object.values(offersMap).filter(o => o.currency === currency),
-            createdAt: new Date().toISOString(),
-            type: 'providerPaymentNotification'
-          });
-          showNotif(`Payment notification sent to admin for ${currency} ${total.toFixed(2)}.`, 'success');
-        } catch (err) {
-          console.error(err);
-          showNotif('Error sending payment notification: ' + err.message, 'error');
-        }
-      };
-
-      currencyDiv.appendChild(payBtn);
-      billContainer.appendChild(currencyDiv);
-    });
-
-  } catch (err) {
-    console.error(err);
-    billContainer.innerHTML = "<p>Error fetching bill: " + err.message + "</p>";
+// Fetch bills for this provider
+const billsRef = ref(db, `bills/${providerId}`);
+onValue(billsRef, (snapshot) => {
+  billContainer.innerHTML = '';
+  if (!snapshot.exists()) {
+    billContainer.innerHTML = '<p>No pending bills.</p>';
+    return;
   }
-}
 
-// Trigger weekly billing (or manual load)
-fetchProviderBill();
+  const bills = snapshot.val();
+
+  Object.values(bills)
+    .filter(b => b.status === 'pending')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .forEach(bill => renderBill(bill));
+});
+
+function renderBill(bill) {
+  const card = document.createElement('div');
+  card.className = 'bill-card';
+
+  let totalsHTML = '';
+  Object.entries(bill.totals).forEach(([curr, amt]) => {
+    totalsHTML += `<div><strong>${curr} Total:</strong> ${amt.toFixed(2)}</div>`;
+  });
+
+  card.innerHTML = `
+    <h3>${bill.providerName} — Bill #${bill.billId.slice(-6)}</h3>
+    <div><strong>Created:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
+    <div>${totalsHTML}</div>
+    <button class="btn-toggleOffers">Show Offer & Deals Breakdown</button>
+    <div class="offer-breakdown" style="display:none;"></div>
+    <button class="btn-pay">Mark as Paid</button>
+  `;
+
+  const breakdown = card.querySelector('.offer-breakdown');
+  Object.values(bill.offers).forEach(offer => {
+    const offerDiv = document.createElement('div');
+    offerDiv.className = 'offer';
+    offerDiv.innerHTML = `<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+
+    offer.deals.forEach(d => {
+      const dealDiv = document.createElement('div');
+      dealDiv.className = 'deal-item';
+      dealDiv.textContent = `DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note}`;
+      offerDiv.appendChild(dealDiv);
+    });
+
+    breakdown.appendChild(offerDiv);
+  });
+
+  // Toggle breakdown
+  card.querySelector('.btn-toggleOffers').onclick = () => {
+    breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
+  };
+
+  // Mark bill as paid
+  card.querySelector('.btn-pay').onclick = async () => {
+    try {
+      const timestamp = new Date().toISOString();
+      // Notify admin
+      await push(ref(db, 'admin-notifications'), {
+        providerId,
+        billId: bill.billId,
+        totals: bill.totals,
+        offers: bill.offers,
+        createdAt: timestamp,
+        type: 'providerPaymentNotification'
+      });
+      // Update bill status locally to prevent multiple clicks
+      await update(ref(db, `bills/${providerId}/${bill.billId}`), { status: 'paid_pending_verification', updatedAt: timestamp });
+      showNotif('✅ Payment notification sent to admin.', 'success');
+    } catch (err) {
+      console.error(err);
+      showNotif('Error sending payment notification: ' + err.message, 'error');
+    }
+  };
+
+  billContainer.appendChild(card);
+}
 </script>
 </body>
 </html>
