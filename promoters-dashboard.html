@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EarnLibr — Promoter Dashboard</title>
   <style>
     :root {
@@ -151,7 +151,11 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+  import { ref, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
   const notif = document.getElementById('notif');
   const promoterName = document.getElementById('promoterName');
   const promoterEmail = document.getElementById('promoterEmail');
@@ -160,28 +164,84 @@
   const promoterCreated = document.getElementById('promoterCreated');
   const logoutBtn = document.getElementById('logoutBtn');
 
-  const session = JSON.parse(localStorage.getItem('userSession'));
-  if(!session || session.role !== 'freelancer'){
-    notif.textContent = '⚠ You must be logged in as promoter to access this page.';
-    notif.className = 'notif error';
+  function showNotif(type, msg) {
+    notif.className = `notif ${type}`;
+    notif.textContent = msg;
     notif.style.display = 'block';
-    setTimeout(()=> window.location.href = 'login.html', 2000);
-  } else {
-    promoterName.textContent = session.name;
-    promoterEmail.textContent = session.email;
-    promoterPhone.textContent = session.phone || 'N/A';
-    promoterReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
-    promoterCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
   }
 
-  logoutBtn.addEventListener('click', () => {
+  // Check authentication in real time
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      showNotif('error', '⚠ You must be logged in as a promoter.');
+      setTimeout(() => window.location.href = 'login.html', 1800);
+      return;
+    }
+
+    // Check if user is verified
+    if (!user.emailVerified) {
+      showNotif('error', 'Please verify your email before accessing the dashboard.');
+      setTimeout(() => window.location.href = 'login.html', 1800);
+      return;
+    }
+
+    try {
+      // Try to find user in 'users' node first
+      let snapshot = await get(child(ref(db), `users/${user.uid}`));
+      let userData = null;
+
+      if (snapshot.exists()) {
+        userData = snapshot.val();
+      } else {
+        // Check admins fallback
+        snapshot = await get(child(ref(db), `admins/${user.uid}`));
+        if (snapshot.exists()) userData = snapshot.val();
+      }
+
+      if (!userData || userData.role !== 'freelancer') {
+        showNotif('error', 'Unauthorized access. Only promoters allowed.');
+        setTimeout(() => window.location.href = 'login.html', 2000);
+        return;
+      }
+
+      // Populate UI
+      promoterName.textContent = userData.name || 'Unknown';
+      promoterEmail.textContent = userData.email || user.email;
+      promoterPhone.textContent = userData.phone || 'N/A';
+      promoterReferral.textContent = `Referral Code: ${userData.referralCode || 'N/A'}`;
+      promoterCreated.textContent = `Joined: ${new Date(userData.createdAt || user.metadata.creationTime).toLocaleDateString()}`;
+
+      showNotif('success', '✅ Verified promoter access granted.');
+
+      // Update local session (sync)
+      localStorage.setItem('userSession', JSON.stringify({
+        uid: user.uid,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        referralCode: userData.referralCode,
+        phone: userData.phone,
+        country: userData.country,
+        createdAt: userData.createdAt
+      }));
+
+    } catch (err) {
+      console.error(err);
+      showNotif('error', 'Error loading user data.');
+      setTimeout(() => window.location.href = 'login.html', 2000);
+    }
+  });
+
+  // Logout
+  logoutBtn.addEventListener('click', async () => {
+    await signOut(auth);
     localStorage.removeItem('userSession');
     window.location.href = 'login.html';
   });
 
-  function navigate(url){
+  window.navigate = function(url) {
     window.location.href = url;
-  }
+  };
 </script>
 
 </body>
