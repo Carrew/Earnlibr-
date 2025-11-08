@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Freedom to Earn</title>
+  <title>EarnLibr — Earn Smarter, Grow Faster</title>
   <style>
     * {
       margin: 0;
@@ -19,6 +19,10 @@
       line-height: 1.6;
     }
 
+    a {
+      text-decoration: none;
+    }
+
     header {
       display: flex;
       justify-content: space-between;
@@ -32,17 +36,17 @@
     }
 
     header h1 {
-      font-size: 1.6rem;
-      background: linear-gradient(90deg, #00bcd4, #7fff00);
+      font-size: 1.8rem;
+      background: linear-gradient(90deg, #0047AB, #7fff00);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: 1px;
+      cursor: pointer;
     }
 
     nav a {
       color: #f1f1f1;
-      text-decoration: none;
-      margin: 0 12px;
+      margin: 0 15px;
       font-weight: 500;
       transition: color 0.3s ease;
     }
@@ -53,13 +57,12 @@
 
     .hero {
       text-align: center;
-      padding: 100px 30px 60px;
-      position: relative;
+      padding: 120px 20px 80px;
     }
 
     .hero img {
-      width: 120px;
-      height: 120px;
+      width: 130px;
+      height: 130px;
       border-radius: 50%;
       object-fit: cover;
       animation: float 4s ease-in-out infinite;
@@ -67,20 +70,20 @@
 
     @keyframes float {
       0% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
+      50% { transform: translateY(-12px); }
       100% { transform: translateY(0); }
     }
 
     .hero h2 {
-      font-size: 2.2rem;
+      font-size: 2.5rem;
       margin: 25px 0 15px;
       color: #fff;
     }
 
     .hero p {
       color: #ccc;
-      max-width: 650px;
-      margin: 0 auto 25px;
+      max-width: 700px;
+      margin: 0 auto 30px;
       font-size: 1.1rem;
     }
 
@@ -92,12 +95,11 @@
     }
 
     .btn {
-      background: linear-gradient(90deg, #00bcd4, #7fff00);
+      background: linear-gradient(90deg, #0047AB, #7fff00);
       color: #000;
-      padding: 12px 25px;
+      padding: 14px 28px;
       border-radius: 30px;
       font-weight: 600;
-      text-decoration: none;
       transition: all 0.3s ease;
     }
 
@@ -107,15 +109,26 @@
     }
 
     section {
-      padding: 70px 25px;
+      padding: 80px 25px;
       text-align: center;
       border-top: 1px solid rgba(0, 188, 212, 0.2);
     }
 
     h3 {
-      font-size: 1.8rem;
-      margin-bottom: 15px;
+      font-size: 2rem;
+      margin-bottom: 25px;
       color: #7fff00;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    ul li {
+      margin: 10px 0;
+      font-size: 1.1rem;
     }
 
     footer {
@@ -142,8 +155,8 @@
       position: fixed;
       bottom: 25px;
       right: 25px;
-      background: #00bcd4;
-      color: #000;
+      background: #0047AB;
+      color: #fff;
       border: none;
       border-radius: 50%;
       width: 45px;
@@ -156,6 +169,7 @@
 
     .scroll-top:hover {
       background: #7fff00;
+      color: #000;
     }
 
     @media (max-width: 768px) {
@@ -167,7 +181,7 @@
         margin-top: 10px;
       }
       .hero h2 {
-        font-size: 1.7rem;
+        font-size: 2rem;
       }
     }
   </style>
@@ -175,7 +189,7 @@
 <body>
 
   <header>
-    <h1>EarnLibr</h1>
+    <h1 onclick="window.location.href='#home'">EarnLibr</h1>
     <nav>
       <a href="#home">Home</a>
       <a href="#about">How It Works</a>
@@ -184,58 +198,67 @@
     </nav>
   </header>
 
+  <!-- Hero Section -->
   <section class="hero" id="home">
     <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
-    <h2>THE FREEDOM TO EARN STARTS HERE.</h2>
-    <p>EarnLibr is the digital ecosystem built to help you earn from what you share, promote, and create — all in one trusted space.</p>
-    <div class="btn-group">
-      <a href="signup.html" class="btn">Join the Movement</a>
-      <a href="#about" class="btn">Explore How It Works</a>
-    </div>
-  </section>
-
-  <section id="about">
-    <h3>WHAT’S EARNLIBR?</h3>
-    <p>EarnLibr connects creators, freelancers, and businesses into one earning ecosystem. Whether you promote, sell, or serve — you get rewarded for every verified result.</p>
-    <p>No middlemen. No limits. Just growth.</p>
-    <p>Connect. Discover opportunities and join verified earning networks.<br>
-    Promote & Earn. Share offers and get paid when your links convert.<br>
-    Grow Together. Build your influence and income with every success.</p>
-  </section>
-
-  <section>
-    <h3>WHY EARNLIBR?</h3>
-    <p>Because the world is shifting — and it’s time Africa led the next earning revolution.</p>
-    <ul style="list-style: none; padding: 0;">
-      <li>💎 <b>Trust First</b> — Proof-based verification and transparency.</li>
-      <li>🌍 <b>Built for Africa</b> — Rooted in Liberia, empowering the continent.</li>
-      <li>🚀 <b>Freedom Focused</b> — No deposits. No restrictions. Just earning.</li>
-    </ul>
-  </section>
-
-  <section>
-    <h3>HOW IT ALL FLOWS</h3>
-    <p>1️⃣ Providers list products or services.<br>
-       2️⃣ Freelancers promote and share smart links.<br>
-       3️⃣ Clients purchase or request services.<br>
-       4️⃣ EarnLibr verifies completion.<br>
-       5️⃣ Providers pay → Freelancers earn → Everyone wins.</p>
-  </section>
-
-  <section>
-    <h3>JOIN THE MOVEMENT</h3>
-    <p>Be part of the freedom-to-earn era. EarnLibr is where Africa’s creativity meets technology — rewarding effort, connection, and trust.</p>
+    <h2>Earn Smarter, Grow Faster</h2>
+    <p>A professional ecosystem where promoters, freelancers, and businesses connect to earn, collaborate, and scale globally.</p>
     <div class="btn-group">
       <a href="signup.html" class="btn">Join as Freelancer</a>
       <a href="signup.html" class="btn">Join as Provider</a>
-      <a href="signup.html" class="btn">Get Early Access</a>
+      <a href="#about" class="btn">Learn How It Works</a>
     </div>
   </section>
 
+  <!-- About Section -->
+  <section id="about">
+    <h3>What is EarnLibr?</h3>
+    <p>EarnLibr is a trustworthy, automated platform that connects businesses and freelancers, providing a transparent referral ecosystem where every verified action earns rewards.</p>
+    <ul>
+      <li>🔹 Providers list products/services and set promotion budgets.</li>
+      <li>🔹 Promoters share SmartLinks and earn commission on verified deals.</li>
+      <li>🔹 Admin oversees the system, verifies actions, and handles payouts securely.</li>
+      <li>🔹 Cultural & professional branding ensures trust and recognition.</li>
+    </ul>
+  </section>
+
+  <!-- Why EarnLibr Section -->
+  <section>
+    <h3>Why Choose EarnLibr?</h3>
+    <ul>
+      <li>💎 <b>Trust First</b> — Verified actions and proof-based payouts.</li>
+      <li>🌍 <b>Built for Africa</b> — Rooted in Liberia with scalability in mind.</li>
+      <li>🚀 <b>Professional & Transparent</b> — No upfront deposits, no middlemen.</li>
+      <li>📈 <b>Empowering Growth</b> — Promoters and businesses thrive together.</li>
+    </ul>
+  </section>
+
+  <!-- How It Works -->
+  <section>
+    <h3>How It Works</h3>
+    <p>1️⃣ Providers create offers and fund promo budgets.<br>
+       2️⃣ Promoters share SmartLinks across platforms.<br>
+       3️⃣ Clients complete deals or actions.<br>
+       4️⃣ System verifies completion automatically.<br>
+       5️⃣ Verified commissions are paid securely to promoters.</p>
+  </section>
+
+  <!-- Call to Action -->
+  <section>
+    <h3>Get Started Today</h3>
+    <p>Join EarnLibr and start earning from your influence, skills, or business services — all under a professional, transparent, and trustworthy ecosystem.</p>
+    <div class="btn-group">
+      <a href="signup.html" class="btn">Join as Freelancer</a>
+      <a href="signup.html" class="btn">Join as Provider</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
   <footer>
-    <p>© 2025 EarnLibr. All Rights Reserved.<br>Built for freedom. Powered by trust.</p>
+    <p>© 2025 EarnLibr. All Rights Reserved.<br>Professional. Trusted. Culturally-rooted.</p>
   </footer>
 
+  <!-- Scroll Top Button -->
   <button class="scroll-top" id="scrollTopBtn">↑</button>
 
   <script>
