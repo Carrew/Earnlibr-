@@ -36,20 +36,16 @@ form label { display: block; margin-top: 14px; color: var(--muted); font-size: 1
 input, textarea, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); background: #071427; color: #fff; font-size: 14px; margin-top: 4px; }
 textarea { min-height: 80px; resize: vertical; }
 button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; }
-
 #imagePreview { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; }
-
 .notification { position: absolute; top: -10px; right: 0; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; opacity: 0.95; }
 .notification.success { background:#4ade80; color:#041018; }
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
-
 @media (max-width:980px) { .wrap { grid-template-columns: 1fr; padding: 14px; } .sidebar { position: relative; height: auto; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- SIDEBAR -->
   <aside class="card sidebar">
     <div class="logo">
       <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
@@ -76,7 +72,6 @@ button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radi
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main card">
     <h1>Create a New Offer</h1>
 
@@ -124,7 +119,7 @@ button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radi
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { ref, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-import { signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
@@ -134,8 +129,8 @@ const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
 let imageBase64 = "";
+let userSession = null;
 
-// Inline notification helper
 function showNotification(message, type='info', duration=3000) {
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
@@ -144,81 +139,73 @@ function showNotification(message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);
 }
 
-// Session check
+// LOCAL SESSION CHECK & ROLE
 const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No user session'); }
-const userSession = JSON.parse(userSessionRaw);
-providerNameEl.textContent = userSession.name || 'Provider';
-providerEmailEl.textContent = userSession.email || '';
-avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
+if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
+userSession = JSON.parse(userSessionRaw);
+if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-// Navigation
-document.getElementById('nav-dashboard').onclick = () => window.location.href = 'provider-dashboard.html';
-document.getElementById('nav-offers').onclick = () => window.location.href = 'manage-offers.html';
-document.getElementById('nav-notifs').onclick = () => window.location.href = 'notifications.html';
-document.getElementById('logoutBtn').onclick = async () => {
-  try { await signOut(auth); } catch(e) {}
-  localStorage.removeItem('userSession');
-  window.location.href = 'login.html';
-};
-
-// Currency dropdown
-document.addEventListener("DOMContentLoaded", () => {
-  if (typeof populateCurrencyDropdown === 'function') populateCurrencyDropdown("currency");
+// FIREBASE AUTH CHECK
+onAuthStateChanged(auth, (user) => {
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem('userSession');
+    window.location.href = 'login.html';
+  } else {
+    providerNameEl.textContent = userSession.name || 'Provider';
+    providerEmailEl.textContent = userSession.email || '';
+    avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
+    attachHandlers();
+  }
 });
 
-// Image preview
-imageInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      imageBase64 = event.target.result;
-      imagePreview.src = imageBase64;
-      imagePreview.style.display = "block";
+// HANDLER ATTACHMENT
+function attachHandlers() {
+  document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
+  document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
+  document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
+  document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
+  
+  document.addEventListener("DOMContentLoaded", () => { if (typeof populateCurrencyDropdown==='function') populateCurrencyDropdown("currency"); });
+
+  imageInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => { imageBase64 = event.target.result; imagePreview.src=imageBase64; imagePreview.style.display="block"; };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  offerForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    showNotification("Submitting offer...", "info");
+    const uid = userSession.uid;
+    const offerData = {
+      providerId: uid,
+      title: title.value.trim(),
+      description: description.value.trim(),
+      category: category.value,
+      currency: currency.value,
+      price: parseFloat(price.value),
+      commissionType: commissionType.value,
+      commissionValue: parseFloat(commissionValue.value),
+      promotionBudget: parseFloat(promotionBudget.value),
+      totalProducts: parseInt(totalProducts.value),
+      imageBase64: imageBase64 || null,
+      status: "pending",
+      createdAt: new Date().toISOString()
     };
-    reader.readAsDataURL(file);
-  }
-});
-
-// Offer submission
-offerForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  submitBtn.disabled = true;
-  showNotification("Submitting offer...", "info");
-
-  const uid = userSession.uid;
-  if (!uid) return showNotification("Session expired. Please log in again.", "error");
-
-  const offerData = {
-    providerId: uid,
-    title: title.value.trim(),
-    description: description.value.trim(),
-    category: category.value,
-    currency: currency.value,
-    price: parseFloat(price.value),
-    commissionType: commissionType.value,
-    commissionValue: parseFloat(commissionValue.value),
-    promotionBudget: parseFloat(promotionBudget.value),
-    totalProducts: parseInt(totalProducts.value),
-    imageBase64: imageBase64 || null,
-    status: "pending",
-    createdAt: new Date().toISOString()
-  };
-
-  try {
-    await push(ref(db, "offers_pending/" + uid), offerData);
-    showNotification("Offer submitted for verification!", "success");
-    offerForm.reset();
-    imagePreview.style.display = "none";
-    imageBase64 = "";
-  } catch (error) {
-    console.error(error);
-    showNotification("Error submitting offer: " + error.message, "error");
-  } finally {
-    submitBtn.disabled = false;
-  }
-});
+    try {
+      await push(ref(db, "offers_pending/"+uid), offerData);
+      showNotification("Offer submitted for verification!", "success");
+      offerForm.reset();
+      imagePreview.style.display="none";
+      imageBase64="";
+    } catch(err) { console.error(err); showNotification("Error submitting offer: "+err.message,"error"); }
+    finally { submitBtn.disabled=false; }
+  });
+}
 </script>
 </body>
 </html>
