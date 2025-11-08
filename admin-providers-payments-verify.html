@@ -1,186 +1,295 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Payment Verification</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0b0d17;
-      color: #eef2f7;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      background: linear-gradient(90deg, #4a90e2, #a3ff6e);
-      -webkit-background-clip: text;
-      color: transparent;
-      margin-bottom: 20px;
-    }
-    .bill-card {
-      background: #0f1724;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      border-left: 4px solid #facc15; /* pending color */
-    }
-    .bill-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .btn {
-      padding: 8px 14px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-      margin-top: 10px;
-      margin-right: 10px;
-    }
-    .btn.verify { background: #4ade80; color: #041018; }
-    .btn.reject { background: #ef4444; color: #fff; }
-    .notif {
-      background: #1a2235;
-      padding: 10px;
-      border-left: 4px solid #4ade80;
-      border-radius: 8px;
-      color: #a3ff6e;
-      margin-bottom: 20px;
-      display: none;
-    }
-    .status {
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: bold;
-      text-transform: capitalize;
-      background: #facc15;
-      color: #000;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Admin Payment Verification</title>
+<style>
+  :root {
+    --bg: #0b0d17;
+    --card: #0f1724;
+    --accent1: #4a90e2;
+    --accent2: #a3ff6e;
+    --muted: #bfc7d6;
+    --danger: #ef4444;
+    --success: #4ade80;
+    --pending: #facc15;
+  }
+
+  body {
+    font-family: Inter, system-ui, Arial;
+    background: var(--bg);
+    color: #eef2f7;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    padding: 20px;
+    color: #041018;
+    margin-bottom: 20px;
+  }
+
+  header img {
+    height: 50px;
+    margin-right: 15px;
+  }
+
+  header h1 {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .notif {
+    margin: 10px auto;
+    padding: 10px 15px;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 8px;
+    display: none;
+    font-size: 14px;
+  }
+  .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success);}
+  .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger);}
+
+  .profile-card {
+    background: var(--card);
+    margin: 20px auto;
+    max-width: 500px;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .profile-card h2 { margin: 5px 0; }
+  .profile-card p { margin: 2px 0; color: var(--muted); font-size: 14px; }
+  .logout-btn {
+    margin-top: 12px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+  }
+  .logout-btn:hover { opacity: 0.9; }
+
+  .bill-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border-left: 4px solid var(--pending);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .bill-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+  }
+
+  .bill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .status {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: capitalize;
+    background: var(--pending);
+    color: #000;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+    margin-right: 10px;
+  }
+  .btn.verify { background: var(--success); color: #041018; }
+  .btn.reject { background: var(--danger); color: #fff; }
+
+</style>
 </head>
 <body>
-  <h1>Admin — Payment Verification</h1>
-  <div id="notif" class="notif"></div>
-  <div id="verifyContainer">Loading bills pending verification...</div>
 
-  <script type="module">
-    import { db } from './firebase.js';
-    import { ref, get, update, onValue, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+<header>
+  <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
+  <h1>EarnLibr Admin — Payment Verification</h1>
+</header>
 
-    const container = document.getElementById('verifyContainer');
-    const notif = document.getElementById('notif');
-    const showNotif = (msg) => {
-      notif.textContent = msg;
-      notif.style.display = 'block';
-      setTimeout(() => notif.style.display = 'none', 4000);
-    };
+<div id="notif" class="notif"></div>
 
-    const adminBillsRef = ref(db, 'admin-bills');
-    onValue(adminBillsRef, async (snapshot) => {
-      container.innerHTML = '';
-      if (!snapshot.exists()) {
-        container.innerHTML = '<p>No bills pending verification.</p>';
-        return;
+<div class="profile-card">
+  <h2 id="adminName">Admin Name</h2>
+  <p id="adminEmail">admin@example.com</p>
+  <p id="adminPhone">+0000000000</p>
+  <p id="adminReferral">Referral Code: N/A</p>
+  <p id="adminCreated">Joined: N/A</p>
+  <button id="logoutBtn" class="logout-btn">Logout</button>
+</div>
+
+<div id="verifyContainer">Loading bills pending verification...</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { ref, get, update, onValue, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+
+// Elements
+const notif = document.getElementById('notif');
+const adminName = document.getElementById('adminName');
+const adminEmail = document.getElementById('adminEmail');
+const adminPhone = document.getElementById('adminPhone');
+const adminReferral = document.getElementById('adminReferral');
+const adminCreated = document.getElementById('adminCreated');
+const logoutBtn = document.getElementById('logoutBtn');
+const container = document.getElementById('verifyContainer');
+
+// ✅ Admin security check
+const session = JSON.parse(localStorage.getItem('userSession'));
+if(!session || session.role !== 'admin'){
+  notif.textContent = '⚠ You must be logged in as admin to access this page.';
+  notif.className = 'notif error';
+  notif.style.display = 'block';
+  setTimeout(()=> window.location.href='index.html', 2000);
+} else {
+  adminName.textContent = session.name;
+  adminEmail.textContent = session.email;
+  adminPhone.textContent = session.phone || 'N/A';
+  adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
+  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
+}
+
+// Logout
+logoutBtn.addEventListener('click', ()=>{
+  localStorage.removeItem('userSession');
+  window.location.href='index.html';
+});
+
+// Notification helper
+const showNotif = (msg, type='success')=>{
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = 'block';
+  setTimeout(()=> notif.style.display='none', 4000);
+};
+
+// Fetch bills pending verification
+const adminBillsRef = ref(db, 'admin-bills');
+onValue(adminBillsRef, snapshot => {
+  container.innerHTML = '';
+  if(!snapshot.exists()){
+    container.innerHTML='<p>No bills pending verification.</p>';
+    return;
+  }
+  const bills = snapshot.val();
+  Object.entries(bills)
+    .filter(([_, b])=> b.status==='paid_pending_verification')
+    .sort((a,b)=> new Date(b[1].createdAt)-new Date(a[1].createdAt))
+    .forEach(([billId, bill])=> renderBillCard(billId, bill));
+});
+
+function renderBillCard(billId, bill){
+  const card = document.createElement('div');
+  card.className='bill-card';
+  card.id = billId;
+
+  let totalsHTML='';
+  Object.entries(bill.totals).forEach(([curr, amt])=>{
+    totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
+  });
+
+  card.innerHTML = `
+    <div class="bill-header">
+      <h3>${bill.providerName} — Bill #${billId.slice(-6)}</h3>
+      <span class="status">${bill.status.replace(/_/g,' ')}</span>
+    </div>
+    <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
+    <div>${totalsHTML}</div>
+    <br>
+    <button class="btn verify">✅ Verify Payment</button>
+    <button class="btn reject">❌ Reject Payment</button>
+  `;
+
+  card.querySelector('.verify').onclick = ()=> processVerification(billId, bill, 'verified');
+  card.querySelector('.reject').onclick = ()=> processVerification(billId, bill, 'pending');
+
+  container.appendChild(card);
+}
+
+async function processVerification(billId, bill, newStatus){
+  const providerId = bill.providerId;
+  const timestamp = new Date().toISOString();
+  let updates={};
+
+  if(newStatus==='verified'){
+    if(!confirm('Confirm verifying this provider payment?')) return;
+
+    for(const offer of Object.values(bill.offers)){
+      let totalPaid=0;
+      for(const d of offer.deals){
+        const dealPath = `completed-deals/${d.id}`;
+        updates[`${dealPath}/providerPaid`] = true;
+        updates[`${dealPath}/paymentAmount`] = parseFloat(d.commissionEarned);
+        updates[`${dealPath}/paymentNotes`] = `Verified by admin on ${timestamp}`;
+        totalPaid += parseFloat(d.commissionEarned);
       }
 
-      const bills = snapshot.val();
-      Object.entries(bills)
-        .filter(([_, bill]) => bill.status === 'paid_pending_verification')
-        .sort((a, b) => new Date(b[1].createdAt) - new Date(a[1].createdAt))
-        .forEach(([billId, bill]) => renderBillCard(billId, bill));
-    });
+      const offerRefPath = `offers/${providerId}/${offer.offerId}`;
+      const offerSnap = await get(ref(db, offerRefPath));
+      const currentAmountPaid = offerSnap.exists()?parseFloat(offerSnap.val().amountPaid||0):0;
+      const currentOutstanding = offerSnap.exists()?parseFloat(offerSnap.val().outstandingBalance||0):0;
 
-    function renderBillCard(billId, bill) {
-      const card = document.createElement('div');
-      card.className = 'bill-card';
-      card.id = billId;
-
-      let totalsHTML = '';
-      Object.entries(bill.totals).forEach(([curr, amt]) => {
-        totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
-      });
-
-      card.innerHTML = `
-        <div class="bill-header">
-          <h3>${bill.providerName} — Bill #${billId.slice(-6)}</h3>
-          <span class="status">${bill.status.replace('_', ' ')}</span>
-        </div>
-        <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
-        <div>${totalsHTML}</div>
-        <br>
-        <button class="btn verify">✅ Verify Payment</button>
-        <button class="btn reject">❌ Reject Payment</button>
-      `;
-
-      card.querySelector('.verify').onclick = () => processVerification(billId, bill, 'verified');
-      card.querySelector('.reject').onclick = () => processVerification(billId, bill, 'pending');
-
-      container.appendChild(card);
+      updates[`${offerRefPath}/amountPaid`] = currentAmountPaid + totalPaid;
+      updates[`${offerRefPath}/outstandingBalance`] = Math.max(currentOutstanding - totalPaid,0);
     }
 
-    async function processVerification(billId, bill, newStatus) {
-      const providerId = bill.providerId;
-      const timestamp = new Date().toISOString();
-      let updates = {};
+    updates[`bills/${providerId}/${billId}/verifiedAt`] = timestamp;
 
-      if (newStatus === 'verified') {
-        if (!confirm('Confirm verifying this provider payment?')) return;
+  } else if(newStatus==='pending'){
+    if(!confirm('Reject this payment and return it to pending?')) return;
+    updates[`bills/${providerId}/${billId}/rejectionNote`] = `Admin rejected payment verification on ${timestamp}`;
+  }
 
-        for (const offer of Object.values(bill.offers)) {
-          let totalPaid = 0;
-          for (const d of offer.deals) {
-            const dealPath = `completed-deals/${d.id}`;
-            updates[`${dealPath}/providerPaid`] = true;
-            updates[`${dealPath}/paymentAmount`] = parseFloat(d.commissionEarned);
-            updates[`${dealPath}/paymentNotes`] = `Verified by admin on ${timestamp}`;
-            totalPaid += parseFloat(d.commissionEarned);
-          }
+  updates[`bills/${providerId}/${billId}/status`] = newStatus;
+  updates[`admin-bills/${billId}/status`] = newStatus;
+  updates[`bills/${providerId}/${billId}/updatedAt`] = timestamp;
 
-          const offerRefPath = `offers/${providerId}/${offer.offerId}`;
-          const offerSnap = await get(ref(db, offerRefPath));
-          const currentAmountPaid = offerSnap.exists() ? parseFloat(offerSnap.val().amountPaid || 0) : 0;
-          const currentOutstanding = offerSnap.exists() ? parseFloat(offerSnap.val().outstandingBalance || 0) : 0;
+  const notification = {
+    title: newStatus==='verified'?'Payment Verified ✅':'Payment Rejected ❌',
+    message: newStatus==='verified'
+      ?`Your payment for Bill ${billId.slice(-6)} has been confirmed.`
+      :`Your payment for Bill ${billId.slice(-6)} was rejected. Contact support.`,
+    createdAt: timestamp,
+    type: newStatus==='verified'?'payment_verified':'payment_rejected',
+    billId: billId
+  };
 
-          updates[`${offerRefPath}/amountPaid`] = currentAmountPaid + totalPaid;
-          updates[`${offerRefPath}/outstandingBalance`] = Math.max(currentOutstanding - totalPaid, 0);
-        }
+  await push(ref(db, `notifications/${providerId}`), notification);
 
-        updates[`bills/${providerId}/${billId}/verifiedAt`] = timestamp;
-
-      } else if (newStatus === 'pending') {
-        if (!confirm('Reject this payment and return it to pending?')) return;
-        updates[`bills/${providerId}/${billId}/rejectionNote`] = `Admin rejected payment verification on ${timestamp}`;
-      }
-
-      updates[`bills/${providerId}/${billId}/status`] = newStatus;
-      updates[`admin-bills/${billId}/status`] = newStatus;
-      updates[`bills/${providerId}/${billId}/updatedAt`] = timestamp;
-
-      const notification = {
-        title: newStatus === 'verified' ? 'Payment Verified ✅' : 'Payment Rejected ❌',
-        message: newStatus === 'verified'
-          ? `Your payment for Bill ${billId.slice(-6)} has been confirmed.`
-          : `Your payment for Bill ${billId.slice(-6)} was rejected. Contact support.`,
-        createdAt: timestamp,
-        type: newStatus === 'verified' ? 'payment_verified' : 'payment_rejected',
-        billId: billId
-      };
-
-      await push(ref(db, `notifications/${providerId}`), notification);
-
-      try {
-        await update(ref(db), updates);
-        showNotif(`✅ Bill ${newStatus === 'verified' ? 'verified' : 'rejected'} for ${bill.providerName}`);
-        document.getElementById(billId)?.remove();
-      } catch (err) {
-        console.error(err);
-        showNotif('Error processing verification/rejection: ' + err.message);
-      }
-    }
-  </script>
+  try{
+    await update(ref(db), updates);
+    showNotif(`✅ Bill ${newStatus==='verified'?'verified':'rejected'} for ${bill.providerName}`);
+    document.getElementById(billId)?.remove();
+  }catch(err){
+    console.error(err);
+    showNotif('Error processing verification/rejection: '+err.message, 'error');
+  }
+}
+</script>
 </body>
 </html>
