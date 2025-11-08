@@ -113,83 +113,94 @@
     <div class="image-header">  
       <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">  
     </div>  
-  
+
     <h1>Welcome Back 👋</h1>  
     <p class="lead">Log in to continue your journey with EarnLibr.</p>  
-  
+
     <label for="email">Email</label>  
     <input id="email" type="email" placeholder="example@gmail.com" />  
-  
+
     <label for="password">Password</label>  
     <input id="password" type="password" placeholder="Your password" />  
-  
+
     <p class="small" style="text-align:right; margin-top:6px;">  
       <a class="link" href="reset.html">Forgot password?</a>  
     </p>  
-  
+
     <button id="loginBtn" class="btn">Login</button>  
-  
+
     <div id="message" class="small"></div>  
     <div id="error" class="error" style="display:none"></div>  
-  
+
     <p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>  
   </div>  
-  
+
   <script type="module">  
     import { auth, db } from "./firebase.js";  
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";  
     import { ref, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";  
-  
+
     const loginBtn = document.getElementById('loginBtn');  
     const msg = document.getElementById('message');  
     const err = document.getElementById('error');  
-  
+
     function showMessage(t){ msg.textContent = t; }  
     function showError(e){ err.style.display='block'; err.textContent = e; }  
-  
+
     loginBtn.addEventListener('click', async () => {  
       err.style.display='none'; showMessage('');  
       const email = document.getElementById('email').value.trim();  
       const password = document.getElementById('password').value;  
-  
+
       if(!email || !password){ showError('Please enter your email and password.'); return; }  
-  
+
       loginBtn.disabled = true;  
       loginBtn.textContent = 'Signing in...';  
-  
+
       try {  
         const userCred = await signInWithEmailAndPassword(auth, email, password);  
         const user = userCred.user;  
-  
+
         if (!user.emailVerified) {  
           showError('Please verify your email before logging in.');  
           loginBtn.disabled = false;  
           loginBtn.textContent = 'Login';  
           return;  
         }  
-  
-        const snapshot = await get(child(ref(db), `users/${user.uid}`));  
-        if (!snapshot.exists()) {  
-          showError("User record not found.");  
-          loginBtn.disabled = false;  
-          loginBtn.textContent = "Login";  
-          return;  
-        }  
-  
-        const userData = snapshot.val();  
-        const role = userData.role;  
-  
+
+        // Check 'users' first
+        let snapshot = await get(child(ref(db), `users/${user.uid}`));  
+        let role = null;  
+        let userData = null;
+
+        if(snapshot.exists()){  
+          userData = snapshot.val();  
+          role = userData.role;  
+        } else {  
+          // Check 'admins' if not found in users
+          snapshot = await get(child(ref(db), `admins/${user.uid}`));
+          if(snapshot.exists()){
+            userData = snapshot.val();
+            role = userData.role || 'admin';
+          } else {
+            showError("User record not found.");
+            loginBtn.disabled = false;
+            loginBtn.textContent = "Login";
+            return;
+          }
+        }
+
         localStorage.setItem('userSession', JSON.stringify({  
           uid: user.uid,  
           name: userData.name,  
           email: userData.email,  
-          role: userData.role,  
-          referralCode: userData.referralCode,  
+          role: role,  
+          referralCode: userData.referralCode || '',  
           phone: userData.phone || '',  
           country: userData.country || '',  
           createdAt: userData.createdAt || ''  
         }));  
-  
+
         showMessage('✅ Login successful! Redirecting...');  
         setTimeout(() => {  
           if (role === "freelancer") {  
@@ -204,7 +215,7 @@
             showError("Unknown user role.");  
           }  
         }, 1200);  
-  
+
       } catch (e) {  
         console.error(e);  
         if (e.code === 'auth/user-not-found') {  
