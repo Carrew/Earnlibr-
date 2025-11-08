@@ -3,159 +3,314 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Promoter Wallet — EarnLibr</title>
+<title>EarnLibr — Promoter Wallet</title>
 <style>
+  :root {
+    --bg: #0b0d17;
+    --card: #111827;
+    --accent1: #4ade80;
+    --accent2: #22d3ee;
+    --danger: #ef4444;
+    --text: #eef2f7;
+    --muted: #9ca3af;
+    --radius: 14px;
+  }
   body {
-    font-family: Arial, sans-serif;
-    background: #0b0d17;
-    color: #eef2f7;
     margin: 0;
-    padding: 20px;
+    font-family: "Inter", system-ui, Arial;
+    background: radial-gradient(circle at top, #0d111c 0%, var(--bg) 80%);
+    color: var(--text);
+    padding: 25px 20px;
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
   }
   h1 {
-    background: linear-gradient(90deg, #4ade80, #22d3ee);
+    font-size: 26px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
     -webkit-background-clip: text;
     color: transparent;
-    margin-bottom: 20px;
+    font-weight: 700;
   }
-  .wallet {
-    background: #0f1724;
-    border-radius: 12px;
+  .dashboard-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .dashboard-btn:hover {
+    background: rgba(255,255,255,0.08);
+  }
+
+  .wallet-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .wallet-card {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius);
     padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    transition: transform 0.25s, box-shadow 0.25s;
   }
-  .balance {
+  .wallet-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  }
+
+  .currency-title {
+    font-weight: 600;
     font-size: 18px;
     margin-bottom: 12px;
   }
+  .wallet-stat {
+    font-size: 15px;
+    margin: 4px 0;
+    color: var(--muted);
+  }
+  .amount {
+    font-size: 20px;
+    color: var(--accent1);
+    font-weight: 600;
+  }
+
   .btn {
-    background: #22d3ee;
-    border: none;
-    color: #041018;
-    font-weight: bold;
-    border-radius: 6px;
-    padding: 8px 16px;
-    cursor: pointer;
+    display: inline-block;
     margin-top: 15px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: #041018;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s;
+  }
+  .btn:hover {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+
+  .notif {
+    display: none;
+    margin: 0 auto 20px;
+    max-width: 600px;
+    border-radius: 10px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-left: 5px solid var(--accent1);
+    font-size: 14px;
+    text-align: center;
+  }
+  .notif.error { border-left-color: var(--danger); color: #f87171; }
+  .notif.success { color: var(--accent1); }
+
+  /* --- Modal --- */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
     transition: 0.3s;
   }
-  .btn:hover { opacity: 0.9; }
-  .notif {
-    background: #1a2235;
-    border-left: 4px solid #4ade80;
-    color: #a3ff6e;
-    padding: 10px;
-    margin-bottom: 20px;
+  .modal.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .modal-content {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .modal-content h3 {
+    margin-bottom: 15px;
+    font-size: 18px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+  }
+  .modal-actions button {
+    padding: 8px 16px;
     border-radius: 8px;
-    display: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .confirm-btn {
+    background: var(--accent1);
+    color: #041018;
+  }
+  .cancel-btn {
+    background: #1f2937;
+    color: #fff;
   }
 </style>
 </head>
 <body>
-<h1>Promoter Wallet</h1>
-<div id="notif" class="notif"></div>
-<div id="walletContainer" class="wallet">Loading wallet...</div>
+  <header>
+    <h1>💰 Promoter Wallet</h1>
+    <button class="dashboard-btn" onclick="window.location.href='promoter-dashboard.html'">← Dashboard</button>
+  </header>
 
-<script type="module">
-import { db } from './firebase.js';
-import { ref, onValue, push, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+  <div id="notif" class="notif"></div>
+  <div id="walletContainer" class="wallet-container"></div>
 
-const walletContainer = document.getElementById('walletContainer');
-const notif = document.getElementById('notif');
-const showNotif = (msg, type = 'success') => {
-  notif.textContent = msg;
-  notif.style.display = 'block';
-  notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
-  setTimeout(() => notif.style.display = 'none', 4000);
-};
+  <!-- Withdrawal Confirmation Modal -->
+  <div id="withdrawModal" class="modal">
+    <div class="modal-content">
+      <h3 id="modalText">Confirm withdrawal?</h3>
+      <div class="modal-actions">
+        <button id="confirmWithdraw" class="confirm-btn">Yes, Withdraw</button>
+        <button id="cancelWithdraw" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
 
-const promoterId = "promoter123"; // Replace with logged-in promoter UID
-const promoterRef = ref(db, `promoter-earnings/${promoterId}`);
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { ref, onValue, push, update, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-onValue(promoterRef, async (snapshot) => {
-  walletContainer.innerHTML = '';
-  if (!snapshot.exists()) {
-    walletContainer.innerHTML = '<p>No wallet data found.</p>';
-    return;
-  }
+    const walletContainer = document.getElementById('walletContainer');
+    const notif = document.getElementById('notif');
+    const modal = document.getElementById('withdrawModal');
+    const modalText = document.getElementById('modalText');
+    const confirmBtn = document.getElementById('confirmWithdraw');
+    const cancelBtn = document.getElementById('cancelWithdraw');
 
-  const data = snapshot.val();
-  const metadata = data.metadata || {};
-  const deals = data.deals || {};
+    let selectedCurrency = null;
+    let selectedAmount = 0;
+    let selectedDeals = [];
+    let promoterId = null;
 
-  const balances = metadata.currentBalance || {};
-  const lifetimeEarnings = metadata.totalLifetimeEarnings || {};
-  const totalWithdrawn = metadata.totalWithdrawn || {};
-
-  Object.keys(balances).forEach(currency => {
-    const curBalance = balances[currency] || 0;
-    const curLifetime = lifetimeEarnings[currency] || 0;
-    const curWithdrawn = totalWithdrawn[currency] || 0;
-
-    walletContainer.innerHTML += `
-      <div class="balance"><strong>💰 Current Balance (${currency}):</strong> ${curBalance.toFixed(2)}</div>
-      <div class="balance"><strong>📈 Total Lifetime Earnings (${currency}):</strong> ${curLifetime.toFixed(2)}</div>
-      <div class="balance"><strong>🏦 Total Withdrawn (${currency}):</strong> ${curWithdrawn.toFixed(2)}</div>
-    `;
-
-    // If balance exists, show withdrawal button
-    if (curBalance > 0) {
-      const withdrawBtn = document.createElement('button');
-      withdrawBtn.className = 'btn';
-      withdrawBtn.textContent = `Request ${currency} Withdrawal`;
-
-      withdrawBtn.onclick = async () => {
-        if (!confirm(`Confirm withdrawal request of ${curBalance.toFixed(2)} ${currency}?`)) return;
-        withdrawBtn.disabled = true;
-
-        try {
-          const timestamp = new Date().toISOString();
-          const withdrawalId = `wr-${currency}-${Date.now()}`;
-
-          // Get all pending deals for this currency (still in backend)
-          const pendingDeals = Object.entries(deals)
-            .filter(([_, d]) => d.withdrawn === false && (d.currency || 'USD') === currency)
-            .map(([id]) => id);
-
-          if (pendingDeals.length === 0) {
-            showNotif(`No valid ${currency} earnings to withdraw.`, 'error');
-            withdrawBtn.disabled = false;
-            return;
-          }
-
-          // Create withdrawal request
-          await push(ref(db, `withdrawal-requests`), {
-            withdrawalId,
-            promoterId,
-            currency,
-            dealIds: pendingDeals,
-            amount: curBalance,
-            status: 'pending',
-            requestedAt: timestamp
-          });
-
-          // Mark deals withdrawn and reset current balance
-          let updates = {};
-          pendingDeals.forEach(dealId => {
-            updates[`promoter-earnings/${promoterId}/deals/${dealId}/withdrawn`] = true;
-          });
-          updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${currency}`] = 0;
-          updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
-
-          await update(ref(db), updates);
-          showNotif(`✅ ${currency} withdrawal request submitted for ${curBalance.toFixed(2)}.`);
-        } catch (err) {
-          console.error(err);
-          showNotif('Error submitting withdrawal: ' + err.message, 'error');
-          withdrawBtn.disabled = false;
-        }
-      };
-
-      walletContainer.appendChild(withdrawBtn);
+    function showNotif(msg, type = "success") {
+      notif.textContent = msg;
+      notif.className = `notif ${type}`;
+      notif.style.display = "block";
+      setTimeout(() => (notif.style.display = "none"), 4000);
     }
-  });
-});
-</script>
+
+    function openModal(currency, amount, deals) {
+      selectedCurrency = currency;
+      selectedAmount = amount;
+      selectedDeals = deals;
+      modalText.textContent = `Confirm withdrawal of ${amount.toFixed(2)} ${currency}?`;
+      modal.classList.add('show');
+    }
+    function closeModal() {
+      modal.classList.remove('show');
+    }
+    cancelBtn.onclick = closeModal;
+
+    confirmBtn.onclick = async () => {
+      closeModal();
+      try {
+        const timestamp = new Date().toISOString();
+        const withdrawalId = `wr-${selectedCurrency}-${Date.now()}`;
+        await push(ref(db, "withdrawal-requests"), {
+          withdrawalId,
+          promoterId,
+          currency: selectedCurrency,
+          dealIds: selectedDeals,
+          amount: selectedAmount,
+          status: "pending",
+          requestedAt: timestamp,
+        });
+
+        let updates = {};
+        selectedDeals.forEach((id) => {
+          updates[`promoter-earnings/${promoterId}/deals/${id}/withdrawn`] = true;
+        });
+        updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${selectedCurrency}`] = 0;
+        updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
+
+        await update(ref(db), updates);
+        showNotif(`✅ ${selectedCurrency} withdrawal requested!`);
+      } catch (err) {
+        console.error(err);
+        showNotif("Error submitting withdrawal: " + err.message, "error");
+      }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return (window.location.href = "login.html");
+      const dbRef = ref(db);
+      const snap = await get(child(dbRef, `users/${user.uid}`));
+      const userData = snap.val();
+      if (!userData || userData.role !== "freelancer") return (window.location.href = "login.html");
+
+      promoterId = user.uid;
+      loadWallet(promoterId);
+    });
+
+    function loadWallet(uid) {
+      const promoterRef = ref(db, `promoter-earnings/${uid}`);
+      onValue(promoterRef, (snapshot) => {
+        walletContainer.innerHTML = "";
+        if (!snapshot.exists()) {
+          walletContainer.innerHTML = "<p>No wallet data available yet.</p>";
+          return;
+        }
+
+        const data = snapshot.val();
+        const metadata = data.metadata || {};
+        const deals = data.deals || {};
+        const balances = metadata.currentBalance || {};
+        const totalEarned = metadata.totalLifetimeEarnings || {};
+        const withdrawn = metadata.totalWithdrawn || {};
+
+        Object.keys(balances).forEach((currency) => {
+          const curBalance = balances[currency] || 0;
+          const curLifetime = totalEarned[currency] || 0;
+          const curWithdrawn = withdrawn[currency] || 0;
+
+          const card = document.createElement("div");
+          card.className = "wallet-card";
+          card.innerHTML = `
+            <div class="currency-title">${currency}</div>
+            <div class="wallet-stat">💰 Current Balance: <span class="amount">${curBalance.toFixed(2)}</span></div>
+            <div class="wallet-stat">📈 Total Earned: ${curLifetime.toFixed(2)}</div>
+            <div class="wallet-stat">🏦 Withdrawn: ${curWithdrawn.toFixed(2)}</div>
+          `;
+          if (curBalance > 0) {
+            const withdrawBtn = document.createElement("button");
+            withdrawBtn.className = "btn";
+            withdrawBtn.textContent = `Request ${currency} Withdrawal`;
+            withdrawBtn.onclick = () => {
+              const pendingDeals = Object.entries(deals)
+                .filter(([_, d]) => !d.withdrawn && (d.currency || "USD") === currency)
+                .map(([id]) => id);
+              if (pendingDeals.length === 0)
+                return showNotif(`No ${currency} earnings to withdraw.`, "error");
+              openModal(currency, curBalance, pendingDeals);
+            };
+            card.appendChild(withdrawBtn);
+          }
+          walletContainer.appendChild(card);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
