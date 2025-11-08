@@ -3,159 +3,189 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Promoter Withdrawals</title>
+<title>EarnLibr — Promoter Withdrawals</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; padding: 20px; }
-  h1 { background: linear-gradient(90deg, #4ade80, #22d3ee); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-  .notif { background: #1a2235; padding: 10px; border-left: 4px solid #4ade80; border-radius: 8px; color: #a3ff6e; margin-bottom: 20px; display: none; }
-  .request-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
-  .deal-info { font-size: 14px; margin-bottom: 5px; }
+  :root {
+    --bg: #0b0d17;
+    --card: #0f1724;
+    --accent1: #4a90e2;
+    --accent2: #a3ff6e;
+    --muted: #bfc7d6;
+    --danger: #ef4444;
+    --success: #4ade80;
+  }
+  body { margin: 0; font-family: Inter, system-ui, Arial; background: var(--bg); color: #eef2f7; min-height: 100vh; }
+  header {
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    padding: 20px; color: #041018;
+  }
+  header img { height: 50px; margin-right: 15px; }
+  header h1 { font-size: 24px; font-weight: bold; }
+
+  .notif { margin: 10px auto; padding: 10px 15px; width: 90%; max-width: 500px; border-radius: 8px; display: none; font-size: 14px; }
+  .notif.success { background: var(--card); border-left: 4px solid var(--success); color: var(--success);}
+  .notif.error { background: var(--card); border-left: 4px solid var(--danger); color: var(--danger);}
+
+  h1.page-title { text-align: center; margin-top: 20px; margin-bottom: 20px; }
+
+  .request-card { background: var(--card); border-radius: 12px; padding: 15px; margin: 15px auto; max-width: 700px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+  .deal-info { font-size: 14px; margin-bottom: 5px; color: var(--muted);}
   .btn { padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; border: none; margin-right: 10px; }
-  .btn.approve { background: #4ade80; color: #041018; }
-  .btn.reject { background: #ef4444; color: #fff; }
+  .btn.approve { background: var(--success); color: #041018; }
+  .btn.reject { background: var(--danger); color: #fff; }
   .deals-list { background: #1a2235; padding: 10px; border-radius: 8px; margin-top: 10px; }
 </style>
 </head>
 <body>
-<h1>Promoter Withdrawal Requests</h1>
+
+<header>
+  <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
+  <h1>EarnLibr Admin</h1>
+</header>
+
 <div id="notif" class="notif"></div>
+<h1 class="page-title">Promoter Withdrawal Requests</h1>
 <div id="requestsContainer">Loading withdrawal requests...</div>
 
 <script type="module">
 import { db } from './firebase.js';
 import { ref, onValue, update, push, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-const container = document.getElementById('requestsContainer');
 const notif = document.getElementById('notif');
+const container = document.getElementById('requestsContainer');
+
 const showNotif = (msg, type='success') => {
   notif.textContent = msg;
+  notif.className = `notif ${type}`;
   notif.style.display = 'block';
-  notif.style.borderLeft = type === 'error' ? '4px solid #ef4444' : '4px solid #4ade80';
   setTimeout(() => notif.style.display = 'none', 4000);
 };
 
-const withdrawalsRef = ref(db, 'withdrawal-requests');
-
-onValue(withdrawalsRef, async (snapshot) => {
+// ----- SECURITY: Check admin session -----
+const session = JSON.parse(localStorage.getItem('userSession'));
+if(!session || session.role !== 'admin'){
+  showNotif('⚠ You must be logged in as admin to access this page.', 'error');
   container.innerHTML = '';
-  if (!snapshot.exists()) {
-    container.innerHTML = '<p>No pending withdrawal requests.</p>';
-    return;
+  setTimeout(() => window.location.href = 'login.html', 2000);
+} else {
+  const withdrawalsRef = ref(db, 'withdrawal-requests');
+
+  onValue(withdrawalsRef, async (snapshot) => {
+    container.innerHTML = '';
+    if (!snapshot.exists()) {
+      container.innerHTML = '<p style="text-align:center;">No pending withdrawal requests.</p>';
+      return;
+    }
+
+    const requests = snapshot.val();
+    Object.entries(requests)
+      .filter(([_, r]) => r.status === 'pending')
+      .sort((a,b) => new Date(b[1].requestedAt) - new Date(a[1].requestedAt))
+      .forEach(([reqId, request]) => renderRequestCard(reqId, request));
+  });
+
+  async function renderRequestCard(reqId, request) {
+    const card = document.createElement('div');
+    card.className = 'request-card';
+
+    const currency = request.currency || 'USD';
+    let dealsHTML = '';
+    for (const dealId of request.dealIds) {
+      const dealSnap = await get(ref(db, `promoter-earnings/${request.promoterId}/deals/${dealId}`));
+      if (dealSnap.exists()) {
+        const deal = dealSnap.val();
+        dealsHTML += `<div class="deal-info">
+          • ${deal.offerTitle} - ${deal.currency || 'USD'} ${deal.commissionAmount.toFixed(2)} 
+          | Platform Share: ${deal.platformTax.toFixed(2)} 
+          | Full Commission: ${deal.fullCommission.toFixed(2)} 
+          | Client: ${deal.clientName}
+        </div>`;
+      }
+    }
+
+    card.innerHTML = `
+      <div><strong>Promoter:</strong> ${request.promoterId}</div>
+      <div><strong>Amount Requested:</strong> ${currency} ${request.amount.toFixed(2)}</div>
+      <div><strong>Requested At:</strong> ${new Date(request.requestedAt).toLocaleString()}</div>
+      <div class="deals-list">${dealsHTML}</div>
+      <button class="btn approve">✅ Approve</button>
+      <button class="btn reject">❌ Reject</button>
+    `;
+
+    // Approve
+    card.querySelector('.approve').onclick = async () => {
+      try {
+        const timestamp = new Date().toISOString();
+        let updates = {};
+        updates[`withdrawal-requests/${reqId}/status`] = 'approved';
+        updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
+
+        const metaRef = ref(db, `promoter-earnings/${request.promoterId}/metadata`);
+        const metaSnap = await get(metaRef);
+        const meta = metaSnap.exists() ? metaSnap.val() : {};
+        const prevWithdrawn = parseFloat((meta.totalWithdrawn && meta.totalWithdrawn[currency]) || 0);
+        updates[`promoter-earnings/${request.promoterId}/metadata/totalWithdrawn/${currency}`] = prevWithdrawn + request.amount;
+        updates[`promoter-earnings/${request.promoterId}/metadata/currentBalance/${currency}`] = 0;
+        updates[`promoter-earnings/${request.promoterId}/metadata/lastUpdated`] = timestamp;
+
+        await push(ref(db, `notifications/${request.promoterId}`), {
+          title: 'Withdrawal Approved ✅',
+          message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been approved.`,
+          createdAt: timestamp,
+          type: 'withdrawal_approved',
+          requestId: reqId
+        });
+
+        await update(ref(db), updates);
+        showNotif(`✅ ${currency} withdrawal approved.`);
+        card.remove();
+      } catch (err) {
+        console.error(err);
+        showNotif('Error approving withdrawal: ' + err.message, 'error');
+      }
+    };
+
+    // Reject
+    card.querySelector('.reject').onclick = async () => {
+      try {
+        const timestamp = new Date().toISOString();
+        let updates = {};
+        updates[`withdrawal-requests/${reqId}/status`] = 'rejected';
+        updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
+
+        request.dealIds.forEach(dealId => {
+          updates[`promoter-earnings/${request.promoterId}/deals/${dealId}/withdrawn`] = false;
+        });
+
+        const metaRef = ref(db, `promoter-earnings/${request.promoterId}/metadata`);
+        const metaSnap = await get(metaRef);
+        const meta = metaSnap.exists() ? metaSnap.val() : {};
+        const prevBalance = parseFloat((meta.currentBalance && meta.currentBalance[currency]) || 0);
+        updates[`promoter-earnings/${request.promoterId}/metadata/currentBalance/${currency}`] = prevBalance + request.amount;
+        updates[`promoter-earnings/${request.promoterId}/metadata/lastUpdated`] = timestamp;
+
+        await push(ref(db, `notifications/${request.promoterId}`), {
+          title: 'Withdrawal Rejected ❌',
+          message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been rejected. You can request again later.`,
+          createdAt: timestamp,
+          type: 'withdrawal_rejected',
+          requestId: reqId
+        });
+
+        await update(ref(db), updates);
+        showNotif(`❌ ${currency} withdrawal rejected.`);
+        card.remove();
+      } catch (err) {
+        console.error(err);
+        showNotif('Error rejecting withdrawal: ' + err.message, 'error');
+      }
+    };
+
+    container.appendChild(card);
   }
-
-  const requests = snapshot.val();
-  Object.entries(requests)
-    .filter(([_, r]) => r.status === 'pending')
-    .sort((a,b) => new Date(b[1].requestedAt) - new Date(a[1].requestedAt))
-    .forEach(([reqId, request]) => renderRequestCard(reqId, request));
-});
-
-async function renderRequestCard(reqId, request) {
-  const card = document.createElement('div');
-  card.className = 'request-card';
-
-  const currency = request.currency || 'USD';
-  let dealsHTML = '';
-  for (const dealId of request.dealIds) {
-    const dealSnap = await get(ref(db, `promoter-earnings/${request.promoterId}/deals/${dealId}`));
-    if (dealSnap.exists()) {
-      const deal = dealSnap.val();
-      dealsHTML += `<div class="deal-info">
-        • ${deal.offerTitle} - ${deal.currency || 'USD'} ${deal.commissionAmount.toFixed(2)} 
-        | Platform Share: ${deal.platformTax.toFixed(2)} 
-        | Full Commission: ${deal.fullCommission.toFixed(2)} 
-        | Client: ${deal.clientName}
-      </div>`;
-    }
-  }
-
-  card.innerHTML = `
-    <div><strong>Promoter:</strong> ${request.promoterId}</div>
-    <div><strong>Amount Requested:</strong> ${currency} ${request.amount.toFixed(2)}</div>
-    <div><strong>Requested At:</strong> ${new Date(request.requestedAt).toLocaleString()}</div>
-    <div class="deals-list">${dealsHTML}</div>
-    <button class="btn approve">✅ Approve</button>
-    <button class="btn reject">❌ Reject</button>
-  `;
-
-  // Approve
-  card.querySelector('.approve').onclick = async () => {
-    if (!confirm(`Approve this ${currency} withdrawal request?`)) return;
-    try {
-      const timestamp = new Date().toISOString();
-      let updates = {};
-      updates[`withdrawal-requests/${reqId}/status`] = 'approved';
-      updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
-
-      // Update promoter metadata
-      const metaRef = ref(db, `promoter-earnings/${request.promoterId}/metadata`);
-      const metaSnap = await get(metaRef);
-      const meta = metaSnap.exists() ? metaSnap.val() : {};
-      const prevWithdrawn = parseFloat((meta.totalWithdrawn && meta.totalWithdrawn[currency]) || 0);
-      updates[`promoter-earnings/${request.promoterId}/metadata/totalWithdrawn/${currency}`] = prevWithdrawn + request.amount;
-      updates[`promoter-earnings/${request.promoterId}/metadata/currentBalance/${currency}`] = 0;
-      updates[`promoter-earnings/${request.promoterId}/metadata/lastUpdated`] = timestamp;
-
-      // Notify promoter
-      await push(ref(db, `notifications/${request.promoterId}`), {
-        title: 'Withdrawal Approved ✅',
-        message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been approved.`,
-        createdAt: timestamp,
-        type: 'withdrawal_approved',
-        requestId: reqId
-      });
-
-      await update(ref(db), updates);
-      showNotif(`✅ ${currency} withdrawal approved.`);
-      card.remove();
-    } catch (err) {
-      console.error(err);
-      showNotif('Error approving withdrawal: ' + err.message, 'error');
-    }
-  };
-
-  // Reject
-  card.querySelector('.reject').onclick = async () => {
-    if (!confirm(`Reject this ${currency} withdrawal request?`)) return;
-    try {
-      const timestamp = new Date().toISOString();
-      let updates = {};
-      updates[`withdrawal-requests/${reqId}/status`] = 'rejected';
-      updates[`withdrawal-requests/${reqId}/processedAt`] = timestamp;
-
-      // Reset deals withdrawn=false
-      request.dealIds.forEach(dealId => {
-        updates[`promoter-earnings/${request.promoterId}/deals/${dealId}/withdrawn`] = false;
-      });
-
-      // Restore currentBalance
-      const metaRef = ref(db, `promoter-earnings/${request.promoterId}/metadata`);
-      const metaSnap = await get(metaRef);
-      const meta = metaSnap.exists() ? metaSnap.val() : {};
-      const prevBalance = parseFloat((meta.currentBalance && meta.currentBalance[currency]) || 0);
-      updates[`promoter-earnings/${request.promoterId}/metadata/currentBalance/${currency}`] = prevBalance + request.amount;
-      updates[`promoter-earnings/${request.promoterId}/metadata/lastUpdated`] = timestamp;
-
-      // Notify promoter
-      await push(ref(db, `notifications/${request.promoterId}`), {
-        title: 'Withdrawal Rejected ❌',
-        message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been rejected. You can request again later.`,
-        createdAt: timestamp,
-        type: 'withdrawal_rejected',
-        requestId: reqId
-      });
-
-      await update(ref(db), updates);
-      showNotif(`❌ ${currency} withdrawal rejected.`);
-      card.remove();
-    } catch (err) {
-      console.error(err);
-      showNotif('Error rejecting withdrawal: ' + err.message, 'error');
-    }
-  };
-
-  container.appendChild(card);
 }
 </script>
+
 </body>
 </html>
