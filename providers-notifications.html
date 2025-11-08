@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Provider Notifications</title>
+  <title>EarnLibr — Notifications</title>
   <style>
     body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px;}
     h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; }
     .notif-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,0.5);}
-    .notif-card.approved { border-left:4px solid #4ade80; }
-    .notif-card.rejected { border-left:4px solid #ef4444; }
+    .notif-card.deal { border-left:4px solid #facc15; }       /* pending deal */
+    .notif-card.approved { border-left:4px solid #4ade80; }   /* approved */
+    .notif-card.rejected { border-left:4px solid #ef4444; }   /* rejected */
+    .notif-card.message { border-left:4px solid #4a90e2; }    /* general messages */
     .notif-time { font-size:12px; color:#bfc7d6; margin-top:6px; }
   </style>
 </head>
@@ -24,7 +26,7 @@
 
   const notifContainer = document.getElementById('notifContainer');
 
-  // 🟢 Get logged-in provider
+  // Get logged-in provider
   const userSessionRaw = localStorage.getItem('userSession');
   if (!userSessionRaw) {
     window.location.href = 'login.html';
@@ -33,8 +35,8 @@
   const userSession = JSON.parse(userSessionRaw);
   const uid = userSession.uid;
 
-  // 🟢 Listen to notifications
-  const notifRef = ref(db, `notifications/${uid}`);
+  // Listen to provider notifications
+  const notifRef = ref(db, `provider-notifications/${uid}`);
   onValue(notifRef, (snapshot) => {
     notifContainer.innerHTML = '';
     if (!snapshot.exists()) {
@@ -43,18 +45,30 @@
     }
 
     const notifs = snapshot.val();
-    Object.keys(notifs).sort((a,b) => new Date(notifs[b].createdAt) - new Date(notifs[a].createdAt)).forEach(key => {
-      const notif = notifs[key];
+    // Sort newest first
+    Object.keys(notifs)
+      .sort((a,b) => new Date(notifs[b].createdAt) - new Date(notifs[a].createdAt))
+      .forEach(key => {
+        const notif = notifs[key];
+        const card = document.createElement('div');
 
-      const card = document.createElement('div');
-      card.className = 'notif-card ' + (notif.type || '');
-      card.innerHTML = `
-        <strong>${notif.title}</strong><br>
-        ${notif.message}<br>
-        <div class="notif-time">${new Date(notif.createdAt).toLocaleString()}</div>
-      `;
-      notifContainer.appendChild(card);
-    });
+        // Use type or fallback
+        const typeClass = notif.type || 'message';
+
+        card.className = 'notif-card ' + typeClass;
+
+        // Dynamic content based on type
+        let content = `<strong>${notif.title || 'Notification'}</strong><br>`;
+        if (notif.message) content += `${notif.message}<br>`;
+        if (notif.offerTitle) content += `Offer: ${notif.offerTitle}<br>`;
+        if (notif.clientName) content += `Client: ${notif.clientName}<br>`;
+        if (notif.offerPrice) content += `Amount: ${notif.offerCurrency || '$'}${notif.offerPrice}<br>`;
+
+        content += `<div class="notif-time">${new Date(notif.createdAt).toLocaleString()}</div>`;
+        card.innerHTML = content;
+
+        notifContainer.appendChild(card);
+      });
   });
 </script>
 
