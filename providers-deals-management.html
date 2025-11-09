@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EarnLibr — Provider Deals Management</title>
 <style>
-/* CSS is unchanged */
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
 .deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); transition: opacity 0.5s ease; }
@@ -27,11 +26,9 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 <div id="dealsContainer">Loading deals...</div>
 
 <script type="module">
-// Load Firebase configuration file
-import { auth, db } from './firebase.js'; 
-import { ref, onValue, get, set, update, remove, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
-// Import security function
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js'; 
+import { auth, db } from './firebase.js';
+import { ref, onValue, get, update, remove, push, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
 
 const dealsContainer = document.getElementById('dealsContainer');
 const notif = document.getElementById('notif');
@@ -43,43 +40,47 @@ const showNotif = (message, type = 'success') => {
   setTimeout(() => (notif.style.display = 'none'), 4000);
 };
 
+// --- 1. LOCAL SESSION (for convenience/display only) ---
 let userSession = null;
-
-// --- 1. LOCAL SESSION & ROLE CHECK ---
 const sessionRaw = localStorage.getItem('userSession');
 if (!sessionRaw) {
   window.location.href = 'login.html';
   dealsContainer.innerHTML = '<p>Redirecting to login...</p>';
   throw new Error('No user session');
 }
-
 userSession = JSON.parse(sessionRaw);
 
-if (userSession.role !== 'provider') {
-  localStorage.removeItem('userSession');
-  window.location.href = 'login.html';
-  dealsContainer.innerHTML = '<p>Unauthorized role. Redirecting...</p>';
-  throw new Error('Unauthorized role');
-}
-
-// --- 2. FIREBASE AUTH CHECK (Secure Gate) ---
-onAuthStateChanged(auth, (user) => {
-  // If user is not authenticated, UID does not match, or email is unverified
+// --- 2. SECURE AUTH CHECK ---
+onAuthStateChanged(auth, async (user) => {
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
     localStorage.removeItem('userSession');
     window.location.href = 'login.html';
     dealsContainer.innerHTML = '<p>Session invalid. Redirecting to login...</p>';
-  } else {
-    // Authentication successful, proceed to load data
-    loadDeals(user.uid);
+    return;
   }
+
+  // Verify role from DB
+  const snap = await get(ref(db, `users/${user.uid}`));
+  const role = snap.exists() ? snap.val().role : null;
+  if (role !== 'provider') {
+    localStorage.removeItem('userSession');
+    window.location.href = 'login.html';
+    dealsContainer.innerHTML = '<p>Unauthorized role. Redirecting...</p>';
+    return;
+  }
+
+  // Update session info with DB values
+  userSession = { uid: user.uid, role, name: snap.val().name, email: snap.val().email };
+  localStorage.setItem('userSession', JSON.stringify(userSession));
+
+  loadDeals(user.uid);
 });
 
-// --- 3. DEAL LOADING LOGIC (Only runs after successful auth) ---
+// --- 3. DEAL LOADING ---
 function loadDeals(providerId) {
   const dealsRef = ref(db, 'deals');
-  
-  onValue(dealsRef, async snapshot => {
+
+  onValue(dealsRef, async (snapshot) => {
     dealsContainer.innerHTML = '';
     if (!snapshot.exists()) {
       dealsContainer.innerHTML = '<p>No deals found.</p>';
@@ -113,16 +114,17 @@ function loadDeals(providerId) {
         <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status || 'Pending'}</div>
       `;
 
-      // ✅ MARK COMPLETED (full admin-grade) - Uses the scoped providerId
+      // ✅ Mark Completed (with promoter earnings & notifications)
       card.querySelector('.complete').onclick = async () => {
         if (deal.status === 'completed') return showNotif('Already completed.', 'error');
         try {
           const timestamp = new Date().toISOString();
           card.querySelector('.complete').disabled = true;
+
           let commissionEarned = 0;
           const currency = deal.currency || 'USD';
 
-          // Update offer financials
+          // --- Update offer financials if exists ---
           if (deal.offerId && deal.providerId) {
             const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
             const offerSnap = await get(offerRef);
@@ -136,13 +138,11 @@ function loadDeals(providerId) {
               const newAmountOwed = (parseFloat(offerData.amountOwed) || 0) + commissionEarned;
               const newOutstanding = newAmountOwed - (parseFloat(offerData.amountPaid) || 0);
 
-              const offerUpdates = { promoSpent: newSpent, amountOwed: newAmountOwed, outstandingBalance: newOutstanding };
-              if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) offerUpdates.status = 'completed';
-              await update(offerRef, offerUpdates);
+              await update(offerRef, { promoSpent: newSpent, amountOwed: newAmountOwed, outstandingBalance: newOutstanding });
             }
           }
 
-          // Update promoter earnings
+          // --- Update promoter earnings if applicable ---
           if (deal.promoterId && deal.promoterId !== 'direct') {
             const promoterRef = ref(db, `promoter-earnings/${deal.promoterId}`);
             await set(ref(promoterRef, `deals/${dealId}`), {
@@ -156,27 +156,20 @@ function loadDeals(providerId) {
             metadata.totalLifetimeEarnings = metadata.totalLifetimeEarnings || {};
             metadata.totalWithdrawn = metadata.totalWithdrawn || {};
             metadata.currentBalance = metadata.currentBalance || {};
-
             metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + commissionEarned;
             metadata.currentBalance[currency] = metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0);
             metadata.lastUpdated = timestamp;
-
             await update(ref(promoterRef, 'metadata'), metadata);
-
-            // Ensure withdrawalRequests exists
-            const wrSnap = await get(ref(promoterRef, 'withdrawalRequests'));
-            if (!wrSnap.exists()) await set(ref(promoterRef, 'withdrawalRequests'), {});
+            if (!(await get(ref(promoterRef, 'withdrawalRequests'))).exists()) await set(ref(promoterRef, 'withdrawalRequests'), {});
           }
 
-          // Save completed deal
-          await set(ref(db, `completed-deals/${dealId}`), { ...deal, status: 'completed', completedAt: timestamp, commissionEarned, providerPaid: false, paymentAmount: 0, paymentNotes: '' });
-
-          // Remove from active deals
+          // --- Save completed deal ---
+          await set(ref(db, `completed-deals/${dealId}`), { ...deal, status: 'completed', completedAt: timestamp, commissionEarned, providerPaid: false });
           await remove(ref(db, `deals/${dealId}`));
           card.style.opacity = '0';
           setTimeout(() => card.remove(), 500);
 
-          // Push notifications
+          // --- Notifications ---
           const notifData = { title: 'Deal Completed ✅', message: `Deal ${dealId} completed.`, type: 'completed', createdAt: timestamp, commissionEarned, currency };
           await Promise.all([
             push(ref(db, `notifications/${deal.providerId}`), notifData),
@@ -189,11 +182,11 @@ function loadDeals(providerId) {
           console.error(err);
           showNotif('Error completing deal: ' + err.message, 'error');
         } finally {
-            card.querySelector('.complete').disabled = false;
+          card.querySelector('.complete').disabled = false;
         }
       };
 
-      // ❌ MARK CANCELLED
+      // ❌ Mark Cancelled
       card.querySelector('.cancel').onclick = async () => {
         if (deal.status === 'cancelled') return showNotif('Already cancelled.', 'error');
         try {
