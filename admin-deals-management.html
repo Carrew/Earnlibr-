@@ -156,7 +156,11 @@ if(!session || session.role !== 'admin'){
           <button class="complete">✅ Complete</button>
           <button class="cancel">❌ Cancel</button>
         </div>
-        <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status||'Pending'}</div>
+        <div class="timestamp">
+          Created: ${new Date(deal.createdAt).toLocaleString()} | 
+          Status: ${deal.status||'Pending'} 
+          ${deal.completedBy ? ` | Completed by: ${deal.completedBy}` : ''}
+        </div>
       `;
 
       // Helper function containing all the complex database logic
@@ -225,6 +229,7 @@ if(!session || session.role !== 'admin'){
                     withdrawn: false,
                     currency: currency,
                     completedAt: timestamp,
+                    completedBy: session?.role === 'admin' ? 'admin' : 'provider',
                     platformTax: platformShare,
                     fullCommission: commissionEarned
                   });
@@ -245,19 +250,20 @@ if(!session || session.role !== 'admin'){
                 // 5️⃣ Update platform earnings
                 const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
                 const platformEarningsSnap = await get(platformEarningsRef);
-                let platformData = platformEarningsSnap.exists() ? platformEarningsSnap.val() : {
+                let platformData2 = platformEarningsSnap.exists() ? platformEarningsSnap.val() : {
                   totalRevenue: 0, dealsCount: 0, lastUpdated: ''
                 };
-                platformData.totalRevenue += platformShare;
-                platformData.dealsCount += 1;
-                platformData.lastUpdated = timestamp;
-                await set(platformEarningsRef, platformData);
+                platformData2.totalRevenue += platformShare;
+                platformData2.dealsCount += 1;
+                platformData2.lastUpdated = timestamp;
+                await set(platformEarningsRef, platformData2);
 
                 // 6️⃣ Move deal to completed
                 await set(ref(db, `completed-deals/${dealId}`), {
                   ...deal,
                   status: 'completed',
                   completedAt: timestamp,
+                  completedBy: session?.role === 'admin' ? 'admin' : 'provider',
                   commissionEarned,
                   promoterNet,
                   platformShare,
@@ -272,20 +278,21 @@ if(!session || session.role !== 'admin'){
                 // 7️⃣ Notifications
                 const notifData = {
                   title: 'Deal Completed ✅',
-                  message: `Deal ${dealId} completed. Promoter earned ${promoterNet.toFixed(2)} ${currency} after ${platformPercentage}% platform share.`,
+                  message: `Deal ${dealId} completed by ${session?.role === 'admin' ? 'Admin' : 'Provider'}. Promoter earned ${promoterNet.toFixed(2)} ${currency} after ${platformPercentage}% platform share.`,
                   type: 'completed',
                   createdAt: timestamp,
                   commissionEarned,
                   promoterNet,
                   platformShare,
-                  currency
+                  currency,
+                  completedBy: session?.role === 'admin' ? 'admin' : 'provider'
                 };
 
                 await push(ref(db, `notifications/${deal.providerId}`), notifData);
                 if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
                 await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-                showNotif(`✅ Deal completed. ${platformPercentage}% platform share applied.`);
+                showNotif(`✅ Deal completed by ${session?.role === 'admin' ? 'Admin' : 'Provider'}. ${platformPercentage}% platform share applied.`);
               }
             }
           } catch (err) {
@@ -293,13 +300,19 @@ if(!session || session.role !== 'admin'){
             showNotif('Error completing deal: ' + err.message, 'error');
           }
         } else {
-          // Cancel logic (simple and immediate cleanup)
+          // Cancel logic
           if(deal.status==='cancelled') return showNotif('Already cancelled.','error');
           
           await remove(ref(db, `deals/${dealId}`));
           card.remove();
           
-          const notifData = { title:'Deal Cancelled ❌', message:`Deal ${dealId} cancelled.`, type:'cancelled', createdAt:timestamp, dealId };
+          const notifData = { 
+            title:'Deal Cancelled ❌', 
+            message:`Deal ${dealId} cancelled.`, 
+            type:'cancelled', 
+            createdAt:timestamp, 
+            dealId 
+          };
           await push(ref(db, `notifications/${deal.providerId}`), notifData);
           if(deal.promoterId && deal.promoterId!=='direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
           await push(ref(db, 'admin-notifications'), notifData);
