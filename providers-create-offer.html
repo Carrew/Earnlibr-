@@ -165,7 +165,9 @@ function attachHandlers() {
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
   document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
   
-  document.addEventListener("DOMContentLoaded", () => { if (typeof populateCurrencyDropdown==='function') populateCurrencyDropdown("currency"); });
+  if (typeof populateCurrencyDropdown === 'function') {
+  populateCurrencyDropdown("currency");
+  }
 
   imageInput.addEventListener("change", e => {
     const file = e.target.files[0];
