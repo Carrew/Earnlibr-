@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Admin Deals Management & Platform Earnings</title>
 <style>
+/* CSS Styles (Identical to your provided file) */
 :root {
   --bg: #0b0d17;
   --card: #131927;
@@ -112,8 +113,13 @@ h1.page-title {
 <div class="deals-container" id="dealsContainer">Loading deals...</div>
 
 <script type="module">
-import { db } from './firebase.js';
-import { ref, onValue, update, push, get, set, remove } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+// 🚨 CRITICAL CHANGE 🚨
+// Imported db from local file. All functions imported from CDN must match that file's version.
+import { db } from './firebase.js'; 
+import { 
+    ref, onValue, update, push, get, set, remove 
+} from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+// NOTE: I removed 'child' from imports as it is redundant when using ref(baseRef, path)
 
 const dealsContainer = document.getElementById('dealsContainer');
 const notif = document.getElementById('notif');
@@ -185,6 +191,7 @@ if(!session || session.role !== 'admin'){
               if (offerSnap.exists()) {
                 const offerData = offerSnap.val();
 
+                // 🚨 DATA TYPE SAFETY CHECK (Ensuring correct parsing)
                 if (offerData.commissionType === 'percentage') {
                   commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
                 } else if (offerData.commissionType === 'fixed') {
@@ -217,7 +224,8 @@ if(!session || session.role !== 'admin'){
                 if (deal.promoterId && deal.promoterId !== 'direct') {
                   const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
 
-                  await set(ref(promoterBaseRef, `deals/${dealId}`), {
+                  // 💡 Standard modular ref(baseRef, path) syntax used here
+                  await set(ref(promoterBaseRef, `deals/${dealId}`), { 
                     offerId: deal.offerId,
                     offerTitle: deal.offerTitle,
                     providerId: deal.providerId,
@@ -239,11 +247,13 @@ if(!session || session.role !== 'admin'){
                     totalLifetimeEarnings: {}, totalWithdrawn: {}, currentBalance: {}
                   };
 
-                  metadata.totalLifetimeEarnings[currency] = (metadata.totalLifetimeEarnings[currency] || 0) + promoterNet;
+                  // 🚨 DATA TYPE SAFETY CHECK
+                  metadata.totalLifetimeEarnings[currency] = (parseFloat(metadata.totalLifetimeEarnings[currency] || 0) || 0) + promoterNet;
                   metadata.currentBalance[currency] =
-                    metadata.totalLifetimeEarnings[currency] - (metadata.totalWithdrawn[currency] || 0);
+                    metadata.totalLifetimeEarnings[currency] - (parseFloat(metadata.totalWithdrawn[currency] || 0) || 0);
                   metadata.lastUpdated = timestamp;
 
+                  // 💡 Standard modular ref(baseRef, path) syntax used here
                   await update(ref(promoterBaseRef, 'metadata'), metadata);
                 }
 
@@ -253,8 +263,8 @@ if(!session || session.role !== 'admin'){
                 let platformData2 = platformEarningsSnap.exists() ? platformEarningsSnap.val() : {
                   totalRevenue: 0, dealsCount: 0, lastUpdated: ''
                 };
-                platformData2.totalRevenue += platformShare;
-                platformData2.dealsCount += 1;
+                platformData2.totalRevenue = (parseFloat(platformData2.totalRevenue) || 0) + platformShare;
+                platformData2.dealsCount = (platformData2.dealsCount || 0) + 1;
                 platformData2.lastUpdated = timestamp;
                 await set(platformEarningsRef, platformData2);
 
@@ -293,10 +303,15 @@ if(!session || session.role !== 'admin'){
                 await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
                 showNotif(`✅ Deal completed by ${session?.role === 'admin' ? 'Admin' : 'Provider'}. ${platformPercentage}% platform share applied.`);
+              } else {
+                 throw new Error('Offer details not found. Cannot calculate commission.');
               }
+            } else {
+               throw new Error('Deal is missing Offer ID or Provider ID.');
             }
           } catch (err) {
             console.error(err);
+            // Ensure the error message shown to the user is clean
             showNotif('Error completing deal: ' + err.message, 'error');
           }
         } else {
@@ -334,7 +349,10 @@ if(!session || session.role !== 'admin'){
           showNotif('Action canceled', 'error');
         };
 
-        setTimeout(()=>{ if(!canceled) processAction(type); },5000);
+        setTimeout(()=>{ 
+          cardNotif.remove(); // Remove the notification regardless of outcome
+          if(!canceled) processAction(type); 
+        },5000);
       };
 
       card.querySelector('.complete').onclick=()=>scheduleAction('complete');
