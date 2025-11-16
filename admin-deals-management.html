@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,16 +114,15 @@ h1.page-title {
 <div class="deals-container" id="dealsContainer">Loading deals...</div>
 
 <script type="module">
-// 🚨 CRITICAL CHANGE 🚨
-// Imported db from local file. All functions imported from CDN must match that file's version.
+// 🚨 Imported db from your local firebase.js
 import { db } from './firebase.js'; 
 import { 
     ref, onValue, update, push, get, set, remove 
 } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
-// NOTE: I removed 'child' from imports as it is redundant when using ref(baseRef, path)
 
 const dealsContainer = document.getElementById('dealsContainer');
 const notif = document.getElementById('notif');
+
 const showNotif = (message, type='success') => {
   notif.textContent = message;
   notif.className = `notif ${type}`;
@@ -138,6 +138,7 @@ if(!session || session.role !== 'admin'){
   dealsContainer.innerHTML = '';
   setTimeout(()=> window.location.href='login.html', 2000);
 } else {
+
   const dealsRef = ref(db, 'deals');
 
   onValue(dealsRef, async (snapshot) => {
@@ -149,6 +150,7 @@ if(!session || session.role !== 'admin'){
 
     sortedDealIds.forEach(async dealId => {
       const deal = dealsData[dealId];
+
       const card = document.createElement('div');
       card.className = 'deal-card ' + (deal.status||'');
       card.innerHTML = `
@@ -169,29 +171,31 @@ if(!session || session.role !== 'admin'){
         </div>
       `;
 
-      // Helper function containing all the complex database logic
       const processAction = async (type) => {
         const timestamp = new Date().toISOString();
         const currency = deal.currency || 'USD';
         
         if(type==='complete'){
           if(deal.status==='completed') return showNotif('Already completed.','error');
+          
           try {
             let commissionEarned = 0;
 
-            // 1️⃣ Get platform settings
+            // 1️⃣ Platform settings
             const platformSnap = await get(ref(db, 'platform-settings/commission'));
             const platformData = platformSnap.exists() ? platformSnap.val() : { percentage: 20 };
             const platformPercentage = parseFloat(platformData.percentage);
 
-            // 2️⃣ Calculate commission
+            // 2️⃣ Commission calculation
             if (deal.offerId && deal.providerId) {
+
               const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
               const offerSnap = await get(offerRef);
+
               if (offerSnap.exists()) {
+
                 const offerData = offerSnap.val();
 
-                // 🚨 DATA TYPE SAFETY CHECK (Ensuring correct parsing)
                 if (offerData.commissionType === 'percentage') {
                   commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
                 } else if (offerData.commissionType === 'fixed') {
@@ -220,49 +224,54 @@ if(!session || session.role !== 'admin'){
 
                 await update(offerRef, offerUpdates);
 
-                // 4️⃣ Update promoter wallet
+                // 4️⃣ Update promoter earnings (FIXED)
                 if (deal.promoterId && deal.promoterId !== 'direct') {
-                  const promoterBaseRef = ref(db, `promoter-earnings/${deal.promoterId}`);
 
-                  // 💡 Standard modular ref(baseRef, path) syntax used here
-                  await set(ref(promoterBaseRef, `deals/${dealId}`), { 
-                    offerId: deal.offerId,
-                    offerTitle: deal.offerTitle,
-                    providerId: deal.providerId,
-                    providerName: deal.providerName,
-                    clientName: deal.clientName,
-                    clientContact: deal.clientContact,
-                    note: deal.note || '',
-                    commissionAmount: promoterNet,
-                    withdrawn: false,
-                    currency: currency,
-                    completedAt: timestamp,
-                    completedBy: session?.role === 'admin' ? 'admin' : 'provider',
-                    platformTax: platformShare,
-                    fullCommission: commissionEarned
-                  });
+                  await set(
+                    ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`),
+                    {
+                      offerId: deal.offerId,
+                      offerTitle: deal.offerTitle,
+                      providerId: deal.providerId,
+                      providerName: deal.providerName,
+                      clientName: deal.clientName,
+                      clientContact: deal.clientContact,
+                      note: deal.note || '',
+                      commissionAmount: promoterNet,
+                      withdrawn: false,
+                      currency: currency,
+                      completedAt: timestamp,
+                      completedBy: session?.role === 'admin' ? 'admin' : 'provider',
+                      platformTax: platformShare,
+                      fullCommission: commissionEarned
+                    }
+                  );
 
-                  const metaSnap = await get(ref(promoterBaseRef, 'metadata'));
-                  let metadata = metaSnap.exists() ? metaSnap.val() : {
-                    totalLifetimeEarnings: {}, totalWithdrawn: {}, currentBalance: {}
-                  };
+                  // metadata load
+                  const metaSnap = await get(ref(db, `promoter-earnings/${deal.promoterId}/metadata`));
+                  let metadata = metaSnap.exists()
+                    ? metaSnap.val()
+                    : { totalLifetimeEarnings:{}, totalWithdrawn:{}, currentBalance:{} };
 
-                  // 🚨 DATA TYPE SAFETY CHECK
-                  metadata.totalLifetimeEarnings[currency] = (parseFloat(metadata.totalLifetimeEarnings[currency] || 0) || 0) + promoterNet;
+                  metadata.totalLifetimeEarnings[currency] =
+                    (parseFloat(metadata.totalLifetimeEarnings[currency] || 0) || 0) + promoterNet;
+
                   metadata.currentBalance[currency] =
-                    metadata.totalLifetimeEarnings[currency] - (parseFloat(metadata.totalWithdrawn[currency] || 0) || 0);
+                    metadata.totalLifetimeEarnings[currency] -
+                    (parseFloat(metadata.totalWithdrawn[currency] || 0) || 0);
+
                   metadata.lastUpdated = timestamp;
 
-                  // 💡 Standard modular ref(baseRef, path) syntax used here
-                  await update(ref(promoterBaseRef, 'metadata'), metadata);
+                  await update(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), metadata);
                 }
 
-                // 5️⃣ Update platform earnings
+                // 5️⃣ Platform earnings
                 const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
                 const platformEarningsSnap = await get(platformEarningsRef);
-                let platformData2 = platformEarningsSnap.exists() ? platformEarningsSnap.val() : {
-                  totalRevenue: 0, dealsCount: 0, lastUpdated: ''
-                };
+                let platformData2 = platformEarningsSnap.exists() 
+                  ? platformEarningsSnap.val()
+                  : { totalRevenue:0, dealsCount:0, lastUpdated:'' };
+
                 platformData2.totalRevenue = (parseFloat(platformData2.totalRevenue) || 0) + platformShare;
                 platformData2.dealsCount = (platformData2.dealsCount || 0) + 1;
                 platformData2.lastUpdated = timestamp;
@@ -288,7 +297,7 @@ if(!session || session.role !== 'admin'){
                 // 7️⃣ Notifications
                 const notifData = {
                   title: 'Deal Completed ✅',
-                  message: `Deal ${dealId} completed by ${session?.role === 'admin' ? 'Admin' : 'Provider'}. Promoter earned ${promoterNet.toFixed(2)} ${currency} after ${platformPercentage}% platform share.`,
+                  message: `Deal ${dealId} completed.`,
                   type: 'completed',
                   createdAt: timestamp,
                   commissionEarned,
@@ -299,25 +308,26 @@ if(!session || session.role !== 'admin'){
                 };
 
                 await push(ref(db, `notifications/${deal.providerId}`), notifData);
-                if (deal.promoterId && deal.promoterId !== 'direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+                if (deal.promoterId && deal.promoterId !== 'direct')
+                  await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+
                 await push(ref(db, `admin-notifications`), { ...notifData, dealId });
 
-                showNotif(`✅ Deal completed by ${session?.role === 'admin' ? 'Admin' : 'Provider'}. ${platformPercentage}% platform share applied.`);
+                showNotif(`✅ Deal completed successfully.`);
+              
               } else {
-                 throw new Error('Offer details not found. Cannot calculate commission.');
+                throw new Error('Offer details not found.');
               }
             } else {
-               throw new Error('Deal is missing Offer ID or Provider ID.');
+              throw new Error('Missing Offer ID or Provider ID.');
             }
           } catch (err) {
             console.error(err);
-            // Ensure the error message shown to the user is clean
             showNotif('Error completing deal: ' + err.message, 'error');
           }
-        } else {
-          // Cancel logic
-          if(deal.status==='cancelled') return showNotif('Already cancelled.','error');
-          
+        }
+
+        else { // Cancel
           await remove(ref(db, `deals/${dealId}`));
           card.remove();
           
@@ -329,13 +339,14 @@ if(!session || session.role !== 'admin'){
             dealId 
           };
           await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if(deal.promoterId && deal.promoterId!=='direct') await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+          if(deal.promoterId && deal.promoterId!=='direct') 
+            await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+
           await push(ref(db, 'admin-notifications'), notifData);
           showNotif(`❌ Deal ${dealId} cancelled.`, 'error');
         }
       };
 
-      // Function to introduce the 5-second delay and "Undo" option
       const scheduleAction = (type) => {
         const cardNotif = document.createElement('div');
         cardNotif.className = 'card-notif';
@@ -350,7 +361,7 @@ if(!session || session.role !== 'admin'){
         };
 
         setTimeout(()=>{ 
-          cardNotif.remove(); // Remove the notification regardless of outcome
+          cardNotif.remove();
           if(!canceled) processAction(type); 
         },5000);
       };
@@ -365,5 +376,5 @@ if(!session || session.role !== 'admin'){
 </script>
 
 </body>
-  </html>
-  
+</html>
+
