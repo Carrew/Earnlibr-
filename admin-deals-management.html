@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Admin Deals Management & Platform Earnings</title>
 <style>
-/* CSS Styles (Identical to your provided file) */
 :root {
   --bg: #0b0d17;
   --card: #131927;
@@ -17,9 +15,12 @@
   --success: #4ade80;
   --shadow: rgba(0,0,0,0.35);
 }
+
 body {
-  margin: 0; font-family: 'Inter', system-ui, Arial; background: var(--bg); color: #eef2f7; min-height: 100vh;
+  margin: 0; font-family: 'Inter', system-ui, Arial;
+  background: var(--bg); color: #eef2f7; min-height: 100vh;
 }
+
 header {
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(90deg, var(--accent1), var(--accent2));
@@ -29,42 +30,26 @@ header img { height: 50px; margin-right: 15px; }
 header h1 { font-size: 24px; font-weight: bold; }
 
 h1.page-title {
-  text-align: center;
-  margin: 25px 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: #eef2f7;
+  text-align: center; margin: 25px 0;
+  font-size: 22px; font-weight: 600; color: #eef2f7;
 }
 
 .notif {
-  margin: 10px auto;
-  padding: 12px 18px;
-  width: 90%;
-  max-width: 600px;
-  border-radius: 12px;
-  display: none;
-  font-size: 14px;
+  margin: 10px auto; padding: 12px 18px; width: 90%; max-width: 600px;
+  border-radius: 12px; display: none; font-size: 14px;
   transition: transform 0.3s, opacity 0.3s;
 }
 .notif.success { background: var(--card); border-left: 4px solid var(--success); color: var(--success);}
 .notif.error { background: var(--card); border-left: 4px solid var(--danger); color: #ff8c8c;}
 
 .deals-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  max-width: 900px;
-  margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px; max-width: 900px; margin: 0 auto;
 }
 
 .deal-card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 20px;
-  width: 100%;
-  box-shadow: 0 4px 15px var(--shadow);
+  background: var(--card); border-radius: 14px; padding: 18px;
+  margin-bottom: 20px; width: 100%; box-shadow: 0 4px 15px var(--shadow);
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
 }
@@ -75,15 +60,12 @@ h1.page-title {
 .deal-info { font-size: 14px; margin-bottom: 6px; color: var(--muted); }
 .deal-actions { margin-top: 12px; }
 .deal-actions button {
-  margin-right: 8px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
+  margin-right: 8px; padding: 8px 14px; border: none;
+  border-radius: 10px; cursor: pointer; font-weight: 600;
   transition: background 0.2s, transform 0.2s;
+  position: relative;
 }
-.deal-actions button:hover { transform: translateY(-1px); }
+.deal-actions button:hover:not(:disabled) { transform: translateY(-1px); }
 .complete { background: var(--success); color: #041018; }
 .cancel { background: var(--danger); color: #fff; }
 
@@ -100,6 +82,24 @@ h1.page-title {
   transition: color 0.2s;
 }
 .card-notif button:hover { color: var(--success); }
+
+/* Spinner for buttons */
+button.loading {
+  pointer-events: none; opacity: 0.7;
+}
+button.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 16px; height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 </style>
 </head>
 <body>
@@ -114,11 +114,8 @@ h1.page-title {
 <div class="deals-container" id="dealsContainer">Loading deals...</div>
 
 <script type="module">
-// 🚨 Imported db from your local firebase.js
 import { db } from './firebase.js'; 
-import { 
-    ref, onValue, update, push, get, set, remove 
-} from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { ref, onValue, update, push, get, set, remove } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
 const dealsContainer = document.getElementById('dealsContainer');
 const notif = document.getElementById('notif');
@@ -131,7 +128,7 @@ const showNotif = (message, type='success') => {
   setTimeout(() => { notif.style.opacity='0'; notif.style.display='none'; }, 4000);
 };
 
-// --- ADMIN SESSION CHECK ---
+// ------------------- ADMIN SESSION CHECK -------------------
 const session = JSON.parse(localStorage.getItem('userSession'));
 if(!session || session.role !== 'admin'){
   showNotif('⚠ You must be logged in as admin to access this page.', 'error');
@@ -139,8 +136,201 @@ if(!session || session.role !== 'admin'){
   setTimeout(()=> window.location.href='login.html', 2000);
 } else {
 
-  const dealsRef = ref(db, 'deals');
+  // ------------------- HELPER FUNCTIONS -------------------
+  const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
+  const getPlatformPercentage = async () => {
+    const snap = await get(ref(db, 'platform-settings/commission'));
+    return snap.exists() ? parseFloat(snap.val().percentage) : 20;
+  };
+
+  const calculateCommission = (offerData) => {
+    let commission = 0;
+    if (offerData.commissionType === 'percentage') {
+      commission = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
+    } else if (offerData.commissionType === 'fixed') {
+      commission = parseFloat(offerData.commissionValue || 0);
+    }
+    return round(commission);
+  };
+
+  const updateOfferFinancials = async (offerRef, offerData, commissionEarned) => {
+    const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
+    const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
+    const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
+
+    const updates = {
+      promoSpent: round(newSpent),
+      amountOwed: round(newAmountOwed),
+      outstandingBalance: round(newOutstanding)
+    };
+
+    if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
+      updates.status = 'completed';
+    }
+    await update(offerRef, updates);
+  };
+
+  const updatePromoterEarnings = async (deal, commissionEarned, platformShare, timestamp) => {
+    if (!deal.promoterId || deal.promoterId === 'direct') return 0;
+    const promoterNet = round(commissionEarned - platformShare);
+
+    await set(ref(db, `promoter-earnings/${deal.promoterId}/deals/${deal.dealId}`), {
+      offerId: deal.offerId,
+      offerTitle: deal.offerTitle,
+      providerId: deal.providerId,
+      providerName: deal.providerName,
+      clientName: deal.clientName,
+      clientContact: deal.clientContact,
+      note: deal.note || '',
+      commissionAmount: promoterNet,
+      withdrawn: false,
+      currency: deal.currency || 'USD',
+      completedAt: timestamp,
+      completedBy: session?.role === 'admin' ? 'admin' : 'provider',
+      platformTax: platformShare,
+      fullCommission: commissionEarned
+    });
+
+    const metaSnap = await get(ref(db, `promoter-earnings/${deal.promoterId}/metadata`));
+    let metadata = metaSnap.exists() ? metaSnap.val() : { totalLifetimeEarnings:{}, totalWithdrawn:{}, currentBalance:{} };
+    const currency = deal.currency || 'USD';
+    metadata.totalLifetimeEarnings[currency] = (parseFloat(metadata.totalLifetimeEarnings[currency] || 0)) + promoterNet;
+    metadata.currentBalance[currency] = metadata.totalLifetimeEarnings[currency] - (parseFloat(metadata.totalWithdrawn[currency] || 0) || 0);
+    metadata.lastUpdated = timestamp;
+    await update(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), metadata);
+
+    return promoterNet;
+  };
+
+  const updatePlatformEarnings = async (platformShare, currency='USD', timestamp) => {
+    const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
+    const snap = await get(platformEarningsRef);
+    let data = snap.exists() ? snap.val() : { totalRevenue:0, dealsCount:0, lastUpdated:'' };
+    data.totalRevenue = round((parseFloat(data.totalRevenue) || 0) + platformShare);
+    data.dealsCount = (data.dealsCount || 0) + 1;
+    data.lastUpdated = timestamp;
+    await set(platformEarningsRef, data);
+  };
+
+  const moveDealToCompleted = async (deal, commissionEarned, promoterNet, platformShare, timestamp) => {
+    await set(ref(db, `completed-deals/${deal.dealId}`), {
+      ...deal,
+      status: 'completed',
+      completedAt: timestamp,
+      completedBy: session?.role === 'admin' ? 'admin' : 'provider',
+      commissionEarned,
+      promoterNet,
+      platformShare,
+      providerPaid: false,
+      paymentAmount: 0,
+      paymentNotes: ''
+    });
+    await remove(ref(db, `deals/${deal.dealId}`));
+  };
+
+  const sendNotifications = async (deal, commissionEarned, promoterNet, platformShare, timestamp) => {
+    const notifData = {
+      title: 'Deal Completed ✅',
+      message: `Deal ${deal.dealId} completed.`,
+      type: 'completed',
+      createdAt: timestamp,
+      commissionEarned,
+      promoterNet,
+      platformShare,
+      currency: deal.currency || 'USD',
+      completedBy: session?.role === 'admin' ? 'admin' : 'provider'
+    };
+
+    await push(ref(db, `notifications/${deal.providerId}`), notifData);
+    if (deal.promoterId && deal.promoterId !== 'direct') 
+      await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+
+    await push(ref(db, `admin-notifications`), { ...notifData, dealId: deal.dealId });
+  };
+
+  // ------------------- PROCESS DEALS -------------------
+  const processCompleteDeal = async (deal) => {
+    try {
+      if (deal.status === 'completed') return showNotif('Already completed.', 'error');
+
+      const timestamp = new Date().toISOString();
+      const currency = deal.currency || 'USD';
+      const platformPercentage = await getPlatformPercentage();
+      const offerSnap = await get(ref(db, `offers/${deal.providerId}/${deal.offerId}`));
+      if (!offerSnap.exists()) throw new Error('Offer details not found.');
+      const offerData = offerSnap.val();
+
+      const commissionEarned = calculateCommission(offerData);
+      const platformShare = round((commissionEarned * platformPercentage) / 100);
+      const promoterNet = await updatePromoterEarnings(deal, commissionEarned, platformShare, timestamp);
+      await updateOfferFinancials(ref(db, `offers/${deal.providerId}/${deal.offerId}`), offerData, commissionEarned);
+      await updatePlatformEarnings(platformShare, currency, timestamp);
+      await moveDealToCompleted(deal, commissionEarned, promoterNet, platformShare, timestamp);
+      await sendNotifications(deal, commissionEarned, promoterNet, platformShare, timestamp);
+
+      showNotif('✅ Deal completed successfully.');
+    } catch (err) {
+      console.error(err);
+      showNotif('Error completing deal: ' + err.message, 'error');
+    }
+  };
+
+  const processCancelDeal = async (deal) => {
+    try {
+      const timestamp = new Date().toISOString();
+      await remove(ref(db, `deals/${deal.dealId}`));
+
+      const notifData = { 
+        title: 'Deal Cancelled ❌', 
+        message: `Deal ${deal.dealId} cancelled.`,
+        type: 'cancelled',
+        createdAt: timestamp,
+        dealId: deal.dealId
+      };
+      await push(ref(db, `notifications/${deal.providerId}`), notifData);
+      if (deal.promoterId && deal.promoterId !== 'direct') 
+        await push(ref(db, `notifications/${deal.promoterId}`), notifData);
+
+      await push(ref(db, 'admin-notifications'), notifData);
+      showNotif(`❌ Deal ${deal.dealId} cancelled.`, 'error');
+    } catch (err) {
+      console.error(err);
+      showNotif('Error cancelling deal: ' + err.message, 'error');
+    }
+  };
+
+  // ------------------- SCHEDULE ACTION WITH SPINNER AND UNDO -------------------
+  const scheduleAction = (type, button, deal, card) => {
+    const cardNotif = document.createElement('div');
+    cardNotif.className = 'card-notif';
+    cardNotif.innerHTML = `${type === 'complete' ? 'Completing' : 'Cancelling'} in 5s <button>Undo</button>`;
+    card.appendChild(cardNotif);
+
+    let canceled = false;
+    const buttons = card.querySelectorAll('button');
+    buttons.forEach(btn => { btn.disabled = true; btn.classList.add('loading'); });
+
+    cardNotif.querySelector('button').onclick = () => {
+      canceled = true;
+      cardNotif.remove();
+      buttons.forEach(btn => { btn.disabled = false; btn.classList.remove('loading'); });
+      showNotif('Action canceled', 'error');
+    };
+
+    setTimeout(async () => {
+      cardNotif.remove();
+      if (!canceled) {
+        if (type === 'complete') await processCompleteDeal(deal);
+        else await processCancelDeal(deal);
+        card.remove();
+      }
+      buttons.forEach(btn => { btn.disabled = false; btn.classList.remove('loading'); });
+    }, 5000);
+  };
+
+  // ------------------- LOAD DEALS -------------------
+  const dealsRef = ref(db, 'deals');
   onValue(dealsRef, async (snapshot) => {
     dealsContainer.innerHTML = '';
     if(!snapshot.exists()) { dealsContainer.innerHTML='<p style="text-align:center;">No deals found.</p>'; return; }
@@ -148,8 +338,9 @@ if(!session || session.role !== 'admin'){
     const dealsData = snapshot.val();
     const sortedDealIds = Object.keys(dealsData).sort((a,b)=> new Date(dealsData[b].createdAt) - new Date(dealsData[a].createdAt));
 
-    sortedDealIds.forEach(async dealId => {
+    sortedDealIds.forEach(dealId => {
       const deal = dealsData[dealId];
+      deal.dealId = dealId;
 
       const card = document.createElement('div');
       card.className = 'deal-card ' + (deal.status||'');
@@ -171,203 +362,8 @@ if(!session || session.role !== 'admin'){
         </div>
       `;
 
-      const processAction = async (type) => {
-        const timestamp = new Date().toISOString();
-        const currency = deal.currency || 'USD';
-        
-        if(type==='complete'){
-          if(deal.status==='completed') return showNotif('Already completed.','error');
-          
-          try {
-            let commissionEarned = 0;
-
-            // 1️⃣ Platform settings
-            const platformSnap = await get(ref(db, 'platform-settings/commission'));
-            const platformData = platformSnap.exists() ? platformSnap.val() : { percentage: 20 };
-            const platformPercentage = parseFloat(platformData.percentage);
-
-            // 2️⃣ Commission calculation
-            if (deal.offerId && deal.providerId) {
-
-              const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
-              const offerSnap = await get(offerRef);
-
-              if (offerSnap.exists()) {
-
-                const offerData = offerSnap.val();
-
-                if (offerData.commissionType === 'percentage') {
-                  commissionEarned = (parseFloat(offerData.price || 0) * parseFloat(offerData.commissionValue || 0)) / 100;
-                } else if (offerData.commissionType === 'fixed') {
-                  commissionEarned = parseFloat(offerData.commissionValue || 0);
-                } else {
-                  commissionEarned = parseFloat(deal.commissionValue || 0);
-                }
-
-                const platformShare = (commissionEarned * platformPercentage) / 100;
-                const promoterNet = commissionEarned - platformShare;
-
-                // 3️⃣ Update offer financials
-                const newSpent = parseFloat(offerData.promoSpent || 0) + commissionEarned;
-                const newAmountOwed = parseFloat(offerData.amountOwed || 0) + commissionEarned;
-                const newOutstanding = newAmountOwed - parseFloat(offerData.amountPaid || 0);
-
-                const offerUpdates = {
-                  promoSpent: newSpent,
-                  amountOwed: newAmountOwed,
-                  outstandingBalance: newOutstanding
-                };
-
-                if (offerData.promotionBudget && newSpent >= parseFloat(offerData.promotionBudget)) {
-                  offerUpdates.status = 'completed';
-                }
-
-                await update(offerRef, offerUpdates);
-
-                // 4️⃣ Update promoter earnings (FIXED)
-                if (deal.promoterId && deal.promoterId !== 'direct') {
-
-                  await set(
-                    ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`),
-                    {
-                      offerId: deal.offerId,
-                      offerTitle: deal.offerTitle,
-                      providerId: deal.providerId,
-                      providerName: deal.providerName,
-                      clientName: deal.clientName,
-                      clientContact: deal.clientContact,
-                      note: deal.note || '',
-                      commissionAmount: promoterNet,
-                      withdrawn: false,
-                      currency: currency,
-                      completedAt: timestamp,
-                      completedBy: session?.role === 'admin' ? 'admin' : 'provider',
-                      platformTax: platformShare,
-                      fullCommission: commissionEarned
-                    }
-                  );
-
-                  // metadata load
-                  const metaSnap = await get(ref(db, `promoter-earnings/${deal.promoterId}/metadata`));
-                  let metadata = metaSnap.exists()
-                    ? metaSnap.val()
-                    : { totalLifetimeEarnings:{}, totalWithdrawn:{}, currentBalance:{} };
-
-                  metadata.totalLifetimeEarnings[currency] =
-                    (parseFloat(metadata.totalLifetimeEarnings[currency] || 0) || 0) + promoterNet;
-
-                  metadata.currentBalance[currency] =
-                    metadata.totalLifetimeEarnings[currency] -
-                    (parseFloat(metadata.totalWithdrawn[currency] || 0) || 0);
-
-                  metadata.lastUpdated = timestamp;
-
-                  await update(ref(db, `promoter-earnings/${deal.promoterId}/metadata`), metadata);
-                }
-
-                // 5️⃣ Platform earnings
-                const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
-                const platformEarningsSnap = await get(platformEarningsRef);
-                let platformData2 = platformEarningsSnap.exists() 
-                  ? platformEarningsSnap.val()
-                  : { totalRevenue:0, dealsCount:0, lastUpdated:'' };
-
-                platformData2.totalRevenue = (parseFloat(platformData2.totalRevenue) || 0) + platformShare;
-                platformData2.dealsCount = (platformData2.dealsCount || 0) + 1;
-                platformData2.lastUpdated = timestamp;
-                await set(platformEarningsRef, platformData2);
-
-                // 6️⃣ Move deal to completed
-                await set(ref(db, `completed-deals/${dealId}`), {
-                  ...deal,
-                  status: 'completed',
-                  completedAt: timestamp,
-                  completedBy: session?.role === 'admin' ? 'admin' : 'provider',
-                  commissionEarned,
-                  promoterNet,
-                  platformShare,
-                  providerPaid: false,
-                  paymentAmount: 0,
-                  paymentNotes: ''
-                });
-
-                await remove(ref(db, `deals/${dealId}`));
-                card.remove();
-
-                // 7️⃣ Notifications
-                const notifData = {
-                  title: 'Deal Completed ✅',
-                  message: `Deal ${dealId} completed.`,
-                  type: 'completed',
-                  createdAt: timestamp,
-                  commissionEarned,
-                  promoterNet,
-                  platformShare,
-                  currency,
-                  completedBy: session?.role === 'admin' ? 'admin' : 'provider'
-                };
-
-                await push(ref(db, `notifications/${deal.providerId}`), notifData);
-                if (deal.promoterId && deal.promoterId !== 'direct')
-                  await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-
-                await push(ref(db, `admin-notifications`), { ...notifData, dealId });
-
-                showNotif(`✅ Deal completed successfully.`);
-              
-              } else {
-                throw new Error('Offer details not found.');
-              }
-            } else {
-              throw new Error('Missing Offer ID or Provider ID.');
-            }
-          } catch (err) {
-            console.error(err);
-            showNotif('Error completing deal: ' + err.message, 'error');
-          }
-        }
-
-        else { // Cancel
-          await remove(ref(db, `deals/${dealId}`));
-          card.remove();
-          
-          const notifData = { 
-            title:'Deal Cancelled ❌', 
-            message:`Deal ${dealId} cancelled.`, 
-            type:'cancelled', 
-            createdAt:timestamp, 
-            dealId 
-          };
-          await push(ref(db, `notifications/${deal.providerId}`), notifData);
-          if(deal.promoterId && deal.promoterId!=='direct') 
-            await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-
-          await push(ref(db, 'admin-notifications'), notifData);
-          showNotif(`❌ Deal ${dealId} cancelled.`, 'error');
-        }
-      };
-
-      const scheduleAction = (type) => {
-        const cardNotif = document.createElement('div');
-        cardNotif.className = 'card-notif';
-        cardNotif.innerHTML = `${type==='complete'?'Completing':'Cancelling'} in 5s <button>Undo</button>`;
-        card.appendChild(cardNotif);
-
-        let canceled=false;
-        cardNotif.querySelector('button').onclick=()=>{
-          canceled=true;
-          cardNotif.remove();
-          showNotif('Action canceled', 'error');
-        };
-
-        setTimeout(()=>{ 
-          cardNotif.remove();
-          if(!canceled) processAction(type); 
-        },5000);
-      };
-
-      card.querySelector('.complete').onclick=()=>scheduleAction('complete');
-      card.querySelector('.cancel').onclick=()=>scheduleAction('cancel');
+      card.querySelector('.complete').onclick = (e) => scheduleAction('complete', e.target, deal, card);
+      card.querySelector('.cancel').onclick = (e) => scheduleAction('cancel', e.target, deal, card);
 
       dealsContainer.appendChild(card);
     });
@@ -377,4 +373,3 @@ if(!session || session.role !== 'admin'){
 
 </body>
 </html>
-
