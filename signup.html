@@ -34,99 +34,21 @@
       border:1px solid rgba(255,255,255,0.03);
       overflow:hidden;
     }
-    .image-header {
-      width:100%;
-      height:160px;
-      border-radius:10px;
-      overflow:hidden;
-      margin-bottom:15px;
-    }
-    .image-header img {
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      filter:brightness(0.8);
-    }
-    h1 {
-      font-size:22px;
-      margin-bottom:6px;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip:text;
-      color:transparent;
-    }
-    p.lead {
-      color:var(--muted);
-      margin-bottom:14px;
-      font-size:13px
-    }
-    label {
-      display:block;
-      font-size:13px;
-      color:var(--muted);
-      margin-top:12px;
-      margin-bottom:6px
-    }
-    input, select {
-      width:100%;
-      padding:10px 12px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.04);
-      background:#071427;
-      color:#fff;
-      font-size:14px;
-    }
-    .password-wrap {
-      position:relative;
-    }
-    .toggle-password {
-      position:absolute;
-      top:50%;
-      right:10px;
-      transform:translateY(-50%);
-      background:none;
-      border:none;
-      color:var(--muted);
-      cursor:pointer;
-      font-size:14px;
-    }
-    .phone-group {
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .phone-group select { width:35%; }
-    .phone-group input { width:65%; }
-
-    .btn {
-      margin-top:18px;
-      width:100%;
-      padding:12px;
-      border-radius:10px;
-      border:0;
-      cursor:pointer;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      color:#041018;
-      font-weight:700;
-      transition:opacity 0.2s;
-    }
+    .image-header { width:100%; height:160px; border-radius:10px; overflow:hidden; margin-bottom:15px; }
+    .image-header img { width:100%; height:100%; object-fit:cover; filter:brightness(0.8); }
+    h1 { font-size:22px; margin-bottom:6px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+    p.lead { color:var(--muted); margin-bottom:14px; font-size:13px }
+    label { display:block; font-size:13px; color:var(--muted); margin-top:12px; margin-bottom:6px }
+    input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; }
+    .password-wrap { position:relative; }
+    .toggle-password { position:absolute; top:50%; right:10px; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; }
+    .phone-group { display:flex; gap:8px; align-items:center; }
+    .phone-group select { width:35%; } .phone-group input { width:65%; }
+    .btn { margin-top:18px; width:100%; padding:12px; border-radius:10px; border:0; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; font-weight:700; transition:opacity 0.2s; }
     .btn:hover { opacity:0.9; }
-    .small {
-      font-size:13px;
-      color:var(--muted);
-      margin-top:10px;
-      text-align:center;
-    }
-    .link {
-      color:var(--accent2);
-      text-decoration:none;
-      font-weight:600;
-    }
-    .error {
-      color:var(--danger);
-      font-weight:600;
-      margin-top:8px;
-      font-size:13px;
-    }
+    .small { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
+    .link { color:var(--accent2); text-decoration:none; font-weight:600; }
+    .error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; }
   </style>
 </head>
 <body>
@@ -175,8 +97,8 @@
 
   <script type="module">
     import { auth, db } from "./firebase.js";
-    import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { ref, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
     const signupBtn = document.getElementById('signupBtn');
     const msg = document.getElementById('message');
@@ -185,21 +107,20 @@
     const togglePassword = document.getElementById('togglePassword');
     const strengthDiv = document.getElementById('strength');
 
-    const origin = window.location.origin;
     const params = new URLSearchParams(window.location.search);
     const refBy = params.get("ref");
 
     function showMessage(t){ msg.textContent = t; }
     function showError(e){ err.style.display='block'; err.textContent = e; }
 
-    // 👁️ Toggle Password Visibility
+    // Toggle Password Visibility
     togglePassword.addEventListener("click", () => {
       const isHidden = passwordInput.type === "password";
       passwordInput.type = isHidden ? "text" : "password";
       togglePassword.textContent = isHidden ? "🙈" : "👁️";
     });
 
-    // 💪 Password Strength Checker
+    // Password Strength
     passwordInput.addEventListener("input", () => {
       const pwd = passwordInput.value;
       const rules = {
@@ -213,23 +134,20 @@
       strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
     });
 
-    // 🌍 Load countries
+    // Load countries
     fetch("countries.json")
       .then(res => res.json())
       .then(data => {
         const countrySelect = document.getElementById("country");
         const codeSelect = document.getElementById("countryCode");
-
         data.forEach(c => {
           const opt = document.createElement("option");
-          opt.value = c.name;
-          opt.textContent = c.name;
+          opt.value = c.name; opt.textContent = c.name;
           countrySelect.appendChild(opt);
         });
-
         countrySelect.addEventListener("change", () => {
           const selected = data.find(c => c.name === countrySelect.value);
-          if (selected) {
+          if(selected){
             codeSelect.innerHTML = "";
             const codeOpt = document.createElement("option");
             codeOpt.value = selected.code;
@@ -237,8 +155,7 @@
             codeSelect.appendChild(codeOpt);
           }
         });
-      })
-      .catch(err => console.error("Failed to load countries:", err));
+      }).catch(err => console.error("Failed to load countries:", err));
 
     function generateShortID(name){
       const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "user";
@@ -272,7 +189,8 @@
         const uid = userCred.user.uid;
         const shortID = generateShortID(name);
 
-        await set(ref(db, 'users/' + uid), {
+        // Firestore save
+        await setDoc(doc(db, 'users', uid), {
           uid, name, email, role, country,
           phone: fullPhone,
           referralCode: shortID,
@@ -288,11 +206,9 @@
 
         localStorage.setItem('userSession', JSON.stringify({ uid, name, email, role, shortID }));
 
-        setTimeout(() => {
-          window.location.href = "login.html";
-        }, 5000);
+        setTimeout(() => window.location.href = "login.html", 5000);
 
-      } catch (e) {
+      } catch(e){
         console.error(e);
         const errorMap = {
           "auth/email-already-in-use": "Email already in use.",
