@@ -1,244 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EarnLibr — Admin Signup</title>
-  <style>
-    :root {
-      --bg:#0b0d17;
-      --card:#0f1724;
-      --accent1:#4a90e2;
-      --accent2:#a3ff6e;
-      --muted:#bfc7d6;
-      --danger:#e74c3c;
-    }
-    body {
-      margin:0;
-      font-family:Inter,system-ui,Arial;
-      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
-      color:#eef2f7;
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-    }
-    .card {
-      width:100%;
-      max-width:420px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
-      border-radius:14px;
-      padding:22px;
-      box-shadow:0 8px 30px rgba(2,6,23,0.6);
-      border:1px solid rgba(255,255,255,0.03);
-      overflow:hidden;
-    }
-    .image-header {
-      width:100%;
-      height:160px;
-      border-radius:10px;
-      overflow:hidden;
-      margin-bottom:15px;
-    }
-    .image-header img {
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      filter:brightness(0.8);
-    }
-    h1 {
-      font-size:22px;
-      margin-bottom:6px;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip:text;
-      color:transparent;
-    }
-    p.lead { color:var(--muted); margin-bottom:14px; font-size:13px }
-    label { display:block; font-size:13px; color:var(--muted); margin-top:12px; margin-bottom:6px }
-    input, select {
-      width:100%;
-      padding:10px 12px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.04);
-      background:#071427;
-      color:#fff;
-      font-size:14px;
-    }
-    .password-wrap { position:relative; }
-    .toggle-password {
-      position:absolute;
-      top:50%;
-      right:10px;
-      transform:translateY(-50%);
-      background:none;
-      border:none;
-      color:var(--muted);
-      cursor:pointer;
-      font-size:14px;
-    }
-    .phone-group { display:flex; gap:8px; align-items:center; }
-    .phone-group select { width:35%; }
-    .phone-group input { width:65%; }
-    .btn {
-      margin-top:18px;
-      width:100%;
-      padding:12px;
-      border-radius:10px;
-      border:0;
-      cursor:pointer;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      color:#041018;
-      font-weight:700;
-      transition:opacity 0.2s;
-    }
-    .btn:hover { opacity:0.9; }
-    .small { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
-    .link { color:var(--accent2); text-decoration:none; font-weight:600; }
-    .error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; display:none; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EarnLibr — Admin Signup</title>
+<style>
+:root {
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#bfc7d6;
+  --danger:#e74c3c;
+}
+body {
+  margin:0;
+  font-family:Inter,system-ui,Arial;
+  background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+  color:#eef2f7;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.card {
+  width:100%;
+  max-width:420px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+  border-radius:14px;
+  padding:22px;
+  box-shadow:0 8px 30px rgba(2,6,23,0.6);
+  border:1px solid rgba(255,255,255,0.03);
+  overflow:hidden;
+}
+.image-header { width:100%; height:160px; border-radius:10px; overflow:hidden; margin-bottom:15px; }
+.image-header img { width:100%; height:100%; object-fit:cover; filter:brightness(0.8); }
+h1 { font-size:22px; margin-bottom:6px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+p.lead { color:var(--muted); margin-bottom:14px; font-size:13px }
+label { display:block; font-size:13px; color:var(--muted); margin-top:12px; margin-bottom:6px }
+input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; }
+.password-wrap { position:relative; }
+.toggle-password { position:absolute; top:50%; right:10px; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; }
+.phone-group { display:flex; gap:8px; align-items:center; }
+.phone-group select { width:35%; }
+.phone-group input { width:65%; }
+.btn { margin-top:18px; width:100%; padding:12px; border-radius:10px; border:0; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; font-weight:700; transition:opacity 0.2s; }
+.btn:hover { opacity:0.9; }
+.small { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
+.link { color:var(--accent2); text-decoration:none; font-weight:600; }
+.error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; display:none; }
+</style>
 </head>
 <body>
-  <div class="card">
-    <div class="image-header">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Admin">
-    </div>
-    <h1>Create Admin Account</h1>
-    <p class="lead">Register an admin account to manage the platform securely.</p>
+<div class="card">
+  <div class="image-header">
+    <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Admin">
+  </div>
+  <h1>Create Admin Account</h1>
+  <p class="lead">Register an admin account to manage the platform securely.</p>
 
-    <label for="name">Full name</label>
-    <input id="name" type="text" placeholder="John Doe" />
+  <label for="name">Full name</label>
+  <input id="name" type="text" placeholder="John Doe" />
 
-    <label for="email">Email</label>
-    <input id="email" type="email" placeholder="example@gmail.com" />
+  <label for="email">Email</label>
+  <input id="email" type="email" placeholder="example@gmail.com" />
 
-    <label for="password">Password</label>
-    <div class="password-wrap">
-      <input id="password" type="password" placeholder="Enter your password" />
-      <button type="button" id="togglePassword" class="toggle-password">👁️</button>
-    </div>
-    <div id="strength" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
+  <label for="password">Password</label>
+  <div class="password-wrap">
+    <input id="password" type="password" placeholder="Enter your password" />
+    <button type="button" id="togglePassword" class="toggle-password">👁️</button>
+  </div>
+  <div id="strength" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
 
-    <label for="country">Country</label>
-    <select id="country"></select>
+  <label for="country">Country</label>
+  <select id="country"></select>
 
-    <label for="phone">Phone number</label>
-    <div class="phone-group">
-      <select id="countryCode"></select>
-      <input id="phone" type="text" placeholder="555442507" />
-    </div>
-
-    <button id="signupBtn" class="btn">Create Admin</button>
-
-    <div id="message" class="small"></div>
-    <div id="error" class="error"></div>
+  <label for="phone">Phone number</label>
+  <div class="phone-group">
+    <select id="countryCode"></select>
+    <input id="phone" type="text" placeholder="555442507" />
   </div>
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { ref, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+  <button id="signupBtn" class="btn">Create Admin</button>
 
-    const nameInput = document.getElementById('name');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const togglePassword = document.getElementById('togglePassword');
-    const signupBtn = document.getElementById('signupBtn');
-    const msg = document.getElementById('message');
-    const err = document.getElementById('error');
-    const strengthDiv = document.getElementById('strength');
-    const countrySelect = document.getElementById('country');
-    const countryCodeSelect = document.getElementById('countryCode');
+  <div id="message" class="small"></div>
+  <div id="error" class="error"></div>
+</div>
 
-    // Toggle password visibility
-    togglePassword.addEventListener("click", () => {
-      const isHidden = passwordInput.type === "password";
-      passwordInput.type = isHidden ? "text" : "password";
-      togglePassword.textContent = isHidden ? "🙈" : "👁️";
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const nameInput = document.getElementById('name');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const togglePassword = document.getElementById('togglePassword');
+const signupBtn = document.getElementById('signupBtn');
+const msg = document.getElementById('message');
+const err = document.getElementById('error');
+const strengthDiv = document.getElementById('strength');
+const countrySelect = document.getElementById('country');
+const countryCodeSelect = document.getElementById('countryCode');
+
+togglePassword.addEventListener("click", () => {
+  const isHidden = passwordInput.type === "password";
+  passwordInput.type = isHidden ? "text" : "password";
+  togglePassword.textContent = isHidden ? "🙈" : "👁️";
+});
+
+passwordInput.addEventListener("input", () => {
+  const pwd = passwordInput.value;
+  const rules = { length: pwd.length>=8, upper:/[A-Z]/.test(pwd), number:/[0-9]/.test(pwd), special:/[!@#$%^&*(),.?":{}|<>]/.test(pwd) };
+  const strength = Object.values(rules).filter(Boolean).length;
+  const texts = ["🔴 Very Weak","🟠 Weak","🟡 Fair","🟢 Good","✅ Strong"];
+  strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
+});
+
+// Load countries
+fetch("countries.json")
+  .then(res=>res.json())
+  .then(data=>{
+    data.forEach(c=>{
+      const opt=document.createElement("option"); opt.value=c.name; opt.textContent=c.name;
+      countrySelect.appendChild(opt);
     });
-
-    // Password strength checker
-    passwordInput.addEventListener("input", () => {
-      const pwd = passwordInput.value;
-      const rules = { length: pwd.length>=8, upper:/[A-Z]/.test(pwd), number:/[0-9]/.test(pwd), special:/[!@#$%^&*(),.?":{}|<>]/.test(pwd) };
-      const strength = Object.values(rules).filter(Boolean).length;
-      const texts = ["🔴 Very Weak","🟠 Weak","🟡 Fair","🟢 Good","✅ Strong"];
-      strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
-    });
-
-    // Load countries
-    fetch("countries.json")
-      .then(res=>res.json())
-      .then(data=>{
-        data.forEach(c=>{
-          const opt = document.createElement("option"); opt.value=c.name; opt.textContent=c.name;
-          countrySelect.appendChild(opt);
-        });
-        countrySelect.addEventListener("change", ()=>{
-          const selected = data.find(c=>c.name===countrySelect.value);
-          if(selected){
-            countryCodeSelect.innerHTML="";
-            const codeOpt = document.createElement("option"); codeOpt.value=selected.code; codeOpt.textContent=selected.code;
-            countryCodeSelect.appendChild(codeOpt);
-          }
-        });
-      })
-      .catch(err=>console.error("Failed to load countries:",err));
-
-    function generateShortID(name){
-      const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "admin";
-      const rand = Math.floor(1000 + Math.random()*9000);
-      return base+rand;
-    }
-
-    signupBtn.addEventListener('click', async () => {
-      err.style.display='none'; msg.textContent='';
-
-      const name = nameInput.value.trim();
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      const country = countrySelect.value;
-      const countryCode = countryCodeSelect.value;
-      const phoneInput = document.getElementById('phone').value.trim();
-
-      if(!name||!email||!password||!country||!phoneInput){
-        err.style.display='block'; err.textContent='Please fill all required fields.';
-        return;
-      }
-
-      const phone = phoneInput.replace(/^0+/, '');
-      const fullPhone = `${countryCode}${phone}`;
-      signupBtn.disabled=true; signupBtn.textContent='Creating...';
-
-      try{
-        const userCred = await createUserWithEmailAndPassword(auth,email,password);
-        const uid = userCred.user.uid;
-        const shortID = generateShortID(name);
-
-        await set(ref(db,'admins/'+uid),{
-          uid, name, email, role:'admin',
-          phone:fullPhone,
-          referralCode:shortID,
-          earnings:{ total:0, pending:0, paid:0 },
-          createdAt: new Date().toISOString()
-        });
-
-        await sendEmailVerification(userCred.user);
-
-        msg.textContent='✅ Admin account created! Please verify your email.';
-        signupBtn.disabled=false; signupBtn.textContent='Create Admin';
-        nameInput.value=''; emailInput.value=''; passwordInput.value=''; 
-      }catch(e){
-        console.error(e);
-        const map = {
-          "auth/email-already-in-use":"Email already in use.",
-          "auth/invalid-email":"Invalid email.",
-          "auth/weak-password":"Password too weak — 8+ chars, uppercase & number."
-        };
-        err.style.display='block'; err.textContent=map[e.code]||e.message||"Signup failed.";
-        signupBtn.disabled=false; signupBtn.textContent='Create Admin';
+    countrySelect.addEventListener("change", ()=>{
+      const selected = data.find(c=>c.name===countrySelect.value);
+      if(selected){
+        countryCodeSelect.innerHTML="";
+        const codeOpt = document.createElement("option"); codeOpt.value=selected.code; codeOpt.textContent=selected.code;
+        countryCodeSelect.appendChild(codeOpt);
       }
     });
-  </script>
+  }).catch(console.error);
+
+function generateShortID(name){
+  const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "admin";
+  const rand = Math.floor(1000 + Math.random()*9000);
+  return base+rand;
+}
+
+signupBtn.addEventListener('click', async () => {
+  err.style.display='none'; msg.textContent='';
+
+  const name = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const country = countrySelect.value;
+  const countryCode = countryCodeSelect.value;
+  const phoneInput = document.getElementById('phone').value.trim();
+
+  if(!name||!email||!password||!country||!phoneInput){
+    err.style.display='block'; err.textContent='Please fill all required fields.';
+    return;
+  }
+
+  const phone = phoneInput.replace(/^0+/, '');
+  const fullPhone = `${countryCode}${phone}`;
+  signupBtn.disabled=true; signupBtn.textContent='Creating...';
+
+  try {
+    const userCred = await createUserWithEmailAndPassword(auth,email,password);
+    const uid = userCred.user.uid;
+    const shortID = generateShortID(name);
+
+    await setDoc(doc(db,'admins',uid),{
+      uid, name, email, role:'admin',
+      phone: fullPhone,
+      referralCode: shortID,
+      earnings:{ total:0, pending:0, paid:0 },
+      createdAt: new Date().toISOString()
+    });
+
+    await sendEmailVerification(userCred.user);
+    msg.textContent='✅ Admin account created! Please verify your email.';
+    signupBtn.disabled=false; signupBtn.textContent='Create Admin';
+    nameInput.value=''; emailInput.value=''; passwordInput.value='';
+  } catch(e) {
+    console.error(e);
+    const map = {
+      "auth/email-already-in-use":"Email already in use.",
+      "auth/invalid-email":"Invalid email.",
+      "auth/weak-password":"Password too weak — 8+ chars, uppercase & number."
+    };
+    err.style.display='block'; err.textContent=map[e.code]||e.message||"Signup failed.";
+    signupBtn.disabled=false; signupBtn.textContent='Create Admin';
+  }
+});
+</script>
 </body>
 </html>
