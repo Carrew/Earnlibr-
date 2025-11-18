@@ -16,46 +16,24 @@
       --glass: rgba(255,255,255,0.02);
       --glass2: rgba(255,255,255,0.015);
     }
-
     * { box-sizing: border-box; }
     body { margin:0; font-family:Inter,system-ui,Arial; background: var(--bg); color:#eef2f7; min-height:100vh; }
-
-    .wrap { 
-      max-width:1200px; 
-      margin:28px auto; 
-      padding:20px; 
-      display:grid; 
-      grid-template-columns: 1fr; 
-      gap:20px; 
-      position: relative; 
-    }
-
+    .wrap { max-width:1200px; margin:28px auto; padding:20px; display:grid; grid-template-columns: 1fr; gap:20px; position: relative; }
     .card { background: linear-gradient(180deg, var(--glass), var(--glass2)); border-radius:var(--radius); padding:18px; box-shadow:0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
-
-    /* Sidebar */
-    .sidebar { 
-      position: absolute; top:0; left:0; width:260px; z-index:100; height:100%; display:flex; flex-direction:column; gap:14px; 
-      transform: translateX(-100%); transition: transform 0.3s ease-in-out; background: var(--bg); padding-top:28px;
-    }
+    .sidebar { position: absolute; top:0; left:0; width:260px; z-index:100; height:100%; display:flex; flex-direction:column; gap:14px; transform: translateX(-100%); transition: transform 0.3s ease-in-out; background: var(--bg); padding-top:28px;}
     .sidebar.visible { transform: translateX(0); }
-
     .main { min-height:80vh; display:flex; flex-direction:column; gap:18px; grid-column:1 / -1; }
-
     #menuToggle { position: sticky; top:10px; z-index:110; width:40px; height:40px; display:flex; align-items:center; justify-content:center; margin-left:-8px; font-size:18px; color: var(--accent2); cursor:pointer; }
-
-    /* Sidebar content */
     .logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03);}
     .logo img { width:44px;height:44px;border-radius:8px; }
     .logo h2 { font-size:16px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
     .nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
     .nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
     .nav a.active, .nav a:hover { color:#041018; background:linear-gradient(90deg,var(--accent1),var(--accent2)); box-shadow:0 6px 18px rgba(32,90,255,0.08); }
-
     .profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:6px; }
     .avatar { width:44px;height:44px;border-radius:10px;background:linear-gradient(90deg,var(--accent1),var(--accent2)); display:flex;align-items:center;justify-content:center;font-weight:700;color:#041018;font-size:18px; }
     .profile-info div { font-size:13px; color:var(--muted); }
     .profile-info strong { color:#fff; font-weight:700; }
-
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
     .greeting h1 { font-size:20px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
     .greeting p { margin:4px 0 0 0; color:var(--muted); font-size:13px; }
@@ -63,7 +41,6 @@
     .stat { padding:14px; border-radius:10px; background:linear-gradient(180deg,rgba(255,255,255,0.01), rgba(255,255,255,0.008)); }
     .stat h3 { margin:0 0 6px 0; font-size:12px; color:var(--muted); }
     .stat p { margin:0; font-size:18px; font-weight:700; }
-
     .grid-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:18px; }
     .grid-card { background:var(--card); border-radius:12px; padding:25px 15px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: transform 0.2s, box-shadow 0.2s; }
     .grid-card:hover { transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.6); }
@@ -140,24 +117,19 @@
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { ref, get } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// --- Sidebar Toggle ---
+// Sidebar toggle
 const sidebar = document.getElementById('sidebar');
 const menuToggle = document.getElementById('menuToggle');
-menuToggle.addEventListener('click', () => {
+menuToggle.addEventListener('click', ()=>{
   sidebar.classList.toggle('visible');
   menuToggle.querySelector('i').className = sidebar.classList.contains('visible') ? 'fas fa-times' : 'fas fa-bars';
 });
 
-// --- Navigation ---
-function navigate(url){
-  sidebar.classList.remove('visible');
-  menuToggle.querySelector('i').className = 'fas fa-bars';
-  window.location.href = url;
-}
-
+// Navigation
+function navigate(url){ sidebar.classList.remove('visible'); menuToggle.querySelector('i').className='fas fa-bars'; window.location.href=url; }
 const navLinks = {
   'nav-dashboard':'provider-dashboard.html',
   'nav-create-offer':'providers-create-offer.html',
@@ -167,32 +139,30 @@ const navLinks = {
   'nav-bills':'providers-bills.html',
   'createOfferBtn':'providers-create-offer.html'
 };
-
 Object.keys(navLinks).forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('click', ()=>navigate(navLinks[id]));
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click',()=>navigate(navLinks[id]));
 });
-
 document.querySelectorAll('.grid-card').forEach(card=>{
-  card.addEventListener('click', ()=>navigate(card.getAttribute('onclick').match(/'([^']+)'/)[1]));
+  card.addEventListener('click',()=>navigate(card.getAttribute('onclick').match(/'([^']+)'/)[1]));
 });
 
-// --- Logout ---
+// Logout
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-  try{ await signOut(auth); }catch(e){}
+  await signOut(auth);
   localStorage.removeItem('userSession');
   window.location.href='login.html';
 });
 
-// --- Secure Session & Role Enforcement ---
+// Load session & enforce provider role
 const sessionRaw = localStorage.getItem('userSession');
 if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'); }
 const session = JSON.parse(sessionRaw);
-if(session.role !== 'provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
+if(session.role!=='provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-// --- Firebase Auth Check ---
-onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== session.uid || !user.emailVerified){
+// Firebase Auth check
+onAuthStateChanged(auth, async (user)=>{
+  if(!user || user.uid!==session.uid || !user.emailVerified){
     localStorage.removeItem('userSession');
     window.location.href='login.html';
   } else {
@@ -200,9 +170,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- Load Provider Data ---
-function fmt(n){ return Number(n||0).toLocaleString(); }
-
+// Populate profile UI
 const avatarEl = document.getElementById('avatar');
 document.getElementById('providerName').textContent = session.name;
 document.getElementById('providerEmail').textContent = session.email;
@@ -214,21 +182,20 @@ document.getElementById('providerCreated').textContent = `Joined: ${session.crea
 avatarEl.textContent = session.name.charAt(0).toUpperCase();
 document.getElementById('greet').textContent = `Welcome back, ${session.name}`;
 
+// Load provider data from Firestore
+function fmt(n){ return Number(n||0).toLocaleString(); }
 async function loadProviderData(){
   try {
-    const userRef = ref(db, `users/${session.uid}`);
-    const snap = await get(userRef);
-    const data = snap.exists()? snap.val() : {};
+    const docRef = doc(db,'users',session.uid);
+    const snap = await getDoc(docRef);
+    const data = snap.exists()? snap.data() : {};
 
     document.getElementById('totalOffers').textContent = data.totalOffers||0;
     document.getElementById('totalVerified').textContent = data.totalVerified||0;
     document.getElementById('totalGenerated').textContent = `$${fmt(data.totalGenerated)}`;
     document.getElementById('totalSpent').textContent = `$${fmt(data.totalSpent)}`;
-  } catch(err){
-    console.error('Failed to load provider data', err);
-  }
+  } catch(err){ console.error('Failed to load provider data', err); }
 }
 </script>
-
 </body>
 </html>
