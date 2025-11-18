@@ -1,26 +1,24 @@
 // firebase.js
-// Import Firebase SDKs (latest modular version)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-// import { getStorage } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js"; // uncomment later if you enable storage
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// Your Firebase configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBdsdG0YpBJ86DkGpV_R5fLcwXcwFDD0dc",
-  authDomain: "test-23463.firebaseapp.com",
-  databaseURL: "https://test-23463-default-rtdb.firebaseio.com",
-  projectId: "test-23463",
-  storageBucket: "test-23463.firebasestorage.app",
-  messagingSenderId: "380789489263",
-  appId: "1:380789489263:web:32b34f9351e3ec74b5179a",
-  measurementId: "G-PFP2XDNJWM"
+  apiKey: "AIzaSyBij6NW_NrXInsOPvNtUokteU5i7OxjwVU",
+  authDomain: "earnlibr.firebaseapp.com",
+  projectId: "earnlibr",
+  storageBucket: "earnlibr.firebasestorage.app",
+  messagingSenderId: "372090987790",
+  appId: "1:372090987790:web:ad3a45523f89fa1192a35f",
+  measurementId: "G-C49WNPPF29"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
-// Export Firebase services for use in other files
-export const auth = getAuth(app);
-export const db = getDatabase(app);
-// export const storage = getStorage(app); // uncomment later
+// Exports for use in your scripts
+export const auth = getAuth(app);   // Firebase Authentication
+export const db = getFirestore(app); // Firestore database
