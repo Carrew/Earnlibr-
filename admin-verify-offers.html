@@ -48,7 +48,7 @@
 <script type="module">
 import { db, auth } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { ref, onValue, remove, push, get, child } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { doc, collection, getDoc, getDocs, deleteDoc, setDoc, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
 const offersContainer = document.getElementById('offersContainer');
 let userSession = null;
@@ -64,9 +64,9 @@ function showNotification(card, message, type='info', duration=3000) {
 }
 
 async function getProviderInfo(providerId) {
-  const userRef = ref(db, `users/${providerId}`);
-  const snapshot = await get(userRef);
-  return snapshot.exists() ? snapshot.val() : null;
+  const userRef = doc(db, 'users', providerId);
+  const snap = await getDoc(userRef);
+  return snap.exists() ? snap.data() : null;
 }
 
 function handleUnauthorized(message) {
@@ -84,12 +84,12 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) return handleUnauthorized("You are not logged in.");
 
   try {
-    const adminRef = child(ref(db), `admins/${user.uid}`);
-    const snap = await get(adminRef);
+    const adminRef = doc(db, 'admins', user.uid);
+    const snap = await getDoc(adminRef);
 
     if (!snap.exists()) return handleUnauthorized("User not found in admin records.");
 
-    const userData = snap.val();
+    const userData = snap.data();
     const role = userData.role || 'admin';
 
     if (!ADMIN_ROLES.includes(role)) return handleUnauthorized(`Unauthorized role: ${role}.`);
@@ -110,21 +110,24 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // --- 2. CORE DEAL LOADING LOGIC ---
-function loadPendingOffers() {
-  const pendingRef = ref(db, 'offers_pending');
-  onValue(pendingRef, (snapshot) => {
+async function loadPendingOffers() {
+  const pendingRef = collection(db, 'offers_pending');
+
+  onSnapshot(pendingRef, async (snapshot) => {
     offersContainer.innerHTML = '';
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       offersContainer.innerHTML = '<p>No pending offers.</p>';
       return;
     }
 
-    snapshot.forEach(userSnap => {
-      const uid = userSnap.key;
-      const userOffers = userSnap.val();
+    for (const userDoc of snapshot.docs) {
+      const uid = userDoc.id;
+      const offersColRef = collection(db, 'offers_pending', uid, 'offers');
+      const offersSnap = await getDocs(offersColRef);
 
-      for (const offerId in userOffers) {
-        const offer = userOffers[offerId];
+      offersSnap.forEach(offerDoc => {
+        const offer = offerDoc.data();
+        const offerId = offerDoc.id;
 
         const card = document.createElement('div');
         card.className = 'offer-card';
@@ -171,50 +174,21 @@ function loadPendingOffers() {
               cloudUrl = data.secure_url;
             }
 
-            const approvedOffer = {
-              providerId: uid,
+            const approvedOfferRef = doc(db, 'offers', uid, 'offers', offerId);
+            await setDoc(approvedOfferRef, {
+              ...offer,
               providerName: providerInfo?.name || "Unknown",
               providerEmail: providerInfo?.email || "",
               providerPhone: providerInfo?.phone || offer.providerPhone || "+231000000000",
-              role: providerInfo?.role || "provider",
-              title: offer.title || 'Untitled Offer',
-              description: offer.description || '',
-              category: offer.category || 'Uncategorized',
-              currency: offer.currency || '$',
-              price: offer.price || 0,
-              commissionType: offer.commissionType || '',
-              commissionValue: offer.commissionValue || 0,
-              totalProducts: offer.totalProducts || 0,
-              imageUrl: cloudUrl || null,
-              promotionBudget: offer.promotionBudget || 0,
-              promoSpent: 0,
-              amountOwed: 0,
-              amountPaid: 0,
-              outstandingBalance: 0,
-              nextBillingDate: null,
-              lastBilledAt: null,
-              paymentStatus: 'unpaid',
-              paymentDeadline: null,
-              paymentNotes: '',
               status: 'active',
               verified: true,
               verifiedBy: userSession.role,
               approvedAt: new Date().toISOString(),
-              createdAt: offer.createdAt || new Date().toISOString(),
-              providerStats: {
-                totalDeals: 0,
-                completedDeals: 0,
-                cancelledDeals: 0
-              },
-              totalDealsGenerated: 0,      
-              totalDealsCompleted: 0,      
-              totalEarned: 0               
-            };
+              imageUrl: cloudUrl || null
+            });
 
-            await push(ref(db, 'offers/' + uid), approvedOffer);
-            await remove(ref(db, `offers_pending/${uid}/${offerId}`));
-
-            await push(ref(db, `notifications/${uid}`), {
+            await deleteDoc(doc(db, 'offers_pending', uid, 'offers', offerId));
+            await addDoc(collection(db, 'notifications', uid, 'notifications'), {
               title: 'Offer Approved ✅',
               message: `Your offer "${offer.title}" has been approved and is now live.`,
               type: 'approved',
@@ -242,8 +216,8 @@ function loadPendingOffers() {
           showNotification(card, 'Processing rejection...', 'info');
 
           try {
-            await remove(ref(db, `offers_pending/${uid}/${offerId}`));
-            await push(ref(db, `notifications/${uid}`), {
+            await deleteDoc(doc(db, 'offers_pending', uid, 'offers', offerId));
+            await addDoc(collection(db, 'notifications', uid, 'notifications'), {
               title: 'Offer Rejected ❌',
               message: `Your offer "${offer.title}" was rejected. Please review and try again.`,
               type: 'rejected',
@@ -253,6 +227,7 @@ function loadPendingOffers() {
             showNotification(card, 'Offer rejected. Provider notified.', 'error');
             card.style.opacity = '0';
             setTimeout(() => card.remove(), 300);
+
           } catch (err) {
             console.error(err);
             showNotification(card, 'Error: ' + err.message, 'error');
@@ -262,8 +237,8 @@ function loadPendingOffers() {
         };
 
         offersContainer.appendChild(card);
-      }
-    });
+      });
+    }
   });
 }
 </script>
