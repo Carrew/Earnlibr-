@@ -153,8 +153,8 @@
 
 <script type="module">
   import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-  import { ref, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   const notif = document.getElementById('notif');
   const promoterName = document.getElementById('promoterName');
@@ -170,7 +170,6 @@
     notif.style.display = 'block';
   }
 
-  // Check authentication in real time
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
       showNotif('error', '⚠ You must be logged in as a promoter.');
@@ -178,7 +177,6 @@
       return;
     }
 
-    // Check if user is verified
     if (!user.emailVerified) {
       showNotif('error', 'Please verify your email before accessing the dashboard.');
       setTimeout(() => window.location.href = 'login.html', 1800);
@@ -186,16 +184,16 @@
     }
 
     try {
-      // Try to find user in 'users' node first
-      let snapshot = await get(child(ref(db), `users/${user.uid}`));
+      // Firestore: get user document
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
       let userData = null;
 
-      if (snapshot.exists()) {
-        userData = snapshot.val();
+      if (userDoc.exists()) {
+        userData = userDoc.data();
       } else {
-        // Check admins fallback
-        snapshot = await get(child(ref(db), `admins/${user.uid}`));
-        if (snapshot.exists()) userData = snapshot.val();
+        // fallback: admins collection
+        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+        if (adminDoc.exists()) userData = adminDoc.data();
       }
 
       if (!userData || userData.role !== 'freelancer') {
@@ -213,7 +211,7 @@
 
       showNotif('success', '✅ Verified promoter access granted.');
 
-      // Update local session (sync)
+      // Update local session
       localStorage.setItem('userSession', JSON.stringify({
         uid: user.uid,
         name: userData.name,
@@ -232,7 +230,6 @@
     }
   });
 
-  // Logout
   logoutBtn.addEventListener('click', async () => {
     await signOut(auth);
     localStorage.removeItem('userSession');
