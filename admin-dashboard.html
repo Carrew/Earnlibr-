@@ -1,115 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Admin Dashboard</title>
-  <style>
-    :root {
-      --bg: #0b0d17;
-      --card: #0f1724;
-      --accent1: #4a90e2;
-      --accent2: #a3ff6e;
-      --muted: #bfc7d6;
-      --danger: #ef4444;
-      --success: #4ade80;
-    }
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, Arial;
-      background: var(--bg);
-      color: #eef2f7;
-      min-height: 100vh;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(90deg, var(--accent1), var(--accent2));
-      padding: 20px;
-      color: #041018;
-    }
-    header img {
-      height: 50px;
-      margin-right: 15px;
-    }
-    header h1 {
-      font-size: 24px;
-      font-weight: bold;
-    }
-    .notif {
-      margin: 10px auto;
-      padding: 10px 15px;
-      width: 90%;
-      max-width: 500px;
-      border-radius: 8px;
-      display: none;
-      font-size: 14px;
-    }
-    .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success);}
-    .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger);}
-    .profile-card {
-      background: var(--card);
-      margin: 20px auto;
-      max-width: 500px;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-    .profile-card h2 { margin: 5px 0; }
-    .profile-card p { margin: 2px 0; color: var(--muted); font-size: 14px; }
-    .logout-btn {
-      margin-top: 12px;
-      padding: 8px 14px;
-      border-radius: 8px;
-      background: var(--danger);
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      transition: 0.2s;
-    }
-    .logout-btn:hover { opacity: 0.9; }
-
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 20px;
-      padding: 20px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    .grid-card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 25px 15px;
-      text-align: center;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .grid-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.6);
-    }
-    .grid-card i {
-      font-size: 36px;
-      margin-bottom: 10px;
-      color: var(--accent1);
-    }
-    .grid-card span {
-      font-size: 16px;
-      font-weight: 600;
-      color: #eef2f7;
-      text-align: center;
-    }
-  </style>
-  <!-- Font Awesome icons -->
-  <script src="https://kit.fontawesome.com/a2b6f38c57.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Admin Dashboard</title>
+<style>
+:root {
+  --bg:#0b0d17; --card:#0f1724;
+  --accent1:#4a90e2; --accent2:#a3ff6e;
+  --muted:#bfc7d6; --danger:#ef4444; --success:#4ade80;
+}
+body { margin:0; font-family:Inter,system-ui,Arial; background:var(--bg); color:#eef2f7; min-height:100vh; }
+header { display:flex; align-items:center; justify-content:center; background:linear-gradient(90deg,var(--accent1),var(--accent2)); padding:20px; color:#041018; }
+header img { height:50px; margin-right:15px; } header h1 { font-size:24px; font-weight:bold; }
+.notif { margin:10px auto; padding:10px 15px; width:90%; max-width:500px; border-radius:8px; display:none; font-size:14px; }
+.notif.success { background:#1a2235; border-left:4px solid var(--success); color:var(--success);}
+.notif.error { background:#1a2235; border-left:4px solid var(--danger); color:var(--danger);}
+.profile-card { background:var(--card); margin:20px auto; max-width:500px; padding:20px; border-radius:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.5);}
+.profile-card h2 { margin:5px 0; } .profile-card p { margin:2px 0; color:var(--muted); font-size:14px; }
+.logout-btn { margin-top:12px; padding:8px 14px; border-radius:8px; background:var(--danger); color:#fff; border:none; cursor:pointer; font-weight:bold; transition:0.2s; }
+.logout-btn:hover { opacity:0.9; }
+.grid-container { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; padding:20px; max-width:1000px; margin:0 auto;}
+.grid-card { background:var(--card); border-radius:12px; padding:25px 15px; text-align:center; cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.grid-card:hover { transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.6); }
+.grid-card i { font-size:36px; margin-bottom:10px; color:var(--accent1); }
+.grid-card span { font-size:16px; font-weight:600; color:#eef2f7; text-align:center; }
+</style>
+<script src="https://kit.fontawesome.com/a2b6f38c57.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -130,64 +47,59 @@
 </div>
 
 <div class="grid-container">
-  <div class="grid-card" onclick="navigate('admin-approve-promoters-payout.html')">
-    <i class="fas fa-hand-holding-usd"></i>
-    <span>Approve Promoters Payout</span>
-  </div>
-  <div class="grid-card" onclick="navigate('admin-commission-settings.html')">
-    <i class="fas fa-cogs"></i>
-    <span>Commission Settings</span>
-  </div>
-  <div class="grid-card" onclick="navigate('admin-deals-management.html')">
-    <i class="fas fa-briefcase"></i>
-    <span>Deals Management</span>
-  </div>
-  <div class="grid-card" onclick="navigate('admin-providers-bill.html')">
-    <i class="fas fa-file-invoice-dollar"></i>
-    <span>Providers Bills</span>
-  </div>
-  <div class="grid-card" onclick="navigate('admin-providers-payments-verify.html')">
-    <i class="fas fa-check-circle"></i>
-    <span>Verify Providers Payments</span>
-  </div>
-  <div class="grid-card" onclick="navigate('admin-verify-offers.html')">
-    <i class="fas fa-tags"></i>
-    <span>Verify Offers</span>
-  </div>
+  <div class="grid-card" onclick="navigate('admin-approve-promoters-payout.html')"><i class="fas fa-hand-holding-usd"></i><span>Approve Promoters Payout</span></div>
+  <div class="grid-card" onclick="navigate('admin-commission-settings.html')"><i class="fas fa-cogs"></i><span>Commission Settings</span></div>
+  <div class="grid-card" onclick="navigate('admin-deals-management.html')"><i class="fas fa-briefcase"></i><span>Deals Management</span></div>
+  <div class="grid-card" onclick="navigate('admin-providers-bill.html')"><i class="fas fa-file-invoice-dollar"></i><span>Providers Bills</span></div>
+  <div class="grid-card" onclick="navigate('admin-providers-payments-verify.html')"><i class="fas fa-check-circle"></i><span>Verify Providers Payments</span></div>
+  <div class="grid-card" onclick="navigate('admin-verify-offers.html')"><i class="fas fa-tags"></i><span>Verify Offers</span></div>
 </div>
 
-<script>
-  const notif = document.getElementById('notif');
-  const adminName = document.getElementById('adminName');
-  const adminEmail = document.getElementById('adminEmail');
-  const adminPhone = document.getElementById('adminPhone');
-  const adminReferral = document.getElementById('adminReferral');
-  const adminCreated = document.getElementById('adminCreated');
-  const logoutBtn = document.getElementById('logoutBtn');
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-  // Check if admin is logged in
-  const session = JSON.parse(localStorage.getItem('userSession'));
-  if(!session || session.role !== 'admin'){
+const notif = document.getElementById('notif');
+const adminName = document.getElementById('adminName');
+const adminEmail = document.getElementById('adminEmail');
+const adminPhone = document.getElementById('adminPhone');
+const adminReferral = document.getElementById('adminReferral');
+const adminCreated = document.getElementById('adminCreated');
+const logoutBtn = document.getElementById('logoutBtn');
+
+onAuthStateChanged(auth, async user => {
+  if(!user){
     notif.textContent = '⚠ You must be logged in as admin to access this page.';
     notif.className = 'notif error';
     notif.style.display = 'block';
-    setTimeout(()=> window.location.href = 'login.html', 2000);
-  } else {
-    adminName.textContent = session.name;
-    adminEmail.textContent = session.email;
-    adminPhone.textContent = session.phone || 'N/A';
-    adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
-    adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
+    setTimeout(()=> window.location.href='login.html',2000);
+    return;
   }
 
-  logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('userSession');
-    window.location.href = 'login.html';
-  });
-
-  function navigate(url){
-    window.location.href = url;
+  const adminDoc = await getDoc(doc(db,'admins',user.uid));
+  if(!adminDoc.exists()){
+    notif.textContent = '⚠ Unauthorized access.';
+    notif.className = 'notif error';
+    notif.style.display = 'block';
+    setTimeout(()=> window.location.href='login.html',2000);
+    return;
   }
+
+  const data = adminDoc.data();
+  adminName.textContent = data.name;
+  adminEmail.textContent = data.email;
+  adminPhone.textContent = data.phone || 'N/A';
+  adminReferral.textContent = `Referral Code: ${data.referralCode || 'N/A'}`;
+  adminCreated.textContent = `Joined: ${new Date(data.createdAt).toLocaleDateString()}`;
+});
+
+logoutBtn.addEventListener('click', async ()=>{
+  await signOut(auth);
+  window.location.href='login.html';
+});
+
+function navigate(url){ window.location.href=url; }
 </script>
 
 </body>
