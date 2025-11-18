@@ -111,7 +111,7 @@ button.loading::after {
 
 <script type="module">
 import { auth, db } from './firebase.js';
-import { ref, onValue, get, update, remove, push, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { ref, onValue, get, update, remove, push, set, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -150,6 +150,28 @@ onAuthStateChanged(auth, async (user) => {
 /* Helper Functions */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
+/* --- New: Update Platform Earnings --- */
+const updatePlatformEarnings = async (platformShare, currency='USD', timestamp) => {
+  const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
+  
+  await runTransaction(platformEarningsRef, (current) => {
+    if (current === null) {
+      return {
+        totalRevenue: round(platformShare),
+        dealsCount: 1,
+        lastUpdated: timestamp
+      };
+    } else {
+      return {
+        totalRevenue: round((current.totalRevenue || 0) + platformShare),
+        dealsCount: (current.dealsCount || 0) + 1,
+        lastUpdated: timestamp
+      };
+    }
+  });
+};
+
+/* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card){
   try {
     const timestamp = new Date().toISOString();
@@ -172,12 +194,14 @@ async function processCompleteDeal(dealId, deal, card){
     const platformShare = round(commissionEarned*platformPercentage/100);
     const promoterNet = round(commissionEarned-platformShare);
 
+    // Update offer financials
     await update(offerRef,{
       promoSpent: round((offer.promoSpent||0)+commissionEarned),
       amountOwed: round((offer.amountOwed||0)+commissionEarned),
       outstandingBalance: round((offer.amountOwed||0+commissionEarned) - (offer.amountPaid||0))
     });
 
+    // Update promoter earnings
     if(deal.promoterId!=="direct"){
       await set(ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`), {
         ...deal,
@@ -199,6 +223,10 @@ async function processCompleteDeal(dealId, deal, card){
       await update(metaRef, meta);
     }
 
+    // --- New: Update platform earnings ---
+    await updatePlatformEarnings(platformShare, currency, timestamp);
+
+    // Move deal to completed
     await set(ref(db, `completed-deals/${dealId}`), {...deal,status:"completed",completedAt:timestamp,completedBy:"provider",commissionEarned,promoterNet,platformShare,providerPaid:false});
     await remove(ref(db, `deals/${dealId}`));
     card.remove();
@@ -212,6 +240,7 @@ async function processCompleteDeal(dealId, deal, card){
   catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
 }
 
+/* --- Cancel Deal --- */
 async function processCancelDeal(dealId, deal, card){
   try {
     const timestamp = new Date().toISOString();
@@ -227,7 +256,7 @@ async function processCancelDeal(dealId, deal, card){
   catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
 }
 
-/* Undo + Button Spinner + Full-card disable */
+/* --- Schedule Actions (Undo + Spinner) --- */
 function scheduleAction(type, dealId, deal, card){
   const box = document.createElement("div");
   box.className="card-notif";
@@ -255,7 +284,7 @@ function scheduleAction(type, dealId, deal, card){
   },5000);
 }
 
-/* Load Deals */
+/* --- Load Deals --- */
 function loadDeals(providerId){
   const dealsRef = ref(db, "deals");
   onValue(dealsRef, snapshot=>{
@@ -275,7 +304,7 @@ function loadDeals(providerId){
   });
 }
 
-/* Render Card */
+/* --- Render Deal Card --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
