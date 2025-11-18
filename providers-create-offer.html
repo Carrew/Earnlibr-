@@ -118,8 +118,8 @@ button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radi
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { ref, push } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
@@ -163,10 +163,15 @@ function attachHandlers() {
   document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
   document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
-  document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
+  document.getElementById('logoutBtn').onclick = async () => { 
+    try { await signOut(auth); } catch(e){}
+    localStorage.removeItem('userSession'); 
+    window.location.href='login.html'; 
+  };
   
+  // NOTE: This relies on the 'currencies.js' script being loaded globally above.
   if (typeof populateCurrencyDropdown === 'function') {
-  populateCurrencyDropdown("currency");
+    populateCurrencyDropdown("currency");
   }
 
   imageInput.addEventListener("change", e => {
@@ -199,13 +204,16 @@ function attachHandlers() {
       createdAt: new Date().toISOString()
     };
     try {
-      await push(ref(db, "offers_pending/"+uid), offerData);
+      // Firestore: add to offers_pending collection
+      await addDoc(collection(db, "offers_pending"), offerData);
       showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display="none";
       imageBase64="";
-    } catch(err) { console.error(err); showNotification("Error submitting offer: "+err.message,"error"); }
-    finally { submitBtn.disabled=false; }
+    } catch(err) { 
+      console.error(err); 
+      showNotification("Error submitting offer: "+err.message,"error"); 
+    } finally { submitBtn.disabled=false; }
   });
 }
 </script>
