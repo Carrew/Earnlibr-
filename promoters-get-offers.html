@@ -161,8 +161,8 @@ h1 {
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const offerGrid = document.getElementById('offerGrid');
 const notification = document.getElementById('notification');
@@ -178,35 +178,22 @@ function showNotification(message) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return window.location.href='login.html';
-  if (!user.emailVerified) return window.location.href='login.html';
-
-  try {
-    const sessionRaw = localStorage.getItem('userSession');
-    const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-    if (!session || session.role !== 'freelancer') return window.location.href='login.html';
-    loadOffers(session.uid);
-  } catch(err) { console.error(err); showNotification('Error verifying session.'); }
+  if (!user || !user.emailVerified) return window.location.href='login.html';
+  const sessionRaw = localStorage.getItem('userSession');
+  const session = sessionRaw ? JSON.parse(sessionRaw) : null;
+  if (!session || session.role !== 'freelancer') return window.location.href='login.html';
+  loadOffers(session.uid);
 });
 
 async function loadOffers(promoterId) {
-  const offersCol = collection(db, 'offers');
-  onSnapshot(offersCol, async snapshot => {
-    allOffers = [];
-    offerGrid.innerHTML = '';
-    for (const providerDoc of snapshot.docs) {
-      const providerId = providerDoc.id;
-      const providerOffersCol = collection(db, 'offers', providerId, 'offers');
-      const offersSnap = await getDocs(providerOffersCol);
-      offersSnap.forEach(offerDoc => {
-        const offer = offerDoc.data();
-        if (!offer.verified || offer.status !== 'active') return;
-        allOffers.push({...offer, id: offerDoc.id});
-      });
-    }
+  try {
+    const offersCol = collection(db, 'offers');
+    const q = query(offersCol, where('verified','==',true), where('status','==','active'));
+    const snap = await getDocs(q);
+    allOffers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     populateCategories();
     displayOffers(allOffers, promoterId);
-  });
+  } catch(err) { console.error(err); showNotification('Failed to load offers.'); }
 }
 
 function populateCategories() {
@@ -221,12 +208,10 @@ function displayOffers(offers, promoterId) {
     offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;padding-top:30px;'>No offers available for this filter.</div>";
     return;
   }
-
   offers.forEach(offer => {
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";
     const desc = offer.description ? offer.description.substring(0,100)+"..." : '';
     const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${promoterId}`;
-
     const card = document.createElement('div');
     card.className='offer-card';
     card.innerHTML = `
