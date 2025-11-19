@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -128,7 +129,9 @@ const imageInput = document.getElementById('productImage');
 const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
-let imageBase64 = "";
+
+let imageFullBase64 = "";
+let imageThumbnailBase64 = "";
 let userSession = null;
 
 function showNotification(message, type='info', duration=3000) {
@@ -158,6 +161,23 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+// CREATE THUMBNAIL FUNCTION
+function createThumbnail(base64, maxWidth = 200) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = maxWidth / img.width;
+      canvas.width = maxWidth;
+      canvas.height = img.height * ratio;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); // compressed JPEG thumbnail
+    };
+  });
+}
+
 // HANDLER ATTACHMENT
 function attachHandlers() {
   document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
@@ -169,16 +189,22 @@ function attachHandlers() {
     window.location.href='login.html'; 
   };
   
-  // NOTE: This relies on the 'currencies.js' script being loaded globally above.
   if (typeof populateCurrencyDropdown === 'function') {
     populateCurrencyDropdown("currency");
   }
 
-  imageInput.addEventListener("change", e => {
+  imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => { imageBase64 = event.target.result; imagePreview.src=imageBase64; imagePreview.style.display="block"; };
+      reader.onload = async (event) => { 
+        imageFullBase64 = event.target.result; 
+        imagePreview.src = imageFullBase64; 
+        imagePreview.style.display="block"; 
+
+        // Create thumbnail
+        imageThumbnailBase64 = await createThumbnail(imageFullBase64, 200);
+      };
       reader.readAsDataURL(file);
     }
   });
@@ -187,7 +213,9 @@ function attachHandlers() {
     e.preventDefault();
     submitBtn.disabled = true;
     showNotification("Submitting offer...", "info");
+
     const uid = userSession.uid;
+
     const offerData = {
       providerId: uid,
       title: title.value.trim(),
@@ -199,17 +227,18 @@ function attachHandlers() {
       commissionValue: parseFloat(commissionValue.value),
       promotionBudget: parseFloat(promotionBudget.value),
       totalProducts: parseInt(totalProducts.value),
-      imageBase64: imageBase64 || null,
+      thumbnailBase64: imageThumbnailBase64 || null, // small image for admin preview
       status: "pending",
       createdAt: new Date().toISOString()
     };
+
     try {
-      // Firestore: add to offers_pending collection
       await addDoc(collection(db, "offers_pending"), offerData);
       showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display="none";
-      imageBase64="";
+      imageFullBase64="";
+      imageThumbnailBase64="";
     } catch(err) { 
       console.error(err); 
       showNotification("Error submitting offer: "+err.message,"error"); 
@@ -219,3 +248,4 @@ function attachHandlers() {
 </script>
 </body>
 </html>
+  
