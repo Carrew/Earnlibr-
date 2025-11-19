@@ -6,101 +6,26 @@
 <title>EarnLibr — Provider Deals Management (Upgraded)</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #0b0d17;
-  color: #eef2f7;
-  margin: 0;
-  padding: 20px;
-}
-
-h1 {
-  background: linear-gradient(90deg, #4a90e2, #a3ff6e);
-  -webkit-background-clip: text;
-  color: transparent;
-  margin-bottom: 20px;
-}
-
-.deal-card {
-  background: #0f1724;
-  border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  transition: opacity .5s ease, transform .3s;
-  position: relative;
-}
-
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: opacity .5s ease, transform .3s; position: relative; }
 .deal-card:hover { transform: translateY(-4px); }
 .deal-card.completed { border-left: 4px solid #4ade80; }
 .deal-card.cancelled { border-left: 4px solid #ef4444; }
-
 .deal-info { margin-bottom: 10px; font-size: 14px; }
-
-.deal-actions button {
-  margin-right: 8px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-  position: relative;
-}
+.deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; position: relative; }
 .complete { background: #4ade80; color: #041018; }
 .cancel { background: #ef4444; color: #fff; }
-
-button.loading {
-  pointer-events: none;
-  opacity: 0.7;
-}
-button.loading::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 16px; height: 16px;
-  margin: -8px 0 0 -8px;
-  border: 2px solid #fff;
-  border-top: 2px solid transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
+button.loading { pointer-events: none; opacity: 0.7; }
+button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
 .timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
-
-.notif {
-  background: #1a2235;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  font-size: 14px;
-  display: none;
-}
+.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
 .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
 .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-
-.card-notif {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #1a2235;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
-}
-.card-notif button {
-  background: transparent;
-  border: none;
-  color: #a3ff6e;
-  font-weight: 700;
-  cursor: pointer;
-}
+.card-notif { position: absolute; top: 10px; right: 10px; background: #1a2235; padding: 6px 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.card-notif button { background: transparent; border: none; color: #a3ff6e; font-weight: 700; cursor: pointer; }
 .card-notif button:hover { color: #4ade80; }
-
 </style>
 </head>
 <body>
@@ -150,22 +75,28 @@ onAuthStateChanged(auth, async (user) => {
 /* Helper Functions */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-/* --- New: Update Platform Earnings --- */
+/* --- New: Update Platform Earnings (with daily revenue) --- */
 const updatePlatformEarnings = async (platformShare, currency='USD', timestamp) => {
   const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
-  
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
   await runTransaction(platformEarningsRef, (current) => {
-    if (current === null) {
-      return {
+    if(current===null) {
+      return { 
         totalRevenue: round(platformShare),
         dealsCount: 1,
-        lastUpdated: timestamp
+        lastUpdated: timestamp,
+        dailyRevenue: { [today]: round(platformShare) }
       };
     } else {
-      return {
+      const daily = current.dailyRevenue || {};
+      daily[today] = round((daily[today] || 0) + platformShare);
+      return { 
+        ...current,
         totalRevenue: round((current.totalRevenue || 0) + platformShare),
         dealsCount: (current.dealsCount || 0) + 1,
-        lastUpdated: timestamp
+        lastUpdated: timestamp,
+        dailyRevenue: daily
       };
     }
   });
