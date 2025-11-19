@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -161,19 +160,36 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// CREATE THUMBNAIL FUNCTION
-function createThumbnail(base64, maxWidth = 200) {
+// 🔑 UPDATED FUNCTION TO CONTROL IMAGE SIZE (QUALITY FACTOR)
+// This function resizes to 200px width AND compresses the JPEG quality to 0.7 (70%).
+function createThumbnail(base64, maxWidth = 200, quality = 0.7) {
   return new Promise((resolve) => {
+    // Check size of the Base64 string before processing to skip tiny images
+    if (base64.length < 50000) { // Small optimization: If image is under ~50KB, just return it.
+        return resolve(base64); 
+    }
+    
     const img = new Image();
     img.src = base64;
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ratio = maxWidth / img.width;
-      canvas.width = maxWidth;
-      canvas.height = img.height * ratio;
+      
+      // Only resize if the image is larger than maxWidth
+      if (img.width > maxWidth) {
+        canvas.width = maxWidth;
+        canvas.height = img.height * ratio;
+      } else {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7)); // compressed JPEG thumbnail
+      // Draw image at the (potentially scaled) size
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+      
+      // Compresses to JPEG with the set quality factor (0.7)
+      resolve(canvas.toDataURL('image/jpeg', quality)); 
     };
   });
 }
@@ -202,8 +218,8 @@ function attachHandlers() {
         imagePreview.src = imageFullBase64; 
         imagePreview.style.display="block"; 
 
-        // Create thumbnail
-        imageThumbnailBase64 = await createThumbnail(imageFullBase64, 200);
+        // Create thumbnail with compression
+        imageThumbnailBase64 = await createThumbnail(imageFullBase64, 200, 0.7);
       };
       reader.readAsDataURL(file);
     }
@@ -227,13 +243,18 @@ function attachHandlers() {
       commissionValue: parseFloat(commissionValue.value),
       promotionBudget: parseFloat(promotionBudget.value),
       totalProducts: parseInt(totalProducts.value),
-      thumbnailBase64: imageThumbnailBase64 || null, // small image for admin preview
+      // Submitting the compressed thumbnail and full image Base64 
+      thumbnailBase64: imageThumbnailBase64 || null, // for Admin preview (smaller size)
+      imageFullBase64: imageFullBase64 || null,     // for Cloudinary upload (full size for approval)
       status: "pending",
       createdAt: new Date().toISOString()
     };
 
     try {
-      await addDoc(collection(db, "offers_pending"), offerData);
+      // Correct path: Saves to offers_pending/{uid}/offers/{offerId}
+      const pendingOffersRef = collection(db, "offers_pending", uid, "offers");
+      await addDoc(pendingOffersRef, offerData);
+      
       showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display="none";
@@ -247,5 +268,5 @@ function attachHandlers() {
 }
 </script>
 </body>
-</html>
+  </html>
   
