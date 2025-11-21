@@ -141,194 +141,203 @@
 <div id="providersContainer">Loading pending bills...</div>
 
 <script type="module">
-import { db } from './firebase.js';
-import { ref, onValue, push, set, get } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  addDoc,
+  doc,
+  setDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import { db } from "./firebase.js";
 
 const notif = document.getElementById('notif');
-const adminName = document.getElementById('adminName');
-const adminEmail = document.getElementById('adminEmail');
-const adminPhone = document.getElementById('adminPhone');
-const adminReferral = document.getElementById('adminReferral');
-const adminCreated = document.getElementById('adminCreated');
-const logoutBtn = document.getElementById('logoutBtn');
 const providersContainer = document.getElementById('providersContainer');
 const sendAllBtn = document.getElementById('sendAll');
 const THRESHOLDS = { USD: 1, LRD: 300 };
 
-// ✅ Admin Security Check
+let grouped = {};
+
+// 🔒 ADMIN SECURITY
 const session = JSON.parse(localStorage.getItem('userSession'));
-if(!session || session.role !== 'admin'){
-  notif.textContent = '⚠ You must be logged in as admin to access this page.';
+if (!session || session.role !== 'admin') {
+  notif.textContent = 'You must be logged in as admin.';
   notif.className = 'notif error';
   notif.style.display = 'block';
   setTimeout(() => window.location.href = 'index.html', 2000);
-} else {
-  adminName.textContent = session.name;
-  adminEmail.textContent = session.email;
-  adminPhone.textContent = session.phone || 'N/A';
-  adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
-  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
 }
 
-// Logout
-logoutBtn.addEventListener('click', () => {
-  localStorage.removeItem('userSession');
-  window.location.href = 'index.html';
+document.getElementById('adminName').textContent = session.name;
+document.getElementById('adminEmail').textContent = session.email;
+
+// 📌 LOGOUT
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem("userSession");
+  window.location.href = "index.html";
 });
 
-// Notifications helper
+// Notification helper
 const showNotif = (msg) => {
   notif.textContent = msg;
-  notif.className = 'notif success';
-  notif.style.display = 'block';
-  setTimeout(() => notif.style.display = 'none', 4000);
+  notif.className = "notif success";
+  notif.style.display = "block";
+  setTimeout(() => (notif.style.display = "none"), 4000);
 };
 
-let grouped = {};
+// 📌 LIVE FETCH Completed Deals (providerPaid = false)
+const dealsQuery = query(
+  collection(db, "deals_completed"),
+  where("providerPaid", "==", false)
+);
 
-// Fetch all completed but unpaid deals
-const dealsRef = ref(db, 'completed-deals');
-onValue(dealsRef, (snapshot) => {
-  providersContainer.innerHTML = '';
-  if (!snapshot.exists()) {
-    providersContainer.innerHTML = '<p>No completed unpaid deals found.</p>';
+onSnapshot(dealsQuery, (snapshot) => {
+  providersContainer.innerHTML = "";
+  grouped = {};
+
+  if (snapshot.empty) {
+    providersContainer.innerHTML = "<p>No unpaid deals.</p>";
     return;
   }
 
-  const deals = snapshot.val();
-  grouped = {};
+  snapshot.forEach((docSnap) => {
+    const d = docSnap.data();
+    const providerId = d.providerId;
 
-  Object.keys(deals).forEach(id => {
-    const d = deals[id];
-    if (d.providerPaid) return;
-    const provId = d.providerId;
+    if (!grouped[providerId])
+      grouped[providerId] = { name: d.providerName, offers: {}, totals: {} };
 
-    if (!grouped[provId]) grouped[provId] = { name: d.providerName, offers: {}, totals: {} };
-
-    if (!grouped[provId].offers[d.offerId]) {
-      grouped[provId].offers[d.offerId] = {
+    if (!grouped[providerId].offers[d.offerId]) {
+      grouped[providerId].offers[d.offerId] = {
         offerTitle: d.offerTitle,
-        currency: d.currency || 'USD',
+        currency: d.currency || "USD",
         total: 0,
         deals: []
       };
     }
 
-    const offer = grouped[provId].offers[d.offerId];
-    offer.total += parseFloat(d.commissionEarned || 0);
+    let offer = grouped[providerId].offers[d.offerId];
+    offer.total += Number(d.commissionEarned);
     offer.deals.push({
-      dealId: id,
+      dealId: docSnap.id,
       clientName: d.clientName,
       clientContact: d.clientContact,
-      commissionEarned: parseFloat(d.commissionEarned || 0),
-      note: d.note || '',
+      commissionEarned: d.commissionEarned,
       createdAt: d.createdAt
     });
 
-    const curr = offer.currency;
-    if (!grouped[provId].totals[curr]) grouped[provId].totals[curr] = 0;
-    grouped[provId].totals[curr] += parseFloat(d.commissionEarned || 0);
+    const curr = d.currency || "USD";
+    if (!grouped[providerId].totals[curr]) grouped[providerId].totals[curr] = 0;
+    grouped[providerId].totals[curr] += Number(d.commissionEarned);
   });
 
-  // Render provider cards
-  Object.keys(grouped).forEach(provId => {
-    const provider = grouped[provId];
-    const card = document.createElement('div');
-    card.className = 'provider-card';
+  // Render UI
+  renderProviders();
+});
 
-    let totalsHTML = '';
-    Object.entries(provider.totals).forEach(([curr, amt]) => {
+// UI: Provider Cards
+function renderProviders() {
+  providersContainer.innerHTML = "";
+
+  Object.keys(grouped).forEach((providerId) => {
+    const p = grouped[providerId];
+
+    const card = document.createElement("div");
+    card.className = "provider-card";
+
+    let totalsHTML = "";
+    Object.entries(p.totals).forEach(([curr, amt]) => {
       totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
     });
 
-    const header = `
+    card.innerHTML = `
       <div class="provider-header">
-        <h2>${provider.name || 'Unnamed Provider'} (${provId})</h2>
+        <h2>${p.name}</h2>
         <button class="btn sendBill">Send Bill</button>
       </div>
-      <div>${totalsHTML}</div>
-      <button class="btn toggleOffers">Show Offers & Deals</button>
+      ${totalsHTML}
+      <button class="btn toggleOffers">Show Details</button>
       <div class="offer-breakdown"></div>
     `;
-    card.innerHTML = header;
+
     providersContainer.appendChild(card);
 
-    const breakdown = card.querySelector('.offer-breakdown');
-    Object.values(provider.offers).forEach(offer => {
-      const offerDiv = document.createElement('div');
-      offerDiv.className = 'offer';
-      offerDiv.innerHTML = `<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
-      offer.deals.forEach(d => {
-        const dealDiv = document.createElement('div');
-        dealDiv.className = 'deal-item';
-        dealDiv.textContent = `DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note}`;
-        offerDiv.appendChild(dealDiv);
+    const breakdown = card.querySelector(".offer-breakdown");
+
+    Object.values(p.offers).forEach((offer) => {
+      const d = document.createElement("div");
+      d.className = "offer";
+      d.innerHTML = `<strong>${offer.offerTitle} — ${offer.currency} ${offer.total}</strong>`;
+
+      offer.deals.forEach((deal) => {
+        const small = document.createElement("div");
+        small.className = "deal-item";
+        small.textContent = `Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
+        d.appendChild(small);
       });
-      breakdown.appendChild(offerDiv);
+
+      breakdown.appendChild(d);
     });
 
-    card.querySelector('.toggleOffers').onclick = () => {
-      breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
+    card.querySelector(".toggleOffers").onclick = () => {
+      breakdown.style.display =
+        breakdown.style.display === "none" ? "block" : "none";
     };
 
-    card.querySelector('.sendBill').onclick = () => sendBillToProvider(provId, provider);
+    card.querySelector(".sendBill").onclick = () =>
+      sendBill(providerId, p);
   });
-});
+}
 
-// Send bill for one provider
-async function sendBillToProvider(provId, provider) {
+// 📤 SEND BILL (single provider)
+async function sendBill(providerId, provider) {
   const eligible = Object.entries(provider.totals).some(
     ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
   );
-  if (!eligible) return showNotif(`Provider ${provider.name} below threshold.`);
 
-  const timestamp = new Date().toISOString();
-  const billId = push(ref(db, `bills/${provId}`)).key;
+  if (!eligible) return showNotif("Below threshold.");
+
+  const billRef = doc(collection(db, "bills"));
+  const billId = billRef.id;
 
   const billData = {
     billId,
-    providerId: provId,
+    providerId,
     providerName: provider.name,
     totals: provider.totals,
     offers: provider.offers,
-    createdAt: timestamp,
-    status: 'pending'
+    createdAt: new Date().toISOString(),
+    status: "pending"
   };
 
-  await set(ref(db, `bills/${provId}/${billId}`), billData);
-  await set(ref(db, `admin-bills/${billId}`), billData);
+  await setDoc(billRef, billData);
 
-  const notifRef = ref(db, `provider-notifications/${provId}`);
-  const notifData = {
-    type: 'billing',
-    title: 'New Weekly Bill Generated',
-    message: `Your weekly bill is ready for review.`,
+  await setDoc(doc(db, `providers/${providerId}/bills/${billId}`), billData);
+
+  await addDoc(collection(db, `providers/${providerId}/notifications`), {
+    type: "billing",
     billId,
-    createdAt: timestamp,
-    status: 'unread'
-  };
-  await push(notifRef, notifData);
+    message: "Your weekly bill is ready",
+    createdAt: new Date().toISOString(),
+    unread: true
+  });
 
-  showNotif(`✅ Bill sent to ${provider.name}`);
+  showNotif(`Bill sent to ${provider.name}`);
 }
 
-// Send all eligible providers
+// 📤 SEND ALL
 sendAllBtn.onclick = async () => {
-  if (!grouped || !Object.keys(grouped).length) {
-    return showNotif('No providers with unpaid deals.');
-  }
   sendAllBtn.disabled = true;
-  showNotif('Sending bills to all eligible providers...');
-
-  for (const [provId, provider] of Object.entries(grouped)) {
+  for (const [providerId, provider] of Object.entries(grouped)) {
     const eligible = Object.entries(provider.totals).some(
       ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
     );
-    if (eligible) await sendBillToProvider(provId, provider);
+    if (eligible) await sendBill(providerId, provider);
   }
-
-  showNotif('🎉 All eligible bills sent.');
   sendAllBtn.disabled = false;
+  showNotif("All eligible bills sent!");
 };
 </script>
 
