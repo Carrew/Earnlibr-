@@ -146,10 +146,27 @@
 <div id="verifyContainer">Loading bills pending verification...</div>
 
 <script type="module">
-import { db } from './firebase.js';
-import { ref, get, update, onValue, push } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { 
+  db 
+} from './firebase.js';
 
-// Elements
+import {
+  doc,
+  collection,
+  getDoc,
+  getDocs,
+  updateDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  setDoc,
+  addDoc
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+// ─────────────────────────────────────────────
+//  ADMIN DATA
+// ─────────────────────────────────────────────
 const notif = document.getElementById('notif');
 const adminName = document.getElementById('adminName');
 const adminEmail = document.getElementById('adminEmail');
@@ -159,10 +176,13 @@ const adminCreated = document.getElementById('adminCreated');
 const logoutBtn = document.getElementById('logoutBtn');
 const container = document.getElementById('verifyContainer');
 
-// ✅ Admin security check
+// ─────────────────────────────────────────────
+//  AUTH CHECK
+// ─────────────────────────────────────────────
 const session = JSON.parse(localStorage.getItem('userSession'));
+
 if(!session || session.role !== 'admin'){
-  notif.textContent = '⚠ You must be logged in as admin to access this page.';
+  notif.textContent = '⚠ You must be logged in as admin.';
   notif.className = 'notif error';
   notif.style.display = 'block';
   setTimeout(()=> window.location.href='index.html', 2000);
@@ -171,16 +191,15 @@ if(!session || session.role !== 'admin'){
   adminEmail.textContent = session.email;
   adminPhone.textContent = session.phone || 'N/A';
   adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
-  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
+  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString()}`;
 }
 
-// Logout
 logoutBtn.addEventListener('click', ()=>{
   localStorage.removeItem('userSession');
   window.location.href='index.html';
 });
 
-// Notification helper
+// SMALL HELPER
 const showNotif = (msg, type='success')=>{
   notif.textContent = msg;
   notif.className = `notif ${type}`;
@@ -188,27 +207,37 @@ const showNotif = (msg, type='success')=>{
   setTimeout(()=> notif.style.display='none', 4000);
 };
 
-// Fetch bills pending verification
-const adminBillsRef = ref(db, 'admin-bills');
-onValue(adminBillsRef, snapshot => {
-  container.innerHTML = '';
-  if(!snapshot.exists()){
-    container.innerHTML='<p>No bills pending verification.</p>';
+// ─────────────────────────────────────────────
+//  LISTEN TO ALL ADMIN BILLS
+// ─────────────────────────────────────────────
+const billsQuery = query(
+  collection(db, "admin_bills"),
+  where("status", "==", "paid_pending_verification"),
+  orderBy("createdAt", "desc")
+);
+
+onSnapshot(billsQuery, snapshot =>{
+  container.innerHTML = "";
+
+  if(snapshot.empty){
+    container.innerHTML = '<p>No bills pending verification.</p>';
     return;
   }
-  const bills = snapshot.val();
-  Object.entries(bills)
-    .filter(([_, b])=> b.status==='paid_pending_verification')
-    .sort((a,b)=> new Date(b[1].createdAt)-new Date(a[1].createdAt))
-    .forEach(([billId, bill])=> renderBillCard(billId, bill));
+
+  snapshot.forEach(docSnap =>{
+    renderBillCard(docSnap.id, docSnap.data());
+  });
 });
 
+// ─────────────────────────────────────────────
+//  RENDER BILL CARD
+// ─────────────────────────────────────────────
 function renderBillCard(billId, bill){
   const card = document.createElement('div');
-  card.className='bill-card';
+  card.className = 'bill-card';
   card.id = billId;
 
-  let totalsHTML='';
+  let totalsHTML="";
   Object.entries(bill.totals).forEach(([curr, amt])=>{
     totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
   });
@@ -219,76 +248,101 @@ function renderBillCard(billId, bill){
       <span class="status">${bill.status.replace(/_/g,' ')}</span>
     </div>
     <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
-    <div>${totalsHTML}</div>
+    ${totalsHTML}
     <br>
     <button class="btn verify">✅ Verify Payment</button>
     <button class="btn reject">❌ Reject Payment</button>
   `;
 
-  card.querySelector('.verify').onclick = ()=> processVerification(billId, bill, 'verified');
-  card.querySelector('.reject').onclick = ()=> processVerification(billId, bill, 'pending');
+  card.querySelector('.verify').onclick = () => processVerification(billId, bill, "verified");
+  card.querySelector('.reject').onclick = () => processVerification(billId, bill, "pending");
 
   container.appendChild(card);
 }
 
+// ─────────────────────────────────────────────
+//  PROCESS PAYMENT VERIFICATION
+// ─────────────────────────────────────────────
 async function processVerification(billId, bill, newStatus){
   const providerId = bill.providerId;
   const timestamp = new Date().toISOString();
-  let updates={};
 
-  if(newStatus==='verified'){
-    if(!confirm('Confirm verifying this provider payment?')) return;
+  if(newStatus === "verified"){
+    if(!confirm("Confirm verifying this provider payment?")) return;
 
+    // For each offer → update completedDeals + update provider offer
     for(const offer of Object.values(bill.offers)){
-      let totalPaid=0;
-      for(const d of offer.deals){
-        const dealPath = `completed-deals/${d.id}`;
-        updates[`${dealPath}/providerPaid`] = true;
-        updates[`${dealPath}/paymentAmount`] = parseFloat(d.commissionEarned);
-        updates[`${dealPath}/paymentNotes`] = `Verified by admin on ${timestamp}`;
-        totalPaid += parseFloat(d.commissionEarned);
+      let totalPaid = 0;
+
+      // 1. Update each associated completed deal's payment status
+      for(const deal of offer.deals){
+
+        // The old code used 'd.id', the new code uses 'deal.dealId' (assuming 'deal.dealId' is correct from bill generation)
+        await updateDoc(
+          doc(db, "completedDeals", deal.dealId),
+          {
+            providerPaid: true,
+            paymentAmount: deal.commissionEarned,
+            paymentNotes: `Verified by admin on ${timestamp}`
+          }
+        );
+
+        totalPaid += deal.commissionEarned;
       }
 
-      const offerRefPath = `offers/${providerId}/${offer.offerId}`;
-      const offerSnap = await get(ref(db, offerRefPath));
-      const currentAmountPaid = offerSnap.exists()?parseFloat(offerSnap.val().amountPaid||0):0;
-      const currentOutstanding = offerSnap.exists()?parseFloat(offerSnap.val().outstandingBalance||0):0;
+      // 2. Update provider's offer tracking
+      const offerRef = doc(db, "offers", providerId, "offers", offer.offerId);
+      const offerSnap = await getDoc(offerRef);
 
-      updates[`${offerRefPath}/amountPaid`] = currentAmountPaid + totalPaid;
-      updates[`${offerRefPath}/outstandingBalance`] = Math.max(currentOutstanding - totalPaid,0);
+      if(offerSnap.exists()){
+        const data = offerSnap.data();
+
+        await updateDoc(offerRef, {
+          amountPaid: (data.amountPaid || 0) + totalPaid,
+          outstandingBalance: Math.max((data.outstandingBalance || 0) - totalPaid, 0)
+        });
+      }
     }
 
-    updates[`bills/${providerId}/${billId}/verifiedAt`] = timestamp;
+    // 3. Timestamp the verification on the provider's bill record
+    await updateDoc(doc(db, "providers", providerId, "bills", billId), {
+      verifiedAt: timestamp
+    });
 
-  } else if(newStatus==='pending'){
-    if(!confirm('Reject this payment and return it to pending?')) return;
-    updates[`bills/${providerId}/${billId}/rejectionNote`] = `Admin rejected payment verification on ${timestamp}`;
+  } else if(newStatus === "pending"){
+    if(!confirm("Reject this payment?")) return;
+
+    // 1. Note the rejection on the provider's bill record
+    await updateDoc(doc(db, "providers", providerId, "bills", billId), {
+      rejectionNote: `Admin rejected payment on ${timestamp}`
+    });
   }
 
-  updates[`bills/${providerId}/${billId}/status`] = newStatus;
-  updates[`admin-bills/${billId}/status`] = newStatus;
-  updates[`bills/${providerId}/${billId}/updatedAt`] = timestamp;
+  // 4. Update bill status globally (admin_bills) and locally (providers/bills)
+  await updateDoc(doc(db, "providers", providerId, "bills", billId), {
+    status: newStatus,
+    updatedAt: timestamp
+  });
 
-  const notification = {
-    title: newStatus==='verified'?'Payment Verified ✅':'Payment Rejected ❌',
-    message: newStatus==='verified'
-      ?`Your payment for Bill ${billId.slice(-6)} has been confirmed.`
-      :`Your payment for Bill ${billId.slice(-6)} was rejected. Contact support.`,
-    createdAt: timestamp,
-    type: newStatus==='verified'?'payment_verified':'payment_rejected',
-    billId: billId
-  };
+  await updateDoc(doc(db, "admin_bills", billId), {
+    status: newStatus,
+    updatedAt: timestamp
+  });
 
-  await push(ref(db, `notifications/${providerId}`), notification);
+  // 5. Push notification to the provider
+  await addDoc(collection(db, "notifications", providerId, "items"), {
+    title: newStatus === "verified" ? "Payment Verified ✅" : "Payment Rejected ❌",
+    message: newStatus === "verified"
+      ? `Your payment for Bill #${billId.slice(-6)} has been confirmed.`
+      : `Your payment for Bill #${billId.slice(-6)} was rejected.`,
+    type: newStatus === "verified" ? "payment_verified" : "payment_rejected",
+    billId,
+    createdAt: timestamp
+  });
 
-  try{
-    await update(ref(db), updates);
-    showNotif(`✅ Bill ${newStatus==='verified'?'verified':'rejected'} for ${bill.providerName}`);
-    document.getElementById(billId)?.remove();
-  }catch(err){
-    console.error(err);
-    showNotif('Error processing verification/rejection: '+err.message, 'error');
-  }
+  showNotif(`Bill ${newStatus === "verified" ? "verified" : "rejected"} successfully.`);
+
+  document.getElementById(billId)?.remove();
 }
 </script>
 </body>
