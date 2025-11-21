@@ -5,312 +5,173 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EarnLibr — Promoter Wallet</title>
 <style>
-  :root {
-    --bg: #0b0d17;
-    --card: #111827;
-    --accent1: #4ade80;
-    --accent2: #22d3ee;
-    --danger: #ef4444;
-    --text: #eef2f7;
-    --muted: #9ca3af;
-    --radius: 14px;
-  }
-  body {
-    margin: 0;
-    font-family: "Inter", system-ui, Arial;
-    background: radial-gradient(circle at top, #0d111c 0%, var(--bg) 80%);
-    color: var(--text);
-    padding: 25px 20px;
-    min-height: 100vh;
-  }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-  }
-  h1 {
-    font-size: 26px;
-    background: linear-gradient(90deg, var(--accent1), var(--accent2));
-    -webkit-background-clip: text;
-    color: transparent;
-    font-weight: 700;
-  }
-  .dashboard-btn {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: var(--radius);
-    color: var(--text);
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  .dashboard-btn:hover {
-    background: rgba(255,255,255,0.08);
-  }
-
-  .wallet-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 20px;
-  }
-
-  .wallet-card {
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(12px);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    transition: transform 0.25s, box-shadow 0.25s;
-  }
-  .wallet-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-  }
-
-  .currency-title {
-    font-weight: 600;
-    font-size: 18px;
-    margin-bottom: 12px;
-  }
-  .wallet-stat {
-    font-size: 15px;
-    margin: 4px 0;
-    color: var(--muted);
-  }
-  .amount {
-    font-size: 20px;
-    color: var(--accent1);
-    font-weight: 600;
-  }
-
-  .btn {
-    display: inline-block;
-    margin-top: 15px;
-    background: linear-gradient(90deg, var(--accent1), var(--accent2));
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    color: #041018;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.25s;
-  }
-  .btn:hover {
-    opacity: 0.9;
-    transform: scale(1.03);
-  }
-
-  .notif {
-    display: none;
-    margin: 0 auto 20px;
-    max-width: 600px;
-    border-radius: 10px;
-    padding: 12px 16px;
-    background: rgba(255,255,255,0.05);
-    border-left: 5px solid var(--accent1);
-    font-size: 14px;
-    text-align: center;
-  }
-  .notif.error { border-left-color: var(--danger); color: #f87171; }
-  .notif.success { color: var(--accent1); }
-
-  /* --- Modal --- */
-  .modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
-    opacity: 0;
-    pointer-events: none;
-    transition: 0.3s;
-  }
-  .modal.show {
-    opacity: 1;
-    pointer-events: all;
-  }
-  .modal-content {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 20px;
-    max-width: 400px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  }
-  .modal-content h3 {
-    margin-bottom: 15px;
-    font-size: 18px;
-  }
-  .modal-actions {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 20px;
-  }
-  .modal-actions button {
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .confirm-btn {
-    background: var(--accent1);
-    color: #041018;
-  }
-  .cancel-btn {
-    background: #1f2937;
-    color: #fff;
-  }
+  /* Keep all your current styles */
 </style>
 </head>
 <body>
-  <header>
-    <h1>💰 Promoter Wallet</h1>
-    <button class="dashboard-btn" onclick="window.location.href='promoter-dashboard.html'">← Dashboard</button>
-  </header>
+<header>
+  <h1>💰 Promoter Wallet</h1>
+  <button class="dashboard-btn" onclick="window.location.href='promoter-dashboard.html'">← Dashboard</button>
+</header>
 
-  <div id="notif" class="notif"></div>
-  <div id="walletContainer" class="wallet-container"></div>
+<div id="notif" class="notif"></div>
+<div id="walletContainer" class="wallet-container"></div>
 
-  <!-- Withdrawal Confirmation Modal -->
-  <div id="withdrawModal" class="modal">
-    <div class="modal-content">
-      <h3 id="modalText">Confirm withdrawal?</h3>
-      <div class="modal-actions">
-        <button id="confirmWithdraw" class="confirm-btn">Yes, Withdraw</button>
-        <button id="cancelWithdraw" class="cancel-btn">Cancel</button>
-      </div>
+<!-- Withdrawal Confirmation Modal -->
+<div id="withdrawModal" class="modal">
+  <div class="modal-content">
+    <h3 id="modalText">Confirm withdrawal?</h3>
+    <div class="modal-actions">
+      <button id="confirmWithdraw" class="confirm-btn">Yes, Withdraw</button>
+      <button id="cancelWithdraw" class="cancel-btn">Cancel</button>
     </div>
   </div>
+</div>
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { ref, onValue, push, update, get, child } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { doc, onSnapshot, collection, query, orderBy, getDoc, setDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    const walletContainer = document.getElementById('walletContainer');
-    const notif = document.getElementById('notif');
-    const modal = document.getElementById('withdrawModal');
-    const modalText = document.getElementById('modalText');
-    const confirmBtn = document.getElementById('confirmWithdraw');
-    const cancelBtn = document.getElementById('cancelWithdraw');
+const walletContainer = document.getElementById('walletContainer');
+const notif = document.getElementById('notif');
+const modal = document.getElementById('withdrawModal');
+const modalText = document.getElementById('modalText');
+const confirmBtn = document.getElementById('confirmWithdraw');
+const cancelBtn = document.getElementById('cancelWithdraw');
 
-    let selectedCurrency = null;
-    let selectedAmount = 0;
-    let selectedDeals = [];
-    let promoterId = null;
+let selectedCurrency = null;
+let selectedAmount = 0;
+let selectedDeals = [];
+let promoterId = null;
 
-    function showNotif(msg, type = "success") {
-      notif.textContent = msg;
-      notif.className = `notif ${type}`;
-      notif.style.display = "block";
-      setTimeout(() => (notif.style.display = "none"), 4000);
-    }
+function showNotif(msg, type = "success") {
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(() => (notif.style.display = "none"), 4000);
+}
 
-    function openModal(currency, amount, deals) {
-      selectedCurrency = currency;
-      selectedAmount = amount;
-      selectedDeals = deals;
-      modalText.textContent = `Confirm withdrawal of ${amount.toFixed(2)} ${currency}?`;
-      modal.classList.add('show');
-    }
-    function closeModal() {
-      modal.classList.remove('show');
-    }
-    cancelBtn.onclick = closeModal;
+function openModal(currency, amount, deals) {
+  selectedCurrency = currency;
+  selectedAmount = amount;
+  selectedDeals = deals;
+  modalText.textContent = `Confirm withdrawal of ${amount.toFixed(2)} ${currency}?`;
+  modal.classList.add('show');
+}
 
-    confirmBtn.onclick = async () => {
-      closeModal();
-      try {
-        const timestamp = new Date().toISOString();
-        const withdrawalId = `wr-${selectedCurrency}-${Date.now()}`;
-        await push(ref(db, "withdrawal-requests"), {
-          withdrawalId,
-          promoterId,
-          currency: selectedCurrency,
-          dealIds: selectedDeals,
-          amount: selectedAmount,
-          status: "pending",
-          requestedAt: timestamp,
-        });
+function closeModal() {
+  modal.classList.remove('show');
+}
+cancelBtn.onclick = closeModal;
 
-        let updates = {};
-        selectedDeals.forEach((id) => {
-          updates[`promoter-earnings/${promoterId}/deals/${id}/withdrawn`] = true;
-        });
-        updates[`promoter-earnings/${promoterId}/metadata/currentBalance/${selectedCurrency}`] = 0;
-        updates[`promoter-earnings/${promoterId}/metadata/lastUpdated`] = timestamp;
-
-        await update(ref(db), updates);
-        showNotif(`✅ ${selectedCurrency} withdrawal requested!`);
-      } catch (err) {
-        console.error(err);
-        showNotif("Error submitting withdrawal: " + err.message, "error");
-      }
-    };
-
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return (window.location.href = "login.html");
-      const dbRef = ref(db);
-      const snap = await get(child(dbRef, `users/${user.uid}`));
-      const userData = snap.val();
-      if (!userData || userData.role !== "freelancer") return (window.location.href = "login.html");
-
-      promoterId = user.uid;
-      loadWallet(promoterId);
+confirmBtn.onclick = async () => {
+  closeModal();
+  try {
+    const timestamp = new Date().toISOString();
+    const withdrawalId = `wr-${selectedCurrency}-${Date.now()}`;
+    
+    // Add withdrawal request to Firestore
+    await addDoc(collection(db, 'withdrawal-requests'), {
+      withdrawalId,
+      promoterId,
+      currency: selectedCurrency,
+      dealIds: selectedDeals,
+      amount: selectedAmount,
+      status: "pending",
+      requestedAt: timestamp,
     });
 
-    function loadWallet(uid) {
-      const promoterRef = ref(db, `promoter-earnings/${uid}`);
-      onValue(promoterRef, (snapshot) => {
-        walletContainer.innerHTML = "";
-        if (!snapshot.exists()) {
-          walletContainer.innerHTML = "<p>No wallet data available yet.</p>";
-          return;
-        }
-
-        const data = snapshot.val();
-        const metadata = data.metadata || {};
-        const deals = data.deals || {};
-        const balances = metadata.currentBalance || {};
-        const totalEarned = metadata.totalLifetimeEarnings || {};
-        const withdrawn = metadata.totalWithdrawn || {};
-
-        Object.keys(balances).forEach((currency) => {
-          const curBalance = balances[currency] || 0;
-          const curLifetime = totalEarned[currency] || 0;
-          const curWithdrawn = withdrawn[currency] || 0;
-
-          const card = document.createElement("div");
-          card.className = "wallet-card";
-          card.innerHTML = `
-            <div class="currency-title">${currency}</div>
-            <div class="wallet-stat">💰 Current Balance: <span class="amount">${curBalance.toFixed(2)}</span></div>
-            <div class="wallet-stat">📈 Total Earned: ${curLifetime.toFixed(2)}</div>
-            <div class="wallet-stat">🏦 Withdrawn: ${curWithdrawn.toFixed(2)}</div>
-          `;
-          if (curBalance > 0) {
-            const withdrawBtn = document.createElement("button");
-            withdrawBtn.className = "btn";
-            withdrawBtn.textContent = `Request ${currency} Withdrawal`;
-            withdrawBtn.onclick = () => {
-              const pendingDeals = Object.entries(deals)
-                .filter(([_, d]) => !d.withdrawn && (d.currency || "USD") === currency)
-                .map(([id]) => id);
-              if (pendingDeals.length === 0)
-                return showNotif(`No ${currency} earnings to withdraw.`, "error");
-              openModal(currency, curBalance, pendingDeals);
-            };
-            card.appendChild(withdrawBtn);
-          }
-          walletContainer.appendChild(card);
-        });
-      });
+    // Update deals to mark withdrawn & reset currentBalance
+    const batchUpdates = [];
+    for (const dealId of selectedDeals) {
+      const dealRef = doc(db, 'promoter-earnings', promoterId, 'deals', dealId);
+      batchUpdates.push(updateDoc(dealRef, { withdrawn: true }));
     }
-  </script>
+
+    const metaRef = doc(db, 'promoter-earnings', promoterId, 'metadata', 'meta');
+    const metaSnap = await getDoc(metaRef);
+    if (metaSnap.exists()) {
+      const metaData = metaSnap.data();
+      const newBalances = { ...(metaData.currentBalance || {}) };
+      newBalances[selectedCurrency] = 0;
+      batchUpdates.push(updateDoc(metaRef, { currentBalance: newBalances, lastUpdated: timestamp }));
+    }
+
+    await Promise.all(batchUpdates);
+    showNotif(`✅ ${selectedCurrency} withdrawal requested!`);
+  } catch (err) {
+    console.error(err);
+    showNotif("Error submitting withdrawal: " + err.message, "error");
+  }
+};
+
+// ------------------- Auth -------------------
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return (window.location.href = "login.html");
+  const userRef = doc(db, 'users', user.uid);
+  const snap = await getDoc(userRef);
+  const userData = snap.exists() ? snap.data() : null;
+  if (!userData || userData.role !== "freelancer") return (window.location.href = "login.html");
+
+  promoterId = user.uid;
+  loadWallet(promoterId);
+});
+
+// ------------------- Load Wallet -------------------
+function loadWallet(uid) {
+  const metaRef = doc(db, 'promoter-earnings', uid, 'metadata', 'meta');
+  onSnapshot(metaRef, (snap) => {
+    walletContainer.innerHTML = '';
+    if (!snap.exists()) {
+      walletContainer.innerHTML = "<p>No wallet data available yet.</p>";
+      return;
+    }
+    const meta = snap.data();
+    const balances = meta.currentBalance || {};
+    const totalEarned = meta.totalLifetimeEarnings || {};
+    const withdrawn = meta.totalWithdrawn || {};
+
+    Object.keys(balances).forEach(async (currency) => {
+      const curBalance = balances[currency] || 0;
+      const curLifetime = totalEarned[currency] || 0;
+      const curWithdrawn = withdrawn[currency] || 0;
+
+      const card = document.createElement("div");
+      card.className = "wallet-card";
+      card.innerHTML = `
+        <div class="currency-title">${currency}</div>
+        <div class="wallet-stat">💰 Current Balance: <span class="amount">${curBalance.toFixed(2)}</span></div>
+        <div class="wallet-stat">📈 Total Earned: ${curLifetime.toFixed(2)}</div>
+        <div class="wallet-stat">🏦 Withdrawn: ${curWithdrawn.toFixed(2)}</div>
+      `;
+
+      if (curBalance > 0) {
+        const withdrawBtn = document.createElement("button");
+        withdrawBtn.className = "btn";
+        withdrawBtn.textContent = `Request ${currency} Withdrawal`;
+
+        // Get eligible deals
+        const dealsCol = collection(db, 'promoter-earnings', uid, 'deals');
+        const dealsQuery = query(dealsCol);
+        const dealsSnap = await getDoc(metaRef); // get metadata
+        withdrawBtn.onclick = async () => {
+          const dealsRef = collection(db, 'promoter-earnings', uid, 'deals');
+          const dealsSnap = await getDocs(dealsRef);
+          const pendingDeals = dealsSnap.docs
+            .filter(d => !d.data().withdrawn && (d.data().currency || 'USD') === currency)
+            .map(d => d.id);
+          if (pendingDeals.length === 0) return showNotif(`No ${currency} earnings to withdraw.`, 'error');
+          openModal(currency, curBalance, pendingDeals);
+        };
+
+        card.appendChild(withdrawBtn);
+      }
+
+      walletContainer.appendChild(card);
+    });
+  });
+}
+</script>
 </body>
 </html>
