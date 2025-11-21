@@ -1,64 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Offer Details Client Side | EarnLibr</title>
-<style>
-:root {
-  --bg: #0b0d17;
-  --card: #0f1724;
-  --accent1: #4a90e2;
-  --accent2: #a3ff6e;
-  --muted: #cbd5e1;
-  --radius: 14px;
-}
-body {
-  margin:0; font-family:"Inter", sans-serif;
-  background: linear-gradient(180deg,#071028 0%,#0b0d17 100%);
-  color:#fff; min-height:100vh; display:flex; justify-content:center; align-items:flex-start; padding:40px 15px;
-}
-.container { background:var(--card); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,0.4); max-width:700px; width:100%; padding:25px; }
-img { width:100%; border-radius:12px; margin-bottom:15px; object-fit:cover; height:250px; }
-h1 { background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; font-size:22px; margin-bottom:10px; }
-.desc { color:var(--muted); font-size:15px; line-height:1.6; margin-bottom:15px; }
-.price { font-size:18px; font-weight:600; margin-bottom:8px; }
-.category { font-size:13px; background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:6px; display:inline-block; margin-bottom:18px; }
-form label { display:block; margin-top:10px; font-size:14px; color:var(--muted); }
-form input, form textarea { width:100%; padding:10px; border-radius:8px; border:none; margin-top:4px; background:#071427; color:#fff; font-size:14px; }
-button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); font-weight:700; color:#041018; cursor:pointer; transition: transform 0.2s; }
-button:hover { transform:scale(1.02); }
-.success { margin-top:18px; background:rgba(74,144,226,0.1); padding:12px; border-radius:8px; color:#a3ff6e; text-align:center; font-weight:600; display:none; }
-a.whatsapp { display:block; text-align:center; background:#25d366; color:#041018; padding:10px; border-radius:8px; font-weight:600; text-decoration:none; margin-top:10px; display:none; }
-.error { margin-top:18px; background:rgba(239,68,68,0.1); padding:12px; border-radius:8px; color:#ef4444; text-align:center; font-weight:600; display:none; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offer Details Client Side| EarnLibr</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card: #0f1724;
+      --accent1: #4a90e2;
+      --accent2: #a3ff6e;
+      --muted: #cbd5e1;
+      --radius: 14px;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", sans-serif;
+      background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 15px;
+    }
+    .container {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      max-width: 700px;
+      width: 100%;
+      padding: 25px;
+    }
+    img {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      object-fit: cover;
+      height: 250px;
+    }
+    h1 {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      color: transparent;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+    .desc { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 15px; }
+    .price { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .category { font-size: 13px; background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 18px; }
+    form label { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
+    form input, form textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; margin-top: 4px; background: #071427; color: #fff; font-size: 14px; }
+    button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; transition: transform 0.2s; }
+    button:hover { transform: scale(1.02); }
+    .success { margin-top: 18px; background: rgba(74,144,226,0.1); padding: 12px; border-radius: 8px; color: #a3ff6e; text-align: center; font-weight: 600; display: none; }
+    a.whatsapp { display: block; text-align: center; background: #25d366; color: #041018; padding: 10px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 10px; display: none; }
+    .error { margin-top: 18px; background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; color: #ef4444; text-align: center; font-weight: 600; display: none; }
+  </style>
 </head>
 <body>
-<div class="container">
-  <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." alt="Offer" />
-  <h1 id="offerTitle">Loading offer...</h1>
-  <div class="price" id="offerPrice"></div>
-  <div class="category" id="offerCategory"></div>
-  <div class="desc" id="offerDescription"></div>
+  <div class="container">
+    <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." alt="Offer" />
+    <h1 id="offerTitle">Loading offer...</h1>
+    <div class="price" id="offerPrice"></div>
+    <div class="category" id="offerCategory"></div>
+    <div class="desc" id="offerDescription"></div>
 
-  <form id="requestForm">
-    <label>Your Full Name</label>
-    <input type="text" id="clientName" required />
-    <label>Your Phone Number</label>
-    <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx" />
-    <label>Message (optional)</label>
-    <textarea id="note" placeholder="Any additional info..."></textarea>
-    <button type="submit">Request This Offer</button>
-  </form>
+    <form id="requestForm">
+      <label>Your Full Name</label>
+      <input type="text" id="clientName" required />
 
-  <div class="success" id="successMsg"></div>
-  <div class="error" id="errorMsg"></div>
-  <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Chat on WhatsApp</a>
-</div>
+      <label>Your Phone Number</label>
+      <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx" />
+
+      <label>Message (optional)</label>
+      <textarea id="note" placeholder="Any additional info..."></textarea>
+
+      <button type="submit">Request This Offer</button>
+    </form>
+
+    <div class="success" id="successMsg"></div>
+    <div class="error" id="errorMsg"></div>
+    <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Chat on WhatsApp</a>
+  </div>
 
 <script type="module">
 import { db } from "./firebase.js";
-import { collection, getDocs, doc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+import { collection, doc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -78,51 +106,53 @@ let offerData = null;
 let providerId = null;
 let providerInfo = null;
 
+// --- Load Offer ---
 async function loadOffer() {
-  if(!offerId) {
+  if (!offerId) {
     offerTitle.textContent = "Invalid or missing offer link.";
-    requestForm.style.display="none";
+    requestForm.style.display = "none";
     return;
   }
 
-  const offersCol = collection(db, "offers");
-  const providerDocs = await getDocs(offersCol);
+  // Since offers are now under offers/{providerId}/offers/{offerId}, we need to scan providers
+  const providersCol = collection(db, "offers");
+  const providersSnap = await getDocs(providersCol);
 
-  let found=false;
-  for (const providerDoc of providerDocs.docs) {
-    const providerOffersCol = collection(db, "offers", providerDoc.id, "offers");
-    const offerDocs = await getDocs(providerOffersCol);
-    offerDocs.forEach(docSnap=>{
-      if(docSnap.id===offerId) {
-        offerData=docSnap.data();
-        providerId=providerDoc.id;
-        found=true;
-      }
-    });
-    if(found) break;
+  let found = false;
+
+  for (const providerDoc of providersSnap.docs) {
+    const providerOffersCol = collection(db, `offers/${providerDoc.id}/offers`);
+    const offerDocRef = doc(providerOffersCol, offerId);
+    const offerSnap = await getDoc(offerDocRef);
+    if (offerSnap.exists()) {
+      offerData = offerSnap.data();
+      providerId = providerDoc.id;
+      found = true;
+      break;
+    }
   }
 
-  if(!found) {
-    offerTitle.textContent="Offer not found (404).";
-    offerImage.src="https://via.placeholder.com/600x300?text=Offer+Not+Found";
-    requestForm.style.display="none";
+  if (!found) {
+    offerTitle.textContent = "Offer not found (404).";
+    offerImage.src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
+    requestForm.style.display = "none";
     return;
   }
 
-  if(!offerData.verified || offerData.status!=="active") {
-    offerTitle.textContent="This offer is currently unavailable.";
-    offerImage.src="https://via.placeholder.com/600x300?text=Unavailable";
-    requestForm.style.display="none";
+  if (!offerData.verified || offerData.status !== "active") {
+    offerTitle.textContent = "This offer is currently unavailable.";
+    offerImage.src = "https://via.placeholder.com/600x300?text=Unavailable";
+    requestForm.style.display = "none";
     return;
   }
 
-  // Provider info
-  const userSnap = await getDoc(doc(db,"users",providerId));
-  providerInfo = userSnap.exists() ? userSnap.data() : null;
+  // Fetch provider info
+  const providerSnap = await getDoc(doc(db, "users", providerId));
+  providerInfo = providerSnap.exists() ? providerSnap.data() : null;
 
   offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
   offerTitle.textContent = offerData.title || "Untitled Offer";
-  offerPrice.textContent = `${offerData.currency||"$"} ${offerData.price||"N/A"}`;
+  offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
   offerDescription.textContent = offerData.description || "No description available.";
   offerCategory.textContent = offerData.category || "Uncategorized";
 
@@ -131,17 +161,18 @@ async function loadOffer() {
 
 loadOffer();
 
-requestForm.addEventListener("submit", async (e)=>{
+// --- Handle Form Submission ---
+requestForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  errorMsg.style.display="none";
+  errorMsg.style.display = "none";
 
   const clientName = document.getElementById("clientName").value.trim();
   const clientContact = document.getElementById("clientContact").value.trim();
   const note = document.getElementById("note").value.trim();
 
-  if(!clientName || !clientContact){
-    errorMsg.textContent="Please enter your name and phone number.";
-    errorMsg.style.display="block";
+  if (!clientName || !clientContact) {
+    errorMsg.textContent = "Please enter your name and phone number.";
+    errorMsg.style.display = "block";
     return;
   }
 
@@ -150,46 +181,67 @@ requestForm.addEventListener("submit", async (e)=>{
       offerId,
       offerTitle: offerData.title,
       offerPrice: offerData.price,
-      offerCurrency: offerData.currency||"$",
+      offerCurrency: offerData.currency || "$",
       providerId,
       promoterId,
       clientName,
       clientContact,
       note,
-      status:"pending",
-      createdAt:new Date().toISOString(),
-      providerName:providerInfo?.name||"",
-      providerEmail:providerInfo?.email||"",
-      providerPhone:providerInfo?.phone||offerData.providerPhone||"+231000000000",
-      commissionType:offerData.commissionType||"",
-      commissionValue:offerData.commissionValue||0
+      status: "pending",
+      createdAt: new Date().toISOString(),
+
+      providerName: providerInfo?.name || "",
+      providerEmail: providerInfo?.email || "",
+      providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
+      commissionType: offerData.commissionType || "",
+      commissionValue: offerData.commissionValue || 0
     };
 
-    const dealsCol = collection(db,"deals");
-    const dealRef = await addDoc(dealsCol,dealData);
+    const dealRef = await addDoc(collection(db, "deals"), dealData);
     const dealId = dealRef.id;
 
-    // Admin Notification
-    await addDoc(collection(db,"admin-notifications"),{ type:"deal", title:"New Deal Request", message:`${clientName} requested offer "${dealData.offerTitle}"`, dealId, ...dealData });
+    // Admin notification
+    await addDoc(collection(db, "admin-notifications"), {
+      type: "deal",
+      title: "New Deal Request",
+      message: `${clientName} requested offer "${dealData.offerTitle}"`,
+      dealId,
+      ...dealData
+    });
 
-    // Provider Notification
-    await addDoc(collection(db,`provider-notifications/${providerId}`),{ type:"deal", title:"You Have a New Deal Request", message:`A client requested your offer "${dealData.offerTitle}".`, dealId, ...dealData });
+    // Provider notification
+    await addDoc(collection(db, `provider-notifications/${providerId}`), {
+      type: "deal",
+      title: "You Have a New Deal Request",
+      message: `A client requested your offer "${dealData.offerTitle}".`,
+      dealId,
+      ...dealData
+    });
 
-    // Promoter Notification
-    if(promoterId!=="direct") {
-      await addDoc(collection(db,`freelancer-notifications/${promoterId}`),{ type:"deal", title:"You Generated a Deal!", message:`Your shared link converted into a deal for "${dealData.offerTitle}".`, dealId, ...dealData });
+    // Promoter notification
+    if (promoterId !== "direct") {
+      await addDoc(collection(db, `freelancer-notifications/${promoterId}`), {
+        type: "deal",
+        title: "You Generated a Deal!",
+        message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
+        dealId,
+        ...dealData
+      });
     }
 
-    requestForm.style.display="none";
-    successMsg.style.display="block";
-    successMsg.innerHTML=`✅ Your request was received!<br>The provider will contact you shortly or you may reach them directly at:<br><strong>${dealData.providerPhone}</strong>`;
-    whatsappBtn.style.display="block";
-    whatsappBtn.href=`https://wa.me/${dealData.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+    requestForm.style.display = "none";
+    successMsg.style.display = "block";
+    successMsg.innerHTML = `
+      ✅ Your request was received!<br>
+      The provider will contact you shortly or you may reach them directly at:<br>
+      <strong>${dealData.providerPhone}</strong>`;
+    whatsappBtn.style.display = "block";
+    whatsappBtn.href = `https://wa.me/${dealData.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
 
-  } catch(err) {
+  } catch (err) {
     console.error(err);
-    errorMsg.textContent="Error submitting request: "+err.message;
-    errorMsg.style.display="block";
+    errorMsg.textContent = "Error submitting request: " + err.message;
+    errorMsg.style.display = "block";
   }
 });
 </script>
