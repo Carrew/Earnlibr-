@@ -50,7 +50,7 @@
 
 <script type="module">
 import { db } from './firebase.js';
-import { doc, collection, getDocs, getDoc, updateDoc, setDoc, query, where, orderBy, addDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
+import { doc, collection, getDoc, updateDoc, addDoc, onSnapshot, writeBatch, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 
 const notif = document.getElementById('notif');
 const container = document.getElementById('requestsContainer');
@@ -89,6 +89,7 @@ if(!session || session.role !== 'admin'){
 
     const currency = request.currency || 'USD';
     let dealsHTML = '';
+
     for (const dealId of request.dealIds) {
       const dealRef = doc(db, 'promoter-earnings', request.promoterId, 'deals', dealId);
       const dealSnap = await getDoc(dealRef);
@@ -112,29 +113,36 @@ if(!session || session.role !== 'admin'){
       <button class="btn reject">❌ Reject</button>
     `;
 
-    // Approve
+    // ----- Approve withdrawal -----
     card.querySelector('.approve').onclick = async () => {
       try {
+        const batch = writeBatch(db);
         const timestamp = new Date().toISOString();
-        const updates = {};
 
-        // Update withdrawal request status
+        // Update request status
         const requestRef = doc(db, 'withdrawal-requests', reqId);
-        await updateDoc(requestRef, { status: 'approved', processedAt: timestamp });
+        batch.update(requestRef, { status: 'approved', processedAt: timestamp });
 
-        // Update metadata
+        // Update deals withdrawn flag & metadata
         const metaRef = doc(db, 'promoter-earnings', request.promoterId, 'metadata', 'meta');
         const metaSnap = await getDoc(metaRef);
         const meta = metaSnap.exists() ? metaSnap.data() : {};
         const prevWithdrawn = (meta.totalWithdrawn && meta.totalWithdrawn[currency]) || 0;
-        await updateDoc(metaRef, {
+
+        batch.update(metaRef, {
           [`totalWithdrawn.${currency}`]: prevWithdrawn + request.amount,
           [`currentBalance.${currency}`]: 0,
           lastUpdated: timestamp
         });
 
-        // Notify promoter
-        await addDoc(collection(db, 'notifications', request.promoterId, 'messages'), {
+        request.dealIds.forEach(dealId => {
+          const dealRef = doc(db, 'promoter-earnings', request.promoterId, 'deals', dealId);
+          batch.update(dealRef, { withdrawn: true });
+        });
+
+        // Add notification
+        const notifRef = collection(db, 'notifications', request.promoterId, 'messages');
+        batch.set(doc(notifRef), {
           title: 'Withdrawal Approved ✅',
           message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been approved.`,
           createdAt: timestamp,
@@ -142,6 +150,7 @@ if(!session || session.role !== 'admin'){
           requestId: reqId
         });
 
+        await batch.commit();
         showNotif(`✅ ${currency} withdrawal approved.`);
         card.remove();
       } catch (err) {
@@ -150,33 +159,31 @@ if(!session || session.role !== 'admin'){
       }
     };
 
-    // Reject
+    // ----- Reject withdrawal -----
     card.querySelector('.reject').onclick = async () => {
       try {
+        const batch = writeBatch(db);
         const timestamp = new Date().toISOString();
 
-        // Update withdrawal request status
+        // Update request status
         const requestRef = doc(db, 'withdrawal-requests', reqId);
-        await updateDoc(requestRef, { status: 'rejected', processedAt: timestamp });
+        batch.update(requestRef, { status: 'rejected', processedAt: timestamp });
 
-        // Reset deals withdrawn flags
-        for (const dealId of request.dealIds) {
-          const dealRef = doc(db, 'promoter-earnings', request.promoterId, 'deals', dealId);
-          await updateDoc(dealRef, { withdrawn: false });
-        }
-
-        // Update metadata balance
+        // Reset deals withdrawn & update metadata
         const metaRef = doc(db, 'promoter-earnings', request.promoterId, 'metadata', 'meta');
         const metaSnap = await getDoc(metaRef);
         const meta = metaSnap.exists() ? metaSnap.data() : {};
         const prevBalance = (meta.currentBalance && meta.currentBalance[currency]) || 0;
-        await updateDoc(metaRef, {
-          [`currentBalance.${currency}`]: prevBalance + request.amount,
-          lastUpdated: timestamp
+        batch.update(metaRef, { [`currentBalance.${currency}`]: prevBalance + request.amount, lastUpdated: timestamp });
+
+        request.dealIds.forEach(dealId => {
+          const dealRef = doc(db, 'promoter-earnings', request.promoterId, 'deals', dealId);
+          batch.update(dealRef, { withdrawn: false });
         });
 
-        // Notify promoter
-        await addDoc(collection(db, 'notifications', request.promoterId, 'messages'), {
+        // Add notification
+        const notifRef = collection(db, 'notifications', request.promoterId, 'messages');
+        batch.set(doc(notifRef), {
           title: 'Withdrawal Rejected ❌',
           message: `Your withdrawal of ${currency} ${request.amount.toFixed(2)} has been rejected. You can request again later.`,
           createdAt: timestamp,
@@ -184,6 +191,7 @@ if(!session || session.role !== 'admin'){
           requestId: reqId
         });
 
+        await batch.commit();
         showNotif(`❌ ${currency} withdrawal rejected.`);
         card.remove();
       } catch (err) {
@@ -194,6 +202,7 @@ if(!session || session.role !== 'admin'){
 
     container.appendChild(card);
   }
+
 }
 </script>
 
