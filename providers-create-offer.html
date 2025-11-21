@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>EarnLibr — Providers Create Offer</title>
-
 <style>
 :root {
   --bg: #0b0d17;
@@ -17,31 +16,30 @@
   --glass-2: rgba(255, 255, 255, 0.015);
   --radius: 12px;
 }
-
-html, body { height: 100%; margin: 0; font-family: Inter, system-ui, Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
+html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
 .wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
-.card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.03); overflow: hidden; }
-.sidebar { height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px; }
-.logo { display: flex; gap: 12px; align-items: center; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
-.logo img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
-.logo h2 { font-size: 16px; margin: 0; background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; }
-.nav { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.nav a { display: block; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: var(--muted); font-weight: 600; cursor: pointer; }
-.nav a.active, .nav a:hover { color: #041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
-.profile { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.03); display: flex; gap: 12px; align-items: center; }
-.avatar { width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #041018; }
-.main { min-height: 80vh; display: flex; flex-direction: column; gap: 18px; position: relative; }
-h1 { font-size: 20px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; margin: 0 0 10px 0; }
-form label { display: block; margin-top: 14px; color: var(--muted); font-size: 13px; }
-input, textarea, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); background: #071427; color: #fff; font-size: 14px; margin-top: 4px; }
-textarea { min-height: 80px; resize: vertical; }
-button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; }
-#imagePreview { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; }
-.notification { position: absolute; top: -10px; right: 0; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; opacity: 0.95; }
+.card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
+.sidebar { height: calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
+.logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03); }
+.logo img { width:44px; height:44px; object-fit:cover; border-radius:8px; }
+.logo h2 { font-size:16px; margin:0; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; }
+.nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
+.nav a.active, .nav a:hover { color:#041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+.profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center; }
+.avatar { width:44px; height:44px; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#041018; }
+.main { min-height:80vh; display:flex; flex-direction:column; gap:18px; position:relative; }
+h1 { font-size:20px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; margin:0 0 10px 0; }
+form label { display:block; margin-top:14px; color:var(--muted); font-size:13px; }
+input, textarea, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; margin-top:4px; }
+textarea { min-height:80px; resize:vertical; }
+button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight:700; color:#041018; cursor:pointer; }
+#imagePreview { width:100%; max-height:220px; object-fit:contain; border-radius:10px; margin-top:8px; display:none; }
+.notification { position:absolute; top:-10px; right:0; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; opacity:0.95; }
 .notification.success { background:#4ade80; color:#041018; }
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
-@media (max-width:980px) { .wrap { grid-template-columns: 1fr; padding: 14px; } .sidebar { position: relative; height: auto; } }
+@media (max-width:980px) { .wrap { grid-template-columns:1fr; padding:14px; } .sidebar { position:relative; height:auto; } }
 </style>
 </head>
 <body>
@@ -74,7 +72,6 @@ button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radi
 
   <main class="main card">
     <h1>Create a New Offer</h1>
-
     <form id="offerForm">
       <label>Title</label>
       <input type="text" id="title" placeholder="Enter product or service title" required />
@@ -107,19 +104,15 @@ button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radi
       <label>Upload Product Image</label>
       <input type="file" id="productImage" accept="image/*" />
       <img id="imagePreview" alt="Preview" />
-
       <button type="submit" id="submitBtn">Submit Offer for Verification</button>
     </form>
   </main>
 </div>
 
-<script type="module" src="firebase.js"></script>
-<script src="currencies.js"></script>
-
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
@@ -128,9 +121,7 @@ const imageInput = document.getElementById('productImage');
 const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
-
-let imageFullBase64 = "";
-let imageThumbnailBase64 = "";
+let imageBase64 = "";
 let userSession = null;
 
 function showNotification(message, type='info', duration=3000) {
@@ -147,7 +138,7 @@ if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No 
 userSession = JSON.parse(userSessionRaw);
 if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-// FIREBASE AUTH CHECK
+// FIRESTORE AUTH CHECK
 onAuthStateChanged(auth, (user) => {
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
     localStorage.removeItem('userSession');
@@ -160,80 +151,30 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 🔑 UPDATED FUNCTION TO CONTROL IMAGE SIZE (QUALITY FACTOR)
-// This function resizes to 200px width AND compresses the JPEG quality to 0.7 (70%).
-function createThumbnail(base64, maxWidth = 200, quality = 0.7) {
-  return new Promise((resolve) => {
-    // Check size of the Base64 string before processing to skip tiny images
-    if (base64.length < 50000) { // Small optimization: If image is under ~50KB, just return it.
-        return resolve(base64); 
-    }
-    
-    const img = new Image();
-    img.src = base64;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ratio = maxWidth / img.width;
-      
-      // Only resize if the image is larger than maxWidth
-      if (img.width > maxWidth) {
-        canvas.width = maxWidth;
-        canvas.height = img.height * ratio;
-      } else {
-        canvas.width = img.width;
-        canvas.height = img.height;
-      }
-
-      const ctx = canvas.getContext('2d');
-      // Draw image at the (potentially scaled) size
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
-      
-      // Compresses to JPEG with the set quality factor (0.7)
-      resolve(canvas.toDataURL('image/jpeg', quality)); 
-    };
-  });
-}
-
-// HANDLER ATTACHMENT
 function attachHandlers() {
   document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
   document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
-  document.getElementById('logoutBtn').onclick = async () => { 
-    try { await signOut(auth); } catch(e){}
-    localStorage.removeItem('userSession'); 
-    window.location.href='login.html'; 
-  };
-  
-  if (typeof populateCurrencyDropdown === 'function') {
-    populateCurrencyDropdown("currency");
-  }
+  document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
 
-  imageInput.addEventListener("change", async e => {
+  // Image preview
+  imageInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = async (event) => { 
-        imageFullBase64 = event.target.result; 
-        imagePreview.src = imageFullBase64; 
-        imagePreview.style.display="block"; 
-
-        // Create thumbnail with compression
-        imageThumbnailBase64 = await createThumbnail(imageFullBase64, 200, 0.7);
-      };
+      reader.onload = (event) => { imageBase64 = event.target.result; imagePreview.src=imageBase64; imagePreview.style.display="block"; };
       reader.readAsDataURL(file);
     }
   });
 
+  // Form submission
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
     showNotification("Submitting offer...", "info");
 
-    const uid = userSession.uid;
-
     const offerData = {
-      providerId: uid,
+      providerId: userSession.uid,
       title: title.value.trim(),
       description: description.value.trim(),
       category: category.value,
@@ -243,30 +184,23 @@ function attachHandlers() {
       commissionValue: parseFloat(commissionValue.value),
       promotionBudget: parseFloat(promotionBudget.value),
       totalProducts: parseInt(totalProducts.value),
-      // Submitting the compressed thumbnail and full image Base64 
-      thumbnailBase64: imageThumbnailBase64 || null, // for Admin preview (smaller size)
-      imageFullBase64: imageFullBase64 || null,     // for Cloudinary upload (full size for approval)
+      imageTemp: imageBase64 || null,
       status: "pending",
       createdAt: new Date().toISOString()
     };
 
     try {
-      // Correct path: Saves to offers_pending/{uid}/offers/{offerId}
-      const pendingOffersRef = collection(db, "offers_pending", uid, "offers");
-      await addDoc(pendingOffersRef, offerData);
-      
+      await addDoc(collection(db, "offers_pending"), offerData);
       showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display="none";
-      imageFullBase64="";
-      imageThumbnailBase64="";
-    } catch(err) { 
-      console.error(err); 
-      showNotification("Error submitting offer: "+err.message,"error"); 
+      imageBase64="";
+    } catch(err) {
+      console.error(err);
+      showNotification("Error submitting offer: "+err.message,"error");
     } finally { submitBtn.disabled=false; }
   });
 }
 </script>
 </body>
-  </html>
-  
+</html>
