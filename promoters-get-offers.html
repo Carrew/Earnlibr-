@@ -162,7 +162,7 @@ h1 {
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const offerGrid = document.getElementById('offerGrid');
 const notification = document.getElementById('notification');
@@ -177,22 +177,38 @@ function showNotification(message) {
   setTimeout(() => notification.classList.remove('show'), 2500);
 }
 
+// --- Auth check & session ---
 onAuthStateChanged(auth, async (user) => {
   if (!user || !user.emailVerified) return window.location.href='login.html';
   const sessionRaw = localStorage.getItem('userSession');
   const session = sessionRaw ? JSON.parse(sessionRaw) : null;
   if (!session || session.role !== 'freelancer') return window.location.href='login.html';
-  loadOffers(session.uid);
+  loadOffers();
 });
 
-async function loadOffers(promoterId) {
+// --- Load all verified, active offers from all providers ---
+async function loadOffers() {
   try {
-    const offersCol = collection(db, 'offers');
-    const q = query(offersCol, where('verified','==',true), where('status','==','active'));
-    const snap = await getDocs(q);
-    allOffers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const providersCol = collection(db, "offers"); // main offers collection
+    const providersSnap = await getDocs(providersCol);
+
+    allOffers = [];
+
+    for (const providerDoc of providersSnap.docs) {
+      const providerId = providerDoc.id;
+      const offersSubCol = collection(db, `offers/${providerId}/offers`);
+      const offersSnap = await getDocs(offersSubCol);
+      offersSnap.forEach(docSnap => {
+        const offer = docSnap.data();
+        if (offer.verified && offer.status === 'active') {
+          allOffers.push({ id: docSnap.id, providerId, ...offer });
+        }
+      });
+    }
+
     populateCategories();
-    displayOffers(allOffers, promoterId);
+    displayOffers(allOffers);
+
   } catch(err) { console.error(err); showNotification('Failed to load offers.'); }
 }
 
@@ -202,7 +218,8 @@ function populateCategories() {
     categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 }
 
-function displayOffers(offers, promoterId) {
+function displayOffers(offers) {
+  const session = JSON.parse(localStorage.getItem('userSession'));
   offerGrid.innerHTML = "";
   if (!offers.length) {
     offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;padding-top:30px;'>No offers available for this filter.</div>";
@@ -211,7 +228,7 @@ function displayOffers(offers, promoterId) {
   offers.forEach(offer => {
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";
     const desc = offer.description ? offer.description.substring(0,100)+"..." : '';
-    const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${promoterId}`;
+    const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${session.uid}`;
     const card = document.createElement('div');
     card.className='offer-card';
     card.innerHTML = `
@@ -257,18 +274,16 @@ function displayOffers(offers, promoterId) {
 function applyFilters() {
   const cat = categoryFilter.value;
   const search = searchInput.value.toLowerCase();
-  const session = JSON.parse(localStorage.getItem('userSession'));
   const filtered = allOffers.filter(o=>{
     const matchesCat = !cat || o.category===cat;
     const matchesSearch = o.title.toLowerCase().includes(search) || (o.description && o.description.toLowerCase().includes(search));
     return matchesCat && matchesSearch;
   });
-  displayOffers(filtered, session.uid);
+  displayOffers(filtered);
 }
 categoryFilter.addEventListener('change', applyFilters);
 searchInput.addEventListener('input', applyFilters);
 clearFiltersBtn.addEventListener('click', ()=>{ categoryFilter.value=''; searchInput.value=''; applyFilters(); });
-
 </script>
 </body>
 </html>
