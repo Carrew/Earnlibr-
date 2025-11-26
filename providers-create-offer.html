@@ -117,6 +117,9 @@ import { auth, db } from "./firebase.js";
 import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
+// ✅ Import the currency function
+import { populateCurrencyDropdown } from './currencies.js';
+
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
 const avatarEl = document.getElementById('avatar');
@@ -164,10 +167,8 @@ function compressImage(file, maxSizeMB = 2) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let [w, h] = [img.width, img.height];
-        // scale down proportionally if too large
         let ratio = 1;
         let quality = 0.8;
-        let blobData;
         const compress = () => {
           canvas.width = w * ratio;
           canvas.height = h * ratio;
@@ -175,7 +176,7 @@ function compressImage(file, maxSizeMB = 2) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           canvas.toBlob(blob => {
             if(blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
-              ratio *= 0.8; // reduce size
+              ratio *= 0.8;
               compress();
             } else {
               const reader2 = new FileReader();
@@ -199,7 +200,7 @@ function attachHandlers() {
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
   document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
 
-  // Populate currency dropdown
+  // ✅ Populate currency dropdown
   populateCurrencyDropdown('currency');
 
   // Image preview & compression
@@ -207,6 +208,54 @@ function attachHandlers() {
     const file = e.target.files[0];
     if (file) {
       showNotification("Processing image...", "info", 1500);
+      try {
+        imageBase64 = await compressImage(file);
+        imagePreview.src = imageBase64;
+        imagePreview.style.display = "block";
+      } catch(err) {
+        console.error(err);
+        showNotification("Error processing image","error");
+      }
+    }
+  });
+
+  // Form submission
+  offerForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    showNotification("Submitting offer...", "info");
+
+    const offerData = {
+      providerId: userSession.uid,
+      title: title.value.trim(),
+      description: description.value.trim(),
+      category: category.value,
+      currency: currency.value,
+      price: parseFloat(price.value),
+      commissionType: commissionType.value,
+      commissionValue: parseFloat(commissionValue.value),
+      promotionBudget: parseFloat(promotionBudget.value),
+      totalProducts: parseInt(totalProducts.value),
+      imageTemp: imageBase64 || null,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await addDoc(collection(db, "offers_pending"), offerData);
+      showNotification("Offer submitted for verification!", "success");
+      offerForm.reset();
+      imagePreview.style.display = "none";
+      imageBase64="";
+    } catch(err) {
+      console.error(err);
+      showNotification("Error submitting offer: "+err.message,"error");
+    } finally { submitBtn.disabled=false; }
+  });
+}
+</script>
+</body>
+</html>..", "info", 1500);
       try {
         imageBase64 = await compressImage(file);
         imagePreview.src = imageBase64;
