@@ -1,7 +1,7 @@
 // currencies.js
-// Global list of world currencies for Earnlibr Offer System
+// Global list of world currencies for EarnLibr Offer System
 
-const currencies = [
+export const currencies = [
   { code: "USD", name: "US Dollar", symbol: "$" },
   { code: "EUR", name: "Euro", symbol: "€" },
   { code: "GBP", name: "British Pound", symbol: "£" },
@@ -29,14 +29,18 @@ const currencies = [
   { code: "XAF", name: "Central African CFA Franc", symbol: "FCFA" }
 ];
 
-// Dynamically populate dropdown (for create-offer.html)
-function populateCurrencyDropdown(selectId) {
+// Function to populate dropdown
+export function populateCurrencyDropdown(selectId) {
   const select = document.getElementById(selectId);
   if (!select) return;
+
+  // Optional: clear any existing options before populating
+  select.innerHTML = '<option value="">Select currency</option>';
+
   currencies.forEach(currency => {
     const option = document.createElement("option");
     option.value = currency.code;
     option.textContent = `${currency.name} (${currency.symbol})`;
     select.appendChild(option);
   });
-                            }
+}
