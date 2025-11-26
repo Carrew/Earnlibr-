@@ -108,15 +108,10 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
     </form>
   </main>
 </div>
-
-<!-- Include currencies.js -->
-<script type="module" src="currencies.js"></script>
-
-<script type="module">
+  <script type="module">
 /* ---------------- FIXED FIRESTORE IMPORTS ---------------- */
 import { auth, db } from "./firebase.js";
 import {
-  getFirestore,
   collection,
   addDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -125,6 +120,13 @@ import {
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+/* ---------------- DEBUG LOGGING ---------------- */
+console.log("🔥 Script Loaded");
+console.log("🔥 Imported auth:", auth);
+console.log("🔥 Imported db (from firebase.js):", db);
+console.log("🔥 Firestore addDoc:", addDoc);
+console.log("🔥 Firestore collection:", collection);
 
 /* ---------------- REST OF YOUR ORIGINAL CODE ---------------- */
 
@@ -149,6 +151,7 @@ const promotionBudget = document.getElementById('promotionBudget');
 const totalProducts = document.getElementById('totalProducts');
 
 function showNotification(message, type='info', duration=3000) {
+  console.log(`🔔 Notification (${type}):`, message);
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
   notif.textContent = message;
@@ -156,12 +159,36 @@ function showNotification(message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);
 }
 
+/* ---------------- SESSION DEBUG ---------------- */
 const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
-userSession = JSON.parse(userSessionRaw);
-if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
+console.log("📦 Raw session:", userSessionRaw);
 
+if (!userSessionRaw) { 
+  console.error("❌ No session found");
+  window.location.href = 'login.html'; 
+  throw new Error('No session'); 
+}
+
+userSession = JSON.parse(userSessionRaw);
+console.log("📦 Parsed session:", userSession);
+
+if (userSession.role !== 'provider') { 
+  console.error("❌ Unauthorized role:", userSession.role);
+  localStorage.removeItem('userSession'); 
+  window.location.href='login.html'; 
+  throw new Error('Unauthorized'); 
+}
+
+/* ---------------- AUTH STATE DEBUG ---------------- */
 onAuthStateChanged(auth, (user) => {
+  console.log("👤 Auth state changed:", user);
+
+  if (!user) console.error("❌ No Firebase user detected");
+  if (user && user.uid !== userSession.uid)
+    console.error("❌ UID mismatch:", user.uid, "!=", userSession.uid);
+  if (user && !user.emailVerified)
+    console.error("❌ Email NOT verified");
+
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
     localStorage.removeItem('userSession');
     window.location.href = 'login.html';
@@ -173,52 +200,76 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+/* ---------------- IMAGE COMPRESS DEBUG ---------------- */
 function compressImage(file, maxSizeMB = 2) {
+  console.log("🖼️ Starting compression:", file);
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = event => {
       const img = new Image();
       img.src = event.target.result;
+
       img.onload = () => {
+        console.log("🖼️ Image loaded:", img.width, "x", img.height);
         const canvas = document.createElement('canvas');
         let [w, h] = [img.width, img.height];
         let ratio = 1;
         let quality = 0.8;
+
         const compress = () => {
           canvas.width = w * ratio;
           canvas.height = h * ratio;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
           canvas.toBlob(blob => {
+            console.log("🗜️ Blob size:", blob.size / 1024, "KB");
+
             if(blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
               ratio *= 0.8;
               compress();
             } else {
               const reader2 = new FileReader();
-              reader2.onload = e => resolve(e.target.result);
+              reader2.onload = e => {
+                console.log("🖼️ Final compressed image size:", e.target.result.length);
+                resolve(e.target.result);
+              };
               reader2.readAsDataURL(blob);
             }
           }, 'image/jpeg', quality);
         };
         compress();
       };
-      img.onerror = reject;
+      img.onerror = err => {
+        console.error("❌ Image load error:", err);
+        reject(err);
+      };
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
+/* ---------------- HANDLERS ---------------- */
 function attachHandlers() {
+  console.log("⚙️ Handlers attached");
+
   document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
   document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
-  document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
+  document.getElementById('logoutBtn').onclick = async () => { 
+    console.log("🔌 Logging out…");
+    try { await signOut(auth); } catch(e){ console.error("Logout error:", e); }
+    localStorage.removeItem('userSession'); 
+    window.location.href='login.html';
+  };
 
   populateCurrencyDropdown('currency');
 
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
+    console.log("📸 File chosen:", file);
     if (file) {
       showNotification("Processing image...", "info", 1500);
       try {
@@ -226,16 +277,16 @@ function attachHandlers() {
         imagePreview.src = imageBase64;
         imagePreview.style.display = "block";
       } catch(err) {
-        console.error(err);
+        console.error("❌ Image compression error:", err);
         showNotification("Error processing image","error");
       }
     }
   });
 
+  /* ---------------- OFFER SUBMISSION DEBUG ---------------- */
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
-    showNotification("Submitting offer...", "info");
 
     const offerData = {
       providerId: userSession.uid,
@@ -253,18 +304,29 @@ function attachHandlers() {
       createdAt: new Date().toISOString()
     };
 
+    console.log("📤 FINAL offerData:", offerData);
+    console.log("🔥 Using Firestore DB instance:", db);
+
+    showNotification("Submitting offer...", "info");
+
     try {
-      await addDoc(collection(db, "offers_pending"), offerData);
+      console.log("📩 Sending to Firestore...");
+      const ref = await addDoc(collection(db, "offers_pending"), offerData);
+      console.log("🎉 Firestore response:", ref);
+
       showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display = "none";
       imageBase64="";
+
     } catch(err) {
       console.error("🔥 Firestore ERROR:", err);
       showNotification("Error submitting offer","error");
-    } finally { submitBtn.disabled=false; }
+    } finally { 
+      submitBtn.disabled=false; 
+    }
   });
 }
-</script>
+  </script>
 </body>
 </html>
