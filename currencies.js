@@ -29,12 +29,12 @@ const currencies = [
   { code: "XAF", name: "Central African CFA Franc", symbol: "FCFA" }
 ];
 
-// Function to populate dropdown
+// Function to populate a dropdown
 function populateCurrencyDropdown(selectId = 'currency') {
   const select = document.getElementById(selectId);
   if (!select) return;
 
-  // Clear existing options
+  // Clear any existing options
   select.innerHTML = '<option value="">Select currency</option>';
 
   currencies.forEach(currency => {
@@ -45,10 +45,13 @@ function populateCurrencyDropdown(selectId = 'currency') {
   });
 }
 
-// Immediately populate the currency dropdown when the module loads
-document.addEventListener('DOMContentLoaded', () => {
+// Auto-populate as soon as the DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => populateCurrencyDropdown());
+} else {
+  // DOM already loaded
   populateCurrencyDropdown();
-});
+}
 
-// Optional: export if needed elsewhere
+// Optional: export if other modules need it
 export { currencies, populateCurrencyDropdown };
