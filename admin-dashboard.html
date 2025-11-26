@@ -46,13 +46,32 @@ header img { height:50px; margin-right:15px; } header h1 { font-size:24px; font-
   <button id="logoutBtn" class="logout-btn">Logout</button>
 </div>
 
+<!-- Updated grid-container with data-url and no inline onclick -->
 <div class="grid-container">
-  <div class="grid-card" onclick="navigate('admin-approve-promoters-payout.html')"><i class="fas fa-hand-holding-usd"></i><span>Approve Promoters Payout</span></div>
-  <div class="grid-card" onclick="navigate('admin-commission-settings.html')"><i class="fas fa-cogs"></i><span>Commission Settings</span></div>
-  <div class="grid-card" onclick="navigate('admin-deals-management.html')"><i class="fas fa-briefcase"></i><span>Deals Management</span></div>
-  <div class="grid-card" onclick="navigate('admin-providers-bill.html')"><i class="fas fa-file-invoice-dollar"></i><span>Providers Bills</span></div>
-  <div class="grid-card" onclick="navigate('admin-providers-payments-verify.html')"><i class="fas fa-check-circle"></i><span>Verify Providers Payments</span></div>
-  <div class="grid-card" onclick="navigate('admin-verify-offers.html')"><i class="fas fa-tags"></i><span>Verify Offers</span></div>
+  <div class="grid-card" data-url="admin-approve-promoters-payout.html">
+    <i class="fas fa-hand-holding-usd"></i>
+    <span>Approve Promoters Payout</span>
+  </div>
+  <div class="grid-card" data-url="admin-commission-settings.html">
+    <i class="fas fa-cogs"></i>
+    <span>Commission Settings</span>
+  </div>
+  <div class="grid-card" data-url="admin-deals-management.html">
+    <i class="fas fa-briefcase"></i>
+    <span>Deals Management</span>
+  </div>
+  <div class="grid-card" data-url="admin-providers-bill.html">
+    <i class="fas fa-file-invoice-dollar"></i>
+    <span>Providers Bills</span>
+  </div>
+  <div class="grid-card" data-url="admin-providers-payments-verify.html">
+    <i class="fas fa-check-circle"></i>
+    <span>Verify Providers Payments</span>
+  </div>
+  <div class="grid-card" data-url="admin-verify-offers.html">
+    <i class="fas fa-tags"></i>
+    <span>Verify Offers</span>
+  </div>
 </div>
 
 <script type="module">
@@ -99,7 +118,15 @@ logoutBtn.addEventListener('click', async ()=>{
   window.location.href='login.html';
 });
 
-function navigate(url){ window.location.href=url; }
+// ✅ New navigation logic using data-url (Option A)
+document.querySelectorAll('.grid-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const url = card.dataset.url;
+    if (url) {
+      window.location.href = url;
+    }
+  });
+});
 </script>
 
 </body>
