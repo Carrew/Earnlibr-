@@ -1,7 +1,7 @@
 // currencies.js
-// Global list of world currencies for EarnLibr Offer System
+// Self-initializing module to populate currency dropdown
 
-export const currencies = [
+const currencies = [
   { code: "USD", name: "US Dollar", symbol: "$" },
   { code: "EUR", name: "Euro", symbol: "€" },
   { code: "GBP", name: "British Pound", symbol: "£" },
@@ -30,11 +30,11 @@ export const currencies = [
 ];
 
 // Function to populate dropdown
-export function populateCurrencyDropdown(selectId) {
+function populateCurrencyDropdown(selectId = 'currency') {
   const select = document.getElementById(selectId);
   if (!select) return;
 
-  // Optional: clear any existing options before populating
+  // Clear existing options
   select.innerHTML = '<option value="">Select currency</option>';
 
   currencies.forEach(currency => {
@@ -44,3 +44,11 @@ export function populateCurrencyDropdown(selectId) {
     select.appendChild(option);
   });
 }
+
+// Immediately populate the currency dropdown when the module loads
+document.addEventListener('DOMContentLoaded', () => {
+  populateCurrencyDropdown();
+});
+
+// Optional: export if needed elsewhere
+export { currencies, populateCurrencyDropdown };
