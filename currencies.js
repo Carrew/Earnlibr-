@@ -1,5 +1,5 @@
 // currencies.js
-// Self-initializing module to populate currency dropdown
+// Ultra-fast self-populating currency dropdown
 
 const currencies = [
   { code: "USD", name: "US Dollar", symbol: "$" },
@@ -32,9 +32,9 @@ const currencies = [
 // Function to populate a dropdown
 function populateCurrencyDropdown(selectId = 'currency') {
   const select = document.getElementById(selectId);
-  if (!select) return;
+  if (!select) return false;
 
-  // Clear any existing options
+  // Clear existing options
   select.innerHTML = '<option value="">Select currency</option>';
 
   currencies.forEach(currency => {
@@ -43,15 +43,16 @@ function populateCurrencyDropdown(selectId = 'currency') {
     option.textContent = `${currency.name} (${currency.symbol})`;
     select.appendChild(option);
   });
+
+  return true;
 }
 
-// Auto-populate as soon as the DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => populateCurrencyDropdown());
-} else {
-  // DOM already loaded
-  populateCurrencyDropdown();
-}
-
-// Optional: export if other modules need it
+// Try populating immediately; retry briefly if element isn't ready yet
+(function tryPopulate(retries = 5, delay = 50) {
+  if (populateCurrencyDropdown()) return; // success
+  if (retries <= 0) return;              // give up
+  setTimeout(() => tryPopulate(retries - 1, delay), delay);
+})();
+  
+// Optional: export for other modules
 export { currencies, populateCurrencyDropdown };
