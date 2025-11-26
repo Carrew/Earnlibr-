@@ -12,11 +12,11 @@
   --accent2: #a3ff6e;
   --muted: #bfc7d6;
   --danger: #e74c3c;
-  --glass: rgba(255, 255, 255, 0.02);
-  --glass-2: rgba(255, 255, 255, 0.015);
+  --glass: rgba(255,255,255,0.02);
+  --glass-2: rgba(255,255,255,0.015);
   --radius: 12px;
 }
-html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
+html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color:#eef2f7; }
 .wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
 .card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
 .sidebar { height: calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
@@ -40,9 +40,29 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
 @media (max-width:980px) { .wrap { grid-template-columns:1fr; padding:14px; } .sidebar { position:relative; height:auto; } }
+
+/* NEW DEBUG PANEL */
+#debugPanel {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 320px;
+  height: 230px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  color: #aaffaa;
+  overflow-y: auto;
+  z-index: 9999;
+}
 </style>
 </head>
 <body>
+
+<div id="debugPanel">Debug Log:</div>
+
 <div class="wrap">
   <aside class="card sidebar">
     <div class="logo">
@@ -74,9 +94,9 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
     <h1>Create a New Offer</h1>
     <form id="offerForm">
       <label>Title</label>
-      <input type="text" id="title" placeholder="Enter product or service title" required />
+      <input type="text" id="title" required />
       <label>Description</label>
-      <textarea id="description" placeholder="Describe your product/service" required></textarea>
+      <textarea id="description" required></textarea>
       <label>Category</label>
       <select id="category" required>
         <option value="">Select category</option>
@@ -89,18 +109,18 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
       <label>Currency</label>
       <select id="currency" required></select>
       <label>Price</label>
-      <input type="number" id="price" placeholder="Main price" required />
+      <input type="number" id="price" required />
       <label>Commission Type</label>
       <select id="commissionType" required>
         <option value="fixed">Fixed</option>
         <option value="percentage">Percentage</option>
       </select>
       <label>Commission Value</label>
-      <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+      <input type="number" id="commissionValue" required />
       <label>Promotion Budget</label>
-      <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+      <input type="number" id="promotionBudget" required />
       <label>Total Products Available</label>
-      <input type="number" id="totalProducts" placeholder="How many items available" required />
+      <input type="number" id="totalProducts" required />
       <label>Upload Product Image</label>
       <input type="file" id="productImage" accept="image/*" />
       <img id="imagePreview" alt="Preview" />
@@ -108,50 +128,59 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
     </form>
   </main>
 </div>
-  <script type="module">
-/* ---------------- FIXED FIRESTORE IMPORTS ---------------- */
+
+<script type="module" src="currencies.js"></script>
+
+<script type="module">
+/*********************************
+     GLOBAL DEBUG LOGGER
+*********************************/
+function LOG(...msg) {
+  console.log("[DEBUG]", ...msg);
+
+  const panel = document.getElementById("debugPanel");
+  if (panel) {
+    const line = document.createElement("div");
+    line.textContent = msg.join(" ");
+    panel.appendChild(line);
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  // Optional: Enable this to log to Firestore
+  // addDoc(collection(db, "debug_logs"), { time: Date.now(), msg });
+}
+
+/*********************************
+        FIREBASE IMPORTS
+*********************************/
 import { auth, db } from "./firebase.js";
 import {
-  collection,
-  addDoc
+  collection, addDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 import {
-  signOut,
-  onAuthStateChanged
+  signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-/* ---------------- DEBUG LOGGING ---------------- */
-console.log("🔥 Script Loaded");
-console.log("🔥 Imported auth:", auth);
-console.log("🔥 Imported db (from firebase.js):", db);
-console.log("🔥 Firestore addDoc:", addDoc);
-console.log("🔥 Firestore collection:", collection);
-
-/* ---------------- REST OF YOUR ORIGINAL CODE ---------------- */
-
+/*********************************
+          ELEMENTS
+*********************************/
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
 const avatarEl = document.getElementById('avatar');
+
 const imageInput = document.getElementById('productImage');
 const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
+
 let imageBase64 = "";
 let userSession = null;
 
-const title = document.getElementById('title');
-const description = document.getElementById('description');
-const category = document.getElementById('category');
-const currency = document.getElementById('currency');
-const price = document.getElementById('price');
-const commissionType = document.getElementById('commissionType');
-const commissionValue = document.getElementById('commissionValue');
-const promotionBudget = document.getElementById('promotionBudget');
-const totalProducts = document.getElementById('totalProducts');
-
+/*********************************
+     NOTIFICATION SYSTEM
+*********************************/
 function showNotification(message, type='info', duration=3000) {
-  console.log(`🔔 Notification (${type}):`, message);
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
   notif.textContent = message;
@@ -159,37 +188,36 @@ function showNotification(message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);
 }
 
-/* ---------------- SESSION DEBUG ---------------- */
-const userSessionRaw = localStorage.getItem('userSession');
-console.log("📦 Raw session:", userSessionRaw);
+/*********************************
+      SESSION VALIDATION
+*********************************/
+LOG("Checking user session...");
 
-if (!userSessionRaw) { 
-  console.error("❌ No session found");
-  window.location.href = 'login.html'; 
-  throw new Error('No session'); 
+const userSessionRaw = localStorage.getItem('userSession');
+
+if (!userSessionRaw) {
+  LOG("No session found → redirecting");
+  window.location.href = 'login.html';
+  throw new Error('No session');
 }
 
 userSession = JSON.parse(userSessionRaw);
-console.log("📦 Parsed session:", userSession);
+LOG("Loaded session:", userSession);
 
-if (userSession.role !== 'provider') { 
-  console.error("❌ Unauthorized role:", userSession.role);
-  localStorage.removeItem('userSession'); 
-  window.location.href='login.html'; 
-  throw new Error('Unauthorized'); 
+if (userSession.role !== 'provider') {
+  LOG("Invalid role:", userSession.role);
+  localStorage.removeItem('userSession');
+  window.location.href = 'login.html';
 }
 
-/* ---------------- AUTH STATE DEBUG ---------------- */
+/*********************************
+     AUTH STATE LISTENER
+*********************************/
 onAuthStateChanged(auth, (user) => {
-  console.log("👤 Auth state changed:", user);
-
-  if (!user) console.error("❌ No Firebase user detected");
-  if (user && user.uid !== userSession.uid)
-    console.error("❌ UID mismatch:", user.uid, "!=", userSession.uid);
-  if (user && !user.emailVerified)
-    console.error("❌ Email NOT verified");
+  LOG("Auth change:", user);
 
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    LOG("User invalid or not verified");
     localStorage.removeItem('userSession');
     window.location.href = 'login.html';
   } else {
@@ -200,93 +228,101 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-/* ---------------- IMAGE COMPRESS DEBUG ---------------- */
+/*********************************
+        IMAGE COMPRESSION
+*********************************/
 function compressImage(file, maxSizeMB = 2) {
-  console.log("🖼️ Starting compression:", file);
+  LOG("Compressing image:", file.name);
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = event => {
       const img = new Image();
       img.src = event.target.result;
 
       img.onload = () => {
-        console.log("🖼️ Image loaded:", img.width, "x", img.height);
+        LOG("Image loaded for compression");
+
         const canvas = document.createElement('canvas');
-        let [w, h] = [img.width, img.height];
         let ratio = 1;
-        let quality = 0.8;
 
         const compress = () => {
-          canvas.width = w * ratio;
-          canvas.height = h * ratio;
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           canvas.toBlob(blob => {
-            console.log("🗜️ Blob size:", blob.size / 1024, "KB");
+            LOG("Compression attempt — size:", blob.size);
 
-            if(blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
-              ratio *= 0.8;
+            if (blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.2) {
+              ratio *= 0.7;
               compress();
             } else {
               const reader2 = new FileReader();
-              reader2.onload = e => {
-                console.log("🖼️ Final compressed image size:", e.target.result.length);
-                resolve(e.target.result);
-              };
+              reader2.onload = e => resolve(e.target.result);
               reader2.readAsDataURL(blob);
             }
-          }, 'image/jpeg', quality);
+          }, 'image/jpeg', 0.8);
         };
+
         compress();
       };
-      img.onerror = err => {
-        console.error("❌ Image load error:", err);
-        reject(err);
-      };
+
+      img.onerror = reject;
     };
+
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-/* ---------------- HANDLERS ---------------- */
+/*********************************
+           HANDLERS
+*********************************/
 function attachHandlers() {
-  console.log("⚙️ Handlers attached");
+  LOG("Handlers attached");
 
-  document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
-  document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
-  document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
-  document.getElementById('logoutBtn').onclick = async () => { 
-    console.log("🔌 Logging out…");
-    try { await signOut(auth); } catch(e){ console.error("Logout error:", e); }
-    localStorage.removeItem('userSession'); 
-    window.location.href='login.html';
+  document.getElementById('nav-dashboard').onclick = () => location.href='provider-dashboard.html';
+  document.getElementById('nav-offers').onclick = () => location.href='manage-offers.html';
+  document.getElementById('nav-notifs').onclick = () => location.href='notifications.html';
+
+  document.getElementById('logoutBtn').onclick = async () => {
+    LOG("Logging out...");
+    await signOut(auth);
+    localStorage.removeItem('userSession');
+    location.href='login.html';
   };
 
   populateCurrencyDropdown('currency');
 
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
-    console.log("📸 File chosen:", file);
-    if (file) {
-      showNotification("Processing image...", "info", 1500);
-      try {
-        imageBase64 = await compressImage(file);
-        imagePreview.src = imageBase64;
-        imagePreview.style.display = "block";
-      } catch(err) {
-        console.error("❌ Image compression error:", err);
-        showNotification("Error processing image","error");
-      }
+    if (!file) return;
+
+    LOG("Image selected:", file.name);
+    showNotification("Processing image...", "info");
+
+    try {
+      imageBase64 = await compressImage(file);
+      LOG("Image compressed");
+      imagePreview.src = imageBase64;
+      imagePreview.style.display = "block";
+    } catch(err) {
+      LOG("Image error:", err);
+      showNotification("Image processing failed","error");
     }
   });
 
-  /* ---------------- OFFER SUBMISSION DEBUG ---------------- */
+  /*********************************
+         FORM SUBMISSION
+  *********************************/
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
+    showNotification("Submitting offer...", "info");
 
     const offerData = {
       providerId: userSession.uid,
@@ -294,39 +330,34 @@ function attachHandlers() {
       description: description.value.trim(),
       category: category.value,
       currency: currency.value,
-      price: parseFloat(price.value),
+      price: Number(price.value),
       commissionType: commissionType.value,
-      commissionValue: parseFloat(commissionValue.value),
-      promotionBudget: parseFloat(promotionBudget.value),
-      totalProducts: parseInt(totalProducts.value),
+      commissionValue: Number(commissionValue.value),
+      promotionBudget: Number(promotionBudget.value),
+      totalProducts: Number(totalProducts.value),
       imageTemp: imageBase64 || null,
       status: "pending",
       createdAt: new Date().toISOString()
     };
 
-    console.log("📤 FINAL offerData:", offerData);
-    console.log("🔥 Using Firestore DB instance:", db);
-
-    showNotification("Submitting offer...", "info");
+    LOG("Offer data to submit:", offerData);
 
     try {
-      console.log("📩 Sending to Firestore...");
       const ref = await addDoc(collection(db, "offers_pending"), offerData);
-      console.log("🎉 Firestore response:", ref);
+      LOG("Firestore success:", ref.id);
+      showNotification("Offer submitted!", "success");
 
-      showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
       imagePreview.style.display = "none";
-      imageBase64="";
-
+      imageBase64 = "";
     } catch(err) {
-      console.error("🔥 Firestore ERROR:", err);
-      showNotification("Error submitting offer","error");
-    } finally { 
-      submitBtn.disabled=false; 
+      LOG("Firestore ERROR:", err);
+      showNotification("Submission error","error");
     }
+
+    submitBtn.disabled = false;
   });
 }
-  </script>
+</script>
 </body>
 </html>
