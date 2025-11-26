@@ -4,39 +4,52 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>EarnLibr — Providers Create Offer</title>
-
-<!-- CSS REMOVED BY USER REQUEST -->
 <style>
-/* CSS REMOVED */
-#debugPanel {
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  width: 320px;
-  height: 230px;
-  background: rgba(0,0,0,0.6);
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 12px;
-  color: #aaffaa;
-  overflow-y: auto;
-  z-index: 9999;
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #e74c3c;
+  --glass: rgba(255, 255, 255, 0.02);
+  --glass-2: rgba(255, 255, 255, 0.015);
+  --radius: 12px;
 }
+html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
+.wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+.card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
+.sidebar { height: calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
+.logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03); }
+.logo img { width:44px; height:44px; object-fit:cover; border-radius:8px; }
+.logo h2 { font-size:16px; margin:0; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; }
+.nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
+.nav a.active, .nav a:hover { color:#041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+.profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center; }
+.avatar { width:44px; height:44px; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#041018; }
+.main { min-height:80vh; display:flex; flex-direction:column; gap:18px; position:relative; }
+h1 { font-size:20px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; margin:0 0 10px 0; }
+form label { display:block; margin-top:14px; color:var(--muted); font-size:13px; }
+input, textarea, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; margin-top:4px; }
+textarea { min-height:80px; resize:vertical; }
+button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight:700; color:#041018; cursor:pointer; }
+#imagePreview { width:100%; max-height:220px; object-fit:contain; border-radius:10px; margin-top:8px; display:none; }
+.notification { position:absolute; top:-10px; right:0; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; opacity:0.95; }
+.notification.success { background:#4ade80; color:#041018; }
+.notification.error { background:#ef4444; color:#fff; }
+.notification.info { background:#3b82f6; color:#fff; }
+@media (max-width:980px) { .wrap { grid-template-columns:1fr; padding:14px; } .sidebar { position:relative; height:auto; } }
 </style>
-
 </head>
 <body>
-
-<div id="debugPanel">Debug Log:</div>
-
 <div class="wrap">
   <aside class="card sidebar">
     <div class="logo">
       <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo">
       <div>
         <h2>EarnLibr</h2>
-        <div>Provider Panel</div>
+        <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
       </div>
     </div>
     <nav class="nav">
@@ -48,11 +61,11 @@
     <div class="profile">
       <div id="avatar" class="avatar">P</div>
       <div>
-        <div id="providerName">Loading...</div>
-        <div id="providerEmail">—</div>
+        <div id="providerName" style="font-weight:700;">Loading...</div>
+        <div id="providerEmail" class="muted">—</div>
       </div>
       <div style="margin-left:auto">
-        <button id="logoutBtn">Logout</button>
+        <button id="logoutBtn" class="btn" style="padding:6px 10px;">Logout</button>
       </div>
     </div>
   </aside>
@@ -61,11 +74,9 @@
     <h1>Create a New Offer</h1>
     <form id="offerForm">
       <label>Title</label>
-      <input type="text" id="title" required />
-
+      <input type="text" id="title" placeholder="Enter product or service title" required />
       <label>Description</label>
-      <textarea id="description" required></textarea>
-
+      <textarea id="description" placeholder="Describe your product/service" required></textarea>
       <label>Category</label>
       <select id="category" required>
         <option value="">Select category</option>
@@ -75,189 +86,156 @@
         <option>Consultation</option>
         <option>Other</option>
       </select>
-
       <label>Currency</label>
       <select id="currency" required></select>
-
       <label>Price</label>
-      <input type="number" id="price" required />
-
+      <input type="number" id="price" placeholder="Main price" required />
       <label>Commission Type</label>
       <select id="commissionType" required>
         <option value="fixed">Fixed</option>
         <option value="percentage">Percentage</option>
       </select>
-
       <label>Commission Value</label>
-      <input type="number" id="commissionValue" required />
-
+      <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
       <label>Promotion Budget</label>
-      <input type="number" id="promotionBudget" required />
-
+      <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
       <label>Total Products Available</label>
-      <input type="number" id="totalProducts" required />
-
+      <input type="number" id="totalProducts" placeholder="How many items available" required />
       <label>Upload Product Image</label>
       <input type="file" id="productImage" accept="image/*" />
-      <img id="imagePreview" />
-
+      <img id="imagePreview" alt="Preview" />
       <button type="submit" id="submitBtn">Submit Offer for Verification</button>
     </form>
   </main>
 </div>
 
-<!-- currencies.js stays -->
+<!-- Include currencies.js -->
 <script type="module" src="currencies.js"></script>
 
 <script type="module">
-/*********************************
-        REAL DEBUG LOGGER
-*********************************/
-import { db } from "./firebase.js";
-import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
-function LOG(message, data = null) {
-  const entry = {
-    message,
-    data,
-    timestamp: new Date().toISOString()
-  };
-
-  console.log("⚡ DEBUG:", entry);
-
-  // Update on-screen debug panel
-  const panel = document.getElementById("debugPanel");
-  const div = document.createElement("div");
-  div.textContent = `${entry.timestamp}: ${message}`;
-  panel.appendChild(div);
-  panel.scrollTop = panel.scrollHeight;
-
-  // Save to Firestore logs
-  addDoc(collection(db, "debug_logs"), entry)
-    .catch(err => console.error("❌ Failed to log to Firestore:", err));
-}
-
-/*********************************
-        FIREBASE IMPORTS
-*********************************/
-import { auth } from "./firebase.js";
+/* ---------------- FIXED FIRESTORE IMPORTS ---------------- */
+import { auth, db } from "./firebase.js";
 import {
-  signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-
-import {
-  collection as col, addDoc as addDocument
+  getFirestore,
+  collection,
+  addDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-/*********************************
-           ELEMENTS
-*********************************/
+import {
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+/* ---------------- REST OF YOUR ORIGINAL CODE ---------------- */
+
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
 const avatarEl = document.getElementById('avatar');
-
 const imageInput = document.getElementById('productImage');
 const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
-
-let userSession = null;
 let imageBase64 = "";
+let userSession = null;
 
-/*********************************
-     BASIC NOTIFICATION
-*********************************/
-function showNotification(msg) {
-  alert(msg);
+const title = document.getElementById('title');
+const description = document.getElementById('description');
+const category = document.getElementById('category');
+const currency = document.getElementById('currency');
+const price = document.getElementById('price');
+const commissionType = document.getElementById('commissionType');
+const commissionValue = document.getElementById('commissionValue');
+const promotionBudget = document.getElementById('promotionBudget');
+const totalProducts = document.getElementById('totalProducts');
+
+function showNotification(message, type='info', duration=3000) {
+  const notif = document.createElement('div');
+  notif.className = `notification ${type}`;
+  notif.textContent = message;
+  offerForm.prepend(notif);
+  setTimeout(() => notif.remove(), duration);
 }
 
-/*********************************
-     LOAD SESSION
-*********************************/
-LOG("Loading session...");
+const userSessionRaw = localStorage.getItem('userSession');
+if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
+userSession = JSON.parse(userSessionRaw);
+if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-const sessionRaw = localStorage.getItem("userSession");
-if (!sessionRaw) {
-  LOG("❌ No session found");
-  location.href = "login.html";
-}
-
-userSession = JSON.parse(sessionRaw);
-LOG("Session loaded", userSession);
-
-/*********************************
-      FIREBASE AUTH CHECK
-*********************************/
-onAuthStateChanged(auth, user => {
-  LOG("Auth state:", user);
-
-  if (!user || user.uid !== userSession.uid) {
-    LOG("❌ Auth mismatch or null user");
-    location.href = "login.html";
-    return;
+onAuthStateChanged(auth, (user) => {
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem('userSession');
+    window.location.href = 'login.html';
+  } else {
+    providerNameEl.textContent = userSession.name || 'Provider';
+    providerEmailEl.textContent = userSession.email || '';
+    avatarEl.textContent = (userSession.name || 'P').charAt(0).toUpperCase();
+    attachHandlers();
   }
-
-  LOG("User authenticated");
-
-  providerNameEl.textContent = userSession.name || "Provider";
-  providerEmailEl.textContent = userSession.email;
-  avatarEl.textContent = providerNameEl.textContent.charAt(0);
-
-  attachHandlers();
 });
 
-/*********************************
-      IMAGE COMPRESSION
-*********************************/
-function compressImage(file) {
-  LOG("Compressing image:", file.name);
-
+function compressImage(file, maxSizeMB = 2) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = event => {
       const img = new Image();
       img.src = event.target.result;
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ratio = 0.7;
-        canvas.width = img.width * ratio;
-        canvas.height = img.height * ratio;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.8));
+        const canvas = document.createElement('canvas');
+        let [w, h] = [img.width, img.height];
+        let ratio = 1;
+        let quality = 0.8;
+        const compress = () => {
+          canvas.width = w * ratio;
+          canvas.height = h * ratio;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => {
+            if(blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
+              ratio *= 0.8;
+              compress();
+            } else {
+              const reader2 = new FileReader();
+              reader2.onload = e => resolve(e.target.result);
+              reader2.readAsDataURL(blob);
+            }
+          }, 'image/jpeg', quality);
+        };
+        compress();
       };
+      img.onerror = reject;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-/*********************************
-      PAGE HANDLERS
-*********************************/
 function attachHandlers() {
-  LOG("Attaching page handlers");
+  document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
+  document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
+  document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
+  document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
 
-  document.getElementById("logoutBtn").onclick = async () => {
-    LOG("Logging out...");
-    await signOut(auth);
-    localStorage.removeItem("userSession");
-    location.href = "login.html";
-  };
+  populateCurrencyDropdown('currency');
 
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
-    if (!file) return;
-    LOG("Image selected:", file.name);
-
-    imageBase64 = await compressImage(file);
-    imagePreview.src = imageBase64;
+    if (file) {
+      showNotification("Processing image...", "info", 1500);
+      try {
+        imageBase64 = await compressImage(file);
+        imagePreview.src = imageBase64;
+        imagePreview.style.display = "block";
+      } catch(err) {
+        console.error(err);
+        showNotification("Error processing image","error");
+      }
+    }
   });
 
-  offerForm.onsubmit = async e => {
+  offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
-
-    LOG("Submitting offer...");
+    showNotification("Submitting offer...", "info");
 
     const offerData = {
       providerId: userSession.uid,
@@ -265,33 +243,28 @@ function attachHandlers() {
       description: description.value.trim(),
       category: category.value,
       currency: currency.value,
-      price: Number(price.value),
+      price: parseFloat(price.value),
       commissionType: commissionType.value,
-      commissionValue: Number(commissionValue.value),
-      promotionBudget: Number(promotionBudget.value),
-      totalProducts: Number(totalProducts.value),
-      imageTemp: imageBase64,
+      commissionValue: parseFloat(commissionValue.value),
+      promotionBudget: parseFloat(promotionBudget.value),
+      totalProducts: parseInt(totalProducts.value),
+      imageTemp: imageBase64 || null,
       status: "pending",
       createdAt: new Date().toISOString()
     };
 
-    LOG("Prepared offer:", offerData);
-
     try {
-      const ref = await addDocument(col(db, "offers_pending"), offerData);
-      LOG("✔ Offer submitted:", ref.id);
-      showNotification("Offer submitted.");
+      await addDoc(collection(db, "offers_pending"), offerData);
+      showNotification("Offer submitted for verification!", "success");
       offerForm.reset();
-      imagePreview.src = "";
-    } catch (err) {
-      LOG("❌ Firestore error:", err);
-      showNotification("Error submitting offer.");
-    }
-
-    submitBtn.disabled = false;
-  };
+      imagePreview.style.display = "none";
+      imageBase64="";
+    } catch(err) {
+      console.error("🔥 Firestore ERROR:", err);
+      showNotification("Error submitting offer","error");
+    } finally { submitBtn.disabled=false; }
+  });
 }
 </script>
-
 </body>
 </html>
