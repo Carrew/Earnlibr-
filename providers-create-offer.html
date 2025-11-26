@@ -127,6 +127,17 @@ const submitBtn = document.getElementById("submitBtn");
 let imageBase64 = "";
 let userSession = null;
 
+// 🔹 Added element references
+const title = document.getElementById('title');
+const description = document.getElementById('description');
+const category = document.getElementById('category');
+const currency = document.getElementById('currency');
+const price = document.getElementById('price');
+const commissionType = document.getElementById('commissionType');
+const commissionValue = document.getElementById('commissionValue');
+const promotionBudget = document.getElementById('promotionBudget');
+const totalProducts = document.getElementById('totalProducts');
+
 function showNotification(message, type='info', duration=3000) {
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
@@ -164,10 +175,8 @@ function compressImage(file, maxSizeMB = 2) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let [w, h] = [img.width, img.height];
-        // scale down proportionally if too large
         let ratio = 1;
         let quality = 0.8;
-        let blobData;
         const compress = () => {
           canvas.width = w * ratio;
           canvas.height = h * ratio;
@@ -175,7 +184,7 @@ function compressImage(file, maxSizeMB = 2) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           canvas.toBlob(blob => {
             if(blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
-              ratio *= 0.8; // reduce size
+              ratio *= 0.8;
               compress();
             } else {
               const reader2 = new FileReader();
@@ -254,4 +263,4 @@ function attachHandlers() {
 }
 </script>
 </body>
-</html>
+  </html>
