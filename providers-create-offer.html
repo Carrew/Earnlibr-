@@ -113,9 +113,20 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
 <script type="module" src="currencies.js"></script>
 
 <script type="module">
+/* ---------------- FIXED FIRESTORE IMPORTS ---------------- */
 import { auth, db } from "./firebase.js";
-import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  addDoc
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+import {
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+/* ---------------- REST OF YOUR ORIGINAL CODE ---------------- */
 
 const providerNameEl = document.getElementById('providerName');
 const providerEmailEl = document.getElementById('providerEmail');
@@ -127,7 +138,6 @@ const submitBtn = document.getElementById("submitBtn");
 let imageBase64 = "";
 let userSession = null;
 
-// 🔹 Added element references
 const title = document.getElementById('title');
 const description = document.getElementById('description');
 const category = document.getElementById('category');
@@ -146,13 +156,11 @@ function showNotification(message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);
 }
 
-// LOCAL SESSION CHECK & ROLE
 const userSessionRaw = localStorage.getItem('userSession');
 if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
 userSession = JSON.parse(userSessionRaw);
 if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-// FIRESTORE AUTH CHECK
 onAuthStateChanged(auth, (user) => {
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
     localStorage.removeItem('userSession');
@@ -165,7 +173,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// Helper: compress image to <= 2MB
 function compressImage(file, maxSizeMB = 2) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -208,10 +215,8 @@ function attachHandlers() {
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
   document.getElementById('logoutBtn').onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
 
-  // Populate currency dropdown
   populateCurrencyDropdown('currency');
 
-  // Image preview & compression
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
     if (file) {
@@ -227,7 +232,6 @@ function attachHandlers() {
     }
   });
 
-  // Form submission
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
@@ -256,11 +260,11 @@ function attachHandlers() {
       imagePreview.style.display = "none";
       imageBase64="";
     } catch(err) {
-      console.error(err);
-      showNotification("Error submitting offer: "+err.message,"error");
+      console.error("🔥 Firestore ERROR:", err);
+      showNotification("Error submitting offer","error");
     } finally { submitBtn.disabled=false; }
   });
 }
 </script>
 </body>
-  </html>
+</html>
