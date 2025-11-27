@@ -102,39 +102,6 @@ try {
 onAuthStateChanged(auth, user => {
   debugLog('Firebase user', user);
 
-  if (!user) {
-    debugLog('Redirecting: no Firebase user');
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-
-  if (!userSession) {
-    debugLog('Redirecting: missing session after Firebase auth');
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-
-  if (user.uid !== userSession.uid) {
-    debugLog('Redirecting: UID mismatch');
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-
-  if (userSession.role !== 'promoter') {
-    debugLog(`Redirecting: unauthorized role (${userSession.role})`);
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-
-  if (!user.emailVerified) {
-    debugLog('Redirecting: email not verified');
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
   }
 
   debugLog('Auth verified: loading page');
