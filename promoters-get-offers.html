@@ -26,6 +26,22 @@ html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; backgroun
 .offer-card h3 { margin:0; font-size:16px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; }
 .offer-card button { padding:8px 10px; border:none; border-radius:8px; cursor:pointer; background:linear-gradient(90deg, var(--accent1), var(--accent2)); color:#041018; font-weight:600; }
 #offersContainer { display:flex; flex-direction:column; }
+
+/* Debug panel */
+#debugPanel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px;
+  z-index: 9999;
+}
 </style>
 </head>
 <body>
@@ -53,6 +69,8 @@ html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; backgroun
   </main>
 </div>
 
+<div id="debugPanel"></div>
+
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -63,31 +81,71 @@ const promoterEmailEl = document.getElementById('promoterEmail');
 const avatarEl = document.getElementById('avatar');
 const offersContainer = document.getElementById('offersContainer');
 const logoutBtn = document.getElementById('logoutBtn');
+const debugPanel = document.getElementById('debugPanel');
+
+function debugLog(label, value) {
+  debugPanel.innerHTML += `<div><strong>${label}:</strong> ${JSON.stringify(value)}</div>`;
+}
+
+// Start debugging
+debugLog('localStorage.userSession (raw)', localStorage.getItem('userSession'));
 
 let userSession = null;
-
 const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) { window.location.href='login.html'; throw new Error('No session'); }
+if (!userSessionRaw) {
+  debugLog('Status', 'No session found → redirecting to login.html');
+  window.location.href='login.html';
+  throw new Error('No session');
+}
 userSession = JSON.parse(userSessionRaw);
-if (userSession.role !== 'promoter') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
+debugLog('Parsed userSession', userSession);
 
+if (userSession.role !== 'promoter') {
+  debugLog('Status', `Unauthorized role (${userSession.role}) → redirecting to login.html`);
+  localStorage.removeItem('userSession');
+  window.location.href='login.html';
+  throw new Error('Unauthorized');
+}
+
+// Firebase Auth check
 onAuthStateChanged(auth, user => {
-  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+  debugLog('Firebase auth.currentUser', user);
+
+  if (!user) {
+    debugLog('Status', 'No Firebase user → redirecting');
     localStorage.removeItem('userSession');
     window.location.href='login.html';
-  } else {
-    promoterNameEl.textContent = userSession.name || 'Promoter';
-    promoterEmailEl.textContent = userSession.email || '';
-    avatarEl.textContent = (userSession.name || 'PR').charAt(0).toUpperCase();
-    attachHandlers();
-    loadOffers();
+    return;
   }
+  if (user.uid !== userSession.uid) {
+    debugLog('Status', `UID mismatch (${user.uid} !== ${userSession.uid}) → redirecting`);
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+  if (!user.emailVerified) {
+    debugLog('Status', 'Email not verified → redirecting');
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+
+  debugLog('Status', 'Auth verified → loading page');
+  promoterNameEl.textContent = userSession.name || 'Promoter';
+  promoterEmailEl.textContent = userSession.email || '';
+  avatarEl.textContent = (userSession.name || 'PR').charAt(0).toUpperCase();
+  attachHandlers();
+  loadOffers();
 });
 
 function attachHandlers() {
   document.getElementById('nav-dashboard').onclick = () => window.location.href='promoter-dashboard.html';
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
-  logoutBtn.onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
+  logoutBtn.onclick = async () => {
+    try { await signOut(auth); } catch(e){}
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+  };
 }
 
 async function loadOffers() {
@@ -132,6 +190,7 @@ async function loadOffers() {
   } catch(err) {
     console.error("Error loading offers:", err);
     offersContainer.textContent = "Failed to load offers.";
+    debugLog('Error loading offers', err);
   }
 }
 </script>
