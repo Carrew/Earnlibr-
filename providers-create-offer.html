@@ -182,10 +182,21 @@ function attachHandlers() {
     window.location.href='login.html'; 
   };
 
-  populateCurrencyDropdown('currency'); // keep your currencies.js logic if needed
+  // Wait until currency dropdown is populated
+  const waitForCurrency = setInterval(() => {
+    if(currency.options.length > 0) {
+      clearInterval(waitForCurrency);
+      setupFormSubmit();
+    }
+  }, 200);
+}
+
+function setupFormSubmit() {
+  logDebug("Form submit ready");
 
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
+    logDebug("Submit handler fired");
     submitBtn.disabled = true;
 
     const offerData = {
@@ -193,7 +204,7 @@ function attachHandlers() {
       title: title.value.trim(),
       description: description.value.trim(),
       category: category.value,
-      currency: currency.value,
+      currency: currency.value || "USD",
       price: parseFloat(price.value) || 0,
       commissionType: commissionType.value,
       commissionValue: parseFloat(commissionValue.value) || 0,
@@ -203,17 +214,16 @@ function attachHandlers() {
       createdAt: new Date().toISOString()
     };
 
-    logDebug("Submitting offer: " + JSON.stringify(offerData));
-    showNotification("Submitting offer...", "info");
+    // Log every field for mobile debugging
+    logDebug("Offer data: " + JSON.stringify(offerData));
 
     try {
       const docRef = await addDoc(collection(db, "offers_pending"), offerData);
-      logDebug("Offer written with ID: " + docRef.id);
+      logDebug("Offer successfully written with ID: " + docRef.id);
       showNotification("Offer submitted successfully!", "success", 3000);
       offerForm.reset();
     } catch(err) {
-      logDebug("Firestore submission error: " + err);
-      console.error("Firestore submission error:", err);
+      logDebug("Firestore error: " + err);
       showNotification("Failed to submit offer", "error", 4000);
     } finally {
       submitBtn.disabled = false;
