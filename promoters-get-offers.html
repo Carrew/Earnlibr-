@@ -87,50 +87,57 @@ function debugLog(label, value) {
   debugPanel.innerHTML += `<div><strong>${label}:</strong> ${JSON.stringify(value)}</div>`;
 }
 
-// Start debugging
-debugLog('localStorage.userSession (raw)', localStorage.getItem('userSession'));
-
+// Load session (but don't redirect yet)
 let userSession = null;
-const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) {
-  debugLog('Status', 'No session found → redirecting to login.html');
-  window.location.href='login.html';
-  throw new Error('No session');
-}
-userSession = JSON.parse(userSessionRaw);
-debugLog('Parsed userSession', userSession);
-
-if (userSession.role !== 'promoter') {
-  debugLog('Status', `Unauthorized role (${userSession.role}) → redirecting to login.html`);
-  localStorage.removeItem('userSession');
-  window.location.href='login.html';
-  throw new Error('Unauthorized');
+try {
+  const raw = localStorage.getItem('userSession');
+  if (!raw) throw new Error('No session in localStorage');
+  userSession = JSON.parse(raw);
+  debugLog('Parsed userSession', userSession);
+} catch(e) {
+  debugLog('Session error', e.message);
 }
 
-// Firebase Auth check
+// Firebase auth check
 onAuthStateChanged(auth, user => {
-  debugLog('Firebase auth.currentUser', user);
+  debugLog('Firebase user', user);
 
   if (!user) {
-    debugLog('Status', 'No Firebase user → redirecting');
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-  if (user.uid !== userSession.uid) {
-    debugLog('Status', `UID mismatch (${user.uid} !== ${userSession.uid}) → redirecting`);
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-    return;
-  }
-  if (!user.emailVerified) {
-    debugLog('Status', 'Email not verified → redirecting');
+    debugLog('Redirecting: no Firebase user');
     localStorage.removeItem('userSession');
     window.location.href='login.html';
     return;
   }
 
-  debugLog('Status', 'Auth verified → loading page');
+  if (!userSession) {
+    debugLog('Redirecting: missing session after Firebase auth');
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+
+  if (user.uid !== userSession.uid) {
+    debugLog('Redirecting: UID mismatch');
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+
+  if (userSession.role !== 'promoter') {
+    debugLog(`Redirecting: unauthorized role (${userSession.role})`);
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+
+  if (!user.emailVerified) {
+    debugLog('Redirecting: email not verified');
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+    return;
+  }
+
+  debugLog('Auth verified: loading page');
   promoterNameEl.textContent = userSession.name || 'Promoter';
   promoterEmailEl.textContent = userSession.email || '';
   avatarEl.textContent = (userSession.name || 'PR').charAt(0).toUpperCase();
