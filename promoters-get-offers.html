@@ -1,289 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EarnLibr — Promoters Get Offers</title>
 <style>
 :root {
-  --bg: #090c14;
-  --card: rgba(20, 25, 38, 0.85);
+  --bg: #0b0d17;
+  --card: #0f1724;
   --accent1: #4a90e2;
   --accent2: #a3ff6e;
-  --muted: #9ca3af;
-  --radius: 14px;
-  --text: #e5e7eb;
+  --muted: #bfc7d6;
+  --radius: 12px;
 }
-body {
-  margin: 0;
-  font-family: "Inter", system-ui, Arial;
-  background: radial-gradient(circle at top, #0d111c 0%, #090c14 80%);
-  color: var(--text);
-  min-height: 100vh;
-  padding: 30px 20px;
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
-}
-h1 {
-  font-size: 26px;
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  -webkit-background-clip: text;
-  color: transparent;
-  font-weight: 700;
-}
-.profile-btn {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.profile-btn:hover { background: rgba(255, 255, 255, 0.1); }
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 25px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  backdrop-filter: blur(10px);
-}
-.filter-bar select,
-.filter-bar input {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
-  outline: none;
-}
-.filter-bar select:focus,
-.filter-bar input:focus { border-color: var(--accent1); }
-.filter-bar button {
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  color: #0b0f14;
-  font-weight: 600;
-  transition: 0.2s;
-}
-.filter-bar button:hover { opacity: 0.9; }
-
-.offer-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 24px;
-  transition: opacity 0.3s;
-}
-.offer-card {
-  backdrop-filter: blur(14px);
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: transform 0.25s, box-shadow 0.25s;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  overflow: hidden;
-}
-.offer-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 6px 18px rgba(74, 144, 226, 0.25);
-}
-.offer-card img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 10px;
-  margin-bottom: 12px;
-}
-.offer-title { font-weight: 600; font-size: 18px; color: #fff; margin-bottom: 8px; }
-.offer-desc { font-size: 14px; color: var(--muted); margin: 4px 0; }
-.status {
-  display: inline-block;
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-top: 8px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.status.active { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
-.btn { flex: 1; border: none; border-radius: 8px; padding: 10px; font-size: 14px; cursor: pointer; color: #fff; font-weight: 500; transition: all 0.2s ease; }
-.btn.copy { background: var(--accent1); }
-.btn.download { background: #6366f1; }
-.btn.track { background: linear-gradient(90deg, var(--accent2), #5cf060); color: #0a0f12; font-weight: 600; }
-.btn:hover { opacity: 0.9; }
-
-.notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 14px 22px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 0.3s, transform 0.3s;
-  z-index: 9999;
-}
-.notification.show { opacity: 1; transform: translateY(0); }
+html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
+.wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+.card { background: linear-gradient(180deg, var(--card), #0d1221); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
+.sidebar { height: calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
+.logo img { width:44px; height:44px; border-radius:8px; object-fit:cover; }
+.nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
+.nav a.active, .nav a:hover { color:#041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+.offer-card { background: var(--card); border-radius:10px; padding:12px; margin-bottom:12px; display:flex; flex-direction:column; gap:8px; border:1px solid rgba(255,255,255,0.05); }
+.offer-card img { width:100%; max-height:150px; object-fit:cover; border-radius:8px; }
+.offer-card h3 { margin:0; font-size:16px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; }
+.offer-card button { padding:8px 10px; border:none; border-radius:8px; cursor:pointer; background:linear-gradient(90deg, var(--accent1), var(--accent2)); color:#041018; font-weight:600; }
+#offersContainer { display:flex; flex-direction:column; }
 </style>
 </head>
 <body>
-<header>
-  <h1>🎯 Promoter Offers</h1>
-  <button class="profile-btn" onclick="window.location.href='promoter-dashboard.html'">My Dashboard</button>
-</header>
+<div class="wrap">
+  <aside class="card sidebar">
+    <div class="logo"><img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="logo"><h2>EarnLibr</h2></div>
+    <nav class="nav">
+      <a id="nav-dashboard">Dashboard</a>
+      <a id="nav-get-offers" class="active">Get Offers</a>
+      <a id="nav-notifs">Notifications</a>
+    </nav>
+    <div class="profile">
+      <div id="avatar" class="avatar">PR</div>
+      <div>
+        <div id="promoterName" style="font-weight:700;">Loading...</div>
+        <div id="promoterEmail" class="muted">—</div>
+      </div>
+      <div style="margin-left:auto"><button id="logoutBtn">Logout</button></div>
+    </div>
+  </aside>
 
-<div class="filter-bar">
-  <select id="categoryFilter"><option value="">All Categories</option></select>
-  <input type="text" id="searchInput" placeholder="Search offers..." />
-  <button id="clearFilters">Clear Filters</button>
+  <main class="main card">
+    <h1>Available Offers</h1>
+    <div id="offersContainer">Loading offers...</div>
+  </main>
 </div>
-
-<div id="offerGrid" class="offer-grid"></div>
-<div id="notification" class="notification"></div>
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-const offerGrid = document.getElementById('offerGrid');
-const notification = document.getElementById('notification');
-const categoryFilter = document.getElementById('categoryFilter');
-const searchInput = document.getElementById('searchInput');
-const clearFiltersBtn = document.getElementById('clearFilters');
-let allOffers = [];
+const promoterNameEl = document.getElementById('promoterName');
+const promoterEmailEl = document.getElementById('promoterEmail');
+const avatarEl = document.getElementById('avatar');
+const offersContainer = document.getElementById('offersContainer');
+const logoutBtn = document.getElementById('logoutBtn');
 
-function showNotification(message) {
-  notification.textContent = message;
-  notification.classList.add('show');
-  setTimeout(() => notification.classList.remove('show'), 2500);
-}
+let userSession = null;
 
-// --- Auth check & session ---
-onAuthStateChanged(auth, async (user) => {
-  if (!user || !user.emailVerified) return window.location.href='login.html';
-  const sessionRaw = localStorage.getItem('userSession');
-  const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-  if (!session || session.role !== 'freelancer') return window.location.href='login.html';
-  loadOffers();
+const userSessionRaw = localStorage.getItem('userSession');
+if (!userSessionRaw) { window.location.href='login.html'; throw new Error('No session'); }
+userSession = JSON.parse(userSessionRaw);
+if (userSession.role !== 'promoter') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
+
+onAuthStateChanged(auth, user => {
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem('userSession');
+    window.location.href='login.html';
+  } else {
+    promoterNameEl.textContent = userSession.name || 'Promoter';
+    promoterEmailEl.textContent = userSession.email || '';
+    avatarEl.textContent = (userSession.name || 'PR').charAt(0).toUpperCase();
+    attachHandlers();
+    loadOffers();
+  }
 });
 
-// --- Load all verified, active offers from all providers ---
+function attachHandlers() {
+  document.getElementById('nav-dashboard').onclick = () => window.location.href='promoter-dashboard.html';
+  document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
+  logoutBtn.onclick = async () => { try { await signOut(auth); } catch(e){} localStorage.removeItem('userSession'); window.location.href='login.html'; };
+}
+
 async function loadOffers() {
+  offersContainer.innerHTML = "Loading offers...";
   try {
-    const providersCol = collection(db, "offers"); // main offers collection
-    const providersSnap = await getDocs(providersCol);
+    const q = query(collection(db, "offers_pending"), where("status", "==", "active"));
+    const querySnapshot = await getDocs(q);
 
-    allOffers = [];
-
-    for (const providerDoc of providersSnap.docs) {
-      const providerId = providerDoc.id;
-      const offersSubCol = collection(db, `offers/${providerId}/offers`);
-      const offersSnap = await getDocs(offersSubCol);
-      offersSnap.forEach(docSnap => {
-        const offer = docSnap.data();
-        if (offer.verified && offer.status === 'active') {
-          allOffers.push({ id: docSnap.id, providerId, ...offer });
-        }
-      });
+    offersContainer.innerHTML = "";
+    if(querySnapshot.empty) {
+      offersContainer.textContent = "No offers available at the moment.";
+      return;
     }
 
-    populateCategories();
-    displayOffers(allOffers);
+    querySnapshot.forEach(doc => {
+      const offer = doc.data();
+      const offerId = doc.id;
 
-  } catch(err) { console.error(err); showNotification('Failed to load offers.'); }
-}
+      const card = document.createElement('div');
+      card.className = "offer-card";
 
-function populateCategories() {
-  const categories = [...new Set(allOffers.map(o => o.category).filter(Boolean))];
-  categoryFilter.innerHTML = '<option value="">All Categories</option>' +
-    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-}
+      card.innerHTML = `
+        ${offer.imageTemp ? `<img src="${offer.imageTemp}" alt="Offer Image">` : ""}
+        <h3>${offer.title}</h3>
+        <p>${offer.description}</p>
+        <p>Price: ${offer.price} ${offer.currency}</p>
+        <p>Commission: ${offer.commissionValue} ${offer.commissionType}</p>
+        <button>Copy Referral Link</button>
+      `;
 
-function displayOffers(offers) {
-  const session = JSON.parse(localStorage.getItem('userSession'));
-  offerGrid.innerHTML = "";
-  if (!offers.length) {
-    offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;padding-top:30px;'>No offers available for this filter.</div>";
-    return;
+      const button = card.querySelector("button");
+      button.onclick = () => {
+        const referralLink = `${window.location.origin}/offer-landing.html?offerId=${offerId}&promoterId=${userSession.uid}`;
+        navigator.clipboard.writeText(referralLink).then(() => {
+          button.textContent = "Link Copied!";
+          setTimeout(() => button.textContent = "Copy Referral Link", 2000);
+        });
+      };
+
+      offersContainer.appendChild(card);
+    });
+  } catch(err) {
+    console.error("Error loading offers:", err);
+    offersContainer.textContent = "Failed to load offers.";
   }
-  offers.forEach(offer => {
-    const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";
-    const desc = offer.description ? offer.description.substring(0,100)+"..." : '';
-    const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${session.uid}`;
-    const card = document.createElement('div');
-    card.className='offer-card';
-    card.innerHTML = `
-      <img src="${image}" alt="Offer">
-      <div class="offer-title">${offer.title}</div>
-      <div class="offer-desc">${desc}</div>
-      <div class="offer-desc">💰 ${offer.currency || "$"} ${offer.price || "—"}</div>
-      <div class="offer-desc">🏆 Commission: ${offer.commissionValue || 0}${offer.commissionType==="percentage"?"%":""}</div>
-      <div class="status active">${offer.status}</div>
-      <div class="actions">
-        <button class="btn copy">Copy Link</button>
-        <button class="btn download">Download Image</button>
-        <button class="btn track">Track Stats</button>
-      </div>
-    `;
-    offerGrid.appendChild(card);
-
-    card.querySelector('.btn.copy').onclick = () => {
-      navigator.clipboard.writeText(link).then(()=>showNotification("✅ Promotion link copied!"))
-      .catch(()=>showNotification("❌ Failed to copy link."));
-    };
-
-    card.querySelector('.btn.download').onclick = async () => {
-      try {
-        const res = await fetch(image);
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${offer.title.replace(/\s+/g,"_")}.jpg`;
-        document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-        showNotification("📸 Image downloaded!");
-      } catch { showNotification("❌ Failed to download image."); }
-    };
-
-    card.querySelector('.btn.track').onclick = () => {
-      window.location.href=`my-promotions.html#${offer.id}`;
-    };
-  });
 }
-
-// --- Filters ---
-function applyFilters() {
-  const cat = categoryFilter.value;
-  const search = searchInput.value.toLowerCase();
-  const filtered = allOffers.filter(o=>{
-    const matchesCat = !cat || o.category===cat;
-    const matchesSearch = o.title.toLowerCase().includes(search) || (o.description && o.description.toLowerCase().includes(search));
-    return matchesCat && matchesSearch;
-  });
-  displayOffers(filtered);
-}
-categoryFilter.addEventListener('change', applyFilters);
-searchInput.addEventListener('input', applyFilters);
-clearFiltersBtn.addEventListener('click', ()=>{ categoryFilter.value=''; searchInput.value=''; applyFilters(); });
 </script>
 </body>
 </html>
