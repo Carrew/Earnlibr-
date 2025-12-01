@@ -50,7 +50,7 @@
 import { db, auth } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc 
+  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const offersContainer = document.getElementById('offersContainer');
@@ -138,7 +138,7 @@ function renderOfferCard(docSnap) {
       Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>
       Total Products: ${offer.totalProducts || 0}<br>
       Promo Budget: ${offer.promotionBudget || 0}<br>
-      Promo Spent: 0<br><br>
+      Promo Spent: ${offer.promoSpent || 0}<br><br>
       <em>Category:</em> ${offer.category || 'Uncategorized'}<br>
       <em>Submitted:</em> ${offer.createdAt ? new Date(offer.createdAt).toLocaleString() : 'N/A'}<br>
       <em>Provider ID:</em> ${providerId}
@@ -180,7 +180,7 @@ async function approveOffer(card, offer, offerId, providerId) {
       cloudUrl = data.secure_url;
     }
 
-    // --- Enhanced Offer Object ---
+    // --- Enhanced Offer Object (Additions Only) ---
     const approvedOffer = {
       ...offer,
       providerId,
@@ -192,7 +192,7 @@ async function approveOffer(card, offer, offerId, providerId) {
       status: "active",
       verified: true,
       verifiedBy: userSession.role,
-      approvedAt: new Date().toISOString(),
+      approvedAt: serverTimestamp(),
       promoSpent: offer.promoSpent || 0,
       amountOwed: 0,
       amountPaid: 0,
@@ -206,11 +206,16 @@ async function approveOffer(card, offer, offerId, providerId) {
       totalDealsGenerated: 0,
       totalDealsCompleted: 0,
       totalEarned: 0,
+      // ADDITIONAL promoter fields
+      clicks: 0,
+      leads: 0,
+      sales: 0,
+      uniqueLink: ""
     };
 
     // --- Save globally & under provider ---
     await setDoc(doc(db, "offers_all", offerId), approvedOffer);
-    await setDoc(doc(db, `providers/${providerId}/offers`, offerId), approvedOffer);
+    await setDoc(doc(db, `providers/${providerId}/offers/${offerId}`), approvedOffer);
 
     // --- Remove pending version ---
     await deleteDoc(doc(db, "offers_pending", offerId));
@@ -220,7 +225,7 @@ async function approveOffer(card, offer, offerId, providerId) {
       title: "Offer Approved ✅",
       message: `Your offer "${offer.title}" has been approved and is now live.`,
       type: "approved",
-      createdAt: new Date().toISOString()
+      createdAt: serverTimestamp()
     });
 
     showNotification(card, "Offer approved successfully!", "success");
@@ -250,7 +255,7 @@ async function rejectOffer(card, offer, offerId, providerId) {
       title: "Offer Rejected ❌",
       message: `Your offer "${offer.title}" was rejected. Please review and resubmit.`,
       type: "rejected",
-      createdAt: new Date().toISOString()
+      createdAt: serverTimestamp()
     });
 
     showNotification(card, "Offer rejected and provider notified.", "error");
