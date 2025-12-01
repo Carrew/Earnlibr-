@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Admin Verify Offers</title>
+
 <style>
   body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px;}
   h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; }
@@ -47,14 +48,16 @@
 
 <script type="module">
 import { db, auth } from './firebase.js';
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, getDoc, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const offersContainer = document.getElementById('offersContainer');
-let userSession = null;
 const ADMIN_ROLES = ['admin', 'super_admin'];
+let userSession = null;
 
-// --- Utility Functions ---
+// ================== UTILITY FUNCTIONS ==================
 function showNotification(card, message, type='info', duration=3000) {
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
@@ -69,13 +72,12 @@ async function getProviderInfo(providerId) {
 }
 
 function handleUnauthorized(message) {
-  console.error(message);
   offersContainer.innerHTML = `<div class="unauthorized">❌ ${message} Redirecting to login...</div>`;
   localStorage.removeItem('userSession');
   setTimeout(() => window.location.href = 'login.html', 2000);
 }
 
-// --- 1. SESSION & AUTHENTICATION CHECK ---
+// ================== AUTH & SESSION ==================
 const sessionRaw = localStorage.getItem('userSession');
 if (sessionRaw) userSession = JSON.parse(sessionRaw);
 
@@ -84,16 +86,15 @@ onAuthStateChanged(auth, async (user) => {
 
   try {
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
-    if (!adminDoc.exists()) return handleUnauthorized("User not found in admin records.");
+    if (!adminDoc.exists()) return handleUnauthorized("Admin record not found.");
 
     const userData = adminDoc.data();
     const role = userData.role || 'admin';
-
     if (!ADMIN_ROLES.includes(role)) return handleUnauthorized(`Unauthorized role: ${role}.`);
 
     userSession = {
       uid: user.uid,
-      role: role,
+      role,
       name: userData.name || user.email,
       email: user.email
     };
@@ -102,11 +103,11 @@ onAuthStateChanged(auth, async (user) => {
     loadPendingOffers();
 
   } catch (err) {
-    handleUnauthorized("Database verification failed: " + err.message);
+    handleUnauthorized("Auth verification failed: " + err.message);
   }
 });
 
-// --- 2. LOAD PENDING OFFERS ---
+// ================== LOAD PENDING OFFERS ==================
 async function loadPendingOffers() {
   const snapshot = await getDocs(collection(db, "offers_pending"));
   offersContainer.innerHTML = '';
@@ -116,144 +117,152 @@ async function loadPendingOffers() {
     return;
   }
 
-  snapshot.forEach(docSnap => {
-    const offer = docSnap.data();
-    const offerId = docSnap.id;
-    const providerId = offer.providerId;
+  snapshot.forEach(docSnap => renderOfferCard(docSnap));
+}
 
-    const card = document.createElement('div');
-    card.className = 'offer-card';
-    card.id = `offer-${offerId}`;
-    card.innerHTML = `
-      <img src="${offer.imageTemp || 'https://via.placeholder.com/120x80?text=No+Image'}" alt="Offer Image">
-      <div class="offer-details">
-        <strong>${offer.title || 'Untitled Offer'}</strong><br>
-        ${offer.description || ''}<br>
-        💰 ${offer.currency || '$'} ${offer.price || 0}<br>
-        Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>
-        Total Products: ${offer.totalProducts || 0}<br>
-        Promo Budget: ${offer.promotionBudget || 0}<br>
-        Promo Spent: 0<br><br>
-        <em>Category:</em> ${offer.category || 'Uncategorized'}<br>
-        <em>Submitted:</em> ${offer.createdAt ? new Date(offer.createdAt).toLocaleString() : 'N/A'}<br>
-        <em>Provider ID:</em> ${providerId}
-      </div>
-      <div class="offer-actions">
-        <button class="approve">Approve</button>
-        <button class="reject">Reject</button>
-      </div>
-    `;
+// ================== RENDER OFFER CARD ==================
+function renderOfferCard(docSnap) {
+  const offer = docSnap.data();
+  const offerId = docSnap.id;
+  const providerId = offer.providerId;
 
-    const approveBtn = card.querySelector('.approve');
-    const rejectBtn = card.querySelector('.reject');
+  const card = document.createElement('div');
+  card.className = 'offer-card';
+  card.id = `offer-${offerId}`;
+  card.innerHTML = `
+    <img src="${offer.imageTemp || 'https://via.placeholder.com/120x80?text=No+Image'}" alt="Offer Image">
+    <div class="offer-details">
+      <strong>${offer.title || 'Untitled Offer'}</strong><br>
+      ${offer.description || ''}<br>
+      💰 ${offer.currency || '$'} ${offer.price || 0}<br>
+      Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>
+      Total Products: ${offer.totalProducts || 0}<br>
+      Promo Budget: ${offer.promotionBudget || 0}<br>
+      Promo Spent: 0<br><br>
+      <em>Category:</em> ${offer.category || 'Uncategorized'}<br>
+      <em>Submitted:</em> ${offer.createdAt ? new Date(offer.createdAt).toLocaleString() : 'N/A'}<br>
+      <em>Provider ID:</em> ${providerId}
+    </div>
+    <div class="offer-actions">
+      <button class="approve">Approve</button>
+      <button class="reject">Reject</button>
+    </div>
+  `;
 
-    approveBtn.onclick = async () => {
-      approveBtn.disabled = true;
-      rejectBtn.disabled = true;
-      showNotification(card, 'Processing approval...', 'info');
+  const approveBtn = card.querySelector('.approve');
+  const rejectBtn = card.querySelector('.reject');
 
-      try {
-        const providerInfo = await getProviderInfo(providerId);
-        let cloudUrl = null;
+  approveBtn.onclick = () => approveOffer(card, offer, offerId, providerId);
+  rejectBtn.onclick = () => rejectOffer(card, offer, offerId, providerId);
 
-        if (offer.imageTemp) {
-          const formData = new FormData();
-          formData.append('file', offer.imageTemp);
-          formData.append('upload_preset', 'Earnlibr');
+  offersContainer.appendChild(card);
+}
 
-          const res = await fetch('https://api.cloudinary.com/v1_1/dye3bda08/image/upload', { method:'POST', body:formData });
-          const data = await res.json();
-          cloudUrl = data.secure_url;
-        }
+// ================== APPROVE OFFER ==================
+async function approveOffer(card, offer, offerId, providerId) {
+  const approveBtn = card.querySelector('.approve');
+  const rejectBtn = card.querySelector('.reject');
+  approveBtn.disabled = true;
+  rejectBtn.disabled = true;
+  showNotification(card, "Processing approval...", "info");
 
-        const approvedOffer = {
-          providerId: providerId,
-          providerName: providerInfo?.name || "Unknown",
-          providerEmail: providerInfo?.email || "",
-          providerPhone: providerInfo?.phone || "+231000000000",
-          role: providerInfo?.role || "provider",
-          title: offer.title || 'Untitled Offer',
-          description: offer.description || '',
-          category: offer.category || 'Uncategorized',
-          currency: offer.currency || '$',
-          price: offer.price || 0,
-          commissionType: offer.commissionType || '',
-          commissionValue: offer.commissionValue || 0,
-          totalProducts: offer.totalProducts || 0,
-          imageUrl: cloudUrl || null,
-          promotionBudget: offer.promotionBudget || 0,
-          promoSpent: 0,
-          amountOwed: 0,
-          amountPaid: 0,
-          outstandingBalance: 0,
-          nextBillingDate: null,
-          lastBilledAt: null,
-          paymentStatus: 'unpaid',
-          paymentDeadline: null,
-          paymentNotes: '',
-          status: 'active',
-          verified: true,
-          verifiedBy: userSession.role,
-          approvedAt: new Date().toISOString(),
-          createdAt: offer.createdAt || new Date().toISOString(),
-          providerStats: { totalDeals:0, completedDeals:0, cancelledDeals:0 },
-          totalDealsGenerated:0,
-          totalDealsCompleted:0,
-          totalEarned:0
-        };
+  try {
+    const providerInfo = await getProviderInfo(providerId);
+    let cloudUrl = null;
 
-        await addDoc(collection(db, `offers/${providerId}/offers`), approvedOffer);
-        await deleteDoc(doc(db, "offers_pending", offerId));
-        await addDoc(collection(db, `notifications/${providerId}/notifications`), {
-          title: 'Offer Approved ✅',
-          message: `Your offer "${offer.title}" has been approved and is now live.`,
-          type: 'approved',
-          createdAt: new Date().toISOString()
-        });
+    if (offer.imageTemp) {
+      const formData = new FormData();
+      formData.append('file', offer.imageTemp);
+      formData.append('upload_preset', 'Earnlibr');
 
-        showNotification(card, 'Offer approved and live.', 'success');
-        card.style.opacity = '0';
-        setTimeout(() => card.remove(), 300);
+      const res = await fetch('https://api.cloudinary.com/v1_1/dye3bda08/image/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      cloudUrl = data.secure_url;
+    }
 
-      } catch (err) {
-        console.error(err);
-        showNotification(card, 'Error: ' + err.message, 'error');
-        approveBtn.disabled = false;
-        rejectBtn.disabled = false;
-      }
+    // --- Enhanced Offer Object ---
+    const approvedOffer = {
+      ...offer,
+      providerId,
+      providerName: providerInfo?.name || "Unknown",
+      providerEmail: providerInfo?.email || "",
+      providerPhone: providerInfo?.phone || "+000000000",
+      role: providerInfo?.role || "provider",
+      imageUrl: cloudUrl || offer.imageUrl || null,
+      status: "active",
+      verified: true,
+      verifiedBy: userSession.role,
+      approvedAt: new Date().toISOString(),
+      promoSpent: offer.promoSpent || 0,
+      amountOwed: 0,
+      amountPaid: 0,
+      outstandingBalance: 0,
+      paymentStatus: 'unpaid',
+      paymentDeadline: null,
+      nextBillingDate: null,
+      lastBilledAt: null,
+      paymentNotes: '',
+      providerStats: { totalDeals: 0, completedDeals: 0, cancelledDeals: 0 },
+      totalDealsGenerated: 0,
+      totalDealsCompleted: 0,
+      totalEarned: 0,
     };
 
-    rejectBtn.onclick = async () => {
-      if (!confirm('Are you sure you want to reject this offer?')) return;
+    // --- Save globally & under provider ---
+    await setDoc(doc(db, "offers_all", offerId), approvedOffer);
+    await setDoc(doc(db, `providers/${providerId}/offers`, offerId), approvedOffer);
 
-      approveBtn.disabled = true;
-      rejectBtn.disabled = true;
-      showNotification(card, 'Processing rejection...', 'info');
+    // --- Remove pending version ---
+    await deleteDoc(doc(db, "offers_pending", offerId));
 
-      try {
-        await deleteDoc(doc(db, "offers_pending", offerId));
-        await addDoc(collection(db, `notifications/${providerId}/notifications`), {
-          title: 'Offer Rejected ❌',
-          message: `Your offer "${offer.title}" was rejected. Please review and try again.`,
-          type: 'rejected',
-          createdAt: new Date().toISOString()
-        });
+    // --- Notify provider ---
+    await addDoc(collection(db, `notifications/${providerId}/notifications`), {
+      title: "Offer Approved ✅",
+      message: `Your offer "${offer.title}" has been approved and is now live.`,
+      type: "approved",
+      createdAt: new Date().toISOString()
+    });
 
-        showNotification(card, 'Offer rejected. Provider notified.', 'error');
-        card.style.opacity = '0';
-        setTimeout(() => card.remove(), 300);
-      } catch (err) {
-        console.error(err);
-        showNotification(card, 'Error: ' + err.message, 'error');
-        approveBtn.disabled = false;
-        rejectBtn.disabled = false;
-      }
-    };
+    showNotification(card, "Offer approved successfully!", "success");
+    card.style.opacity = "0";
+    setTimeout(() => card.remove(), 300);
 
-    offersContainer.appendChild(card);
-  });
+  } catch (err) {
+    console.error(err);
+    showNotification(card, "Error: " + err.message, "error");
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+  }
+}
+
+// ================== REJECT OFFER ==================
+async function rejectOffer(card, offer, offerId, providerId) {
+  if (!confirm("Are you sure you want to reject this offer?")) return;
+  const approveBtn = card.querySelector('.approve');
+  const rejectBtn = card.querySelector('.reject');
+  approveBtn.disabled = true;
+  rejectBtn.disabled = true;
+  showNotification(card, "Rejecting offer...", "info");
+
+  try {
+    await deleteDoc(doc(db, "offers_pending", offerId));
+    await addDoc(collection(db, `notifications/${providerId}/notifications`), {
+      title: "Offer Rejected ❌",
+      message: `Your offer "${offer.title}" was rejected. Please review and resubmit.`,
+      type: "rejected",
+      createdAt: new Date().toISOString()
+    });
+
+    showNotification(card, "Offer rejected and provider notified.", "error");
+    card.style.opacity = "0";
+    setTimeout(() => card.remove(), 300);
+  } catch (err) {
+    console.error(err);
+    showNotification(card, "Error: " + err.message, "error");
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+  }
 }
 </script>
-
 </body>
 </html>
