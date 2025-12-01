@@ -45,6 +45,7 @@ h1 {
   transition: all 0.2s;
 }
 .profile-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -186,30 +187,22 @@ onAuthStateChanged(auth, async (user) => {
   loadOffers();
 });
 
-// --- Load all verified, active offers from all providers ---
+// --- Load all verified, active offers globally ---
 async function loadOffers() {
   try {
-    const providersCol = collection(db, "offers"); // main offers collection
-    const providersSnap = await getDocs(providersCol);
+    const offersCol = collection(db, "offers_all"); // new global collection
+    const snapshot = await getDocs(offersCol);
 
-    allOffers = [];
-
-    for (const providerDoc of providersSnap.docs) {
-      const providerId = providerDoc.id;
-      const offersSubCol = collection(db, `offers/${providerId}/offers`);
-      const offersSnap = await getDocs(offersSubCol);
-      offersSnap.forEach(docSnap => {
-        const offer = docSnap.data();
-        if (offer.verified && offer.status === 'active') {
-          allOffers.push({ id: docSnap.id, providerId, ...offer });
-        }
-      });
-    }
+    allOffers = snapshot.docs
+      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      .filter(o => o.verified && o.status === 'active');
 
     populateCategories();
     displayOffers(allOffers);
-
-  } catch(err) { console.error(err); showNotification('Failed to load offers.'); }
+  } catch(err) {
+    console.error(err);
+    showNotification('Failed to load offers.');
+  }
 }
 
 function populateCategories() {
@@ -286,5 +279,4 @@ searchInput.addEventListener('input', applyFilters);
 clearFiltersBtn.addEventListener('click', ()=>{ categoryFilter.value=''; searchInput.value=''; applyFilters(); });
 </script>
 </body>
-  </html>
-  
+</html>
