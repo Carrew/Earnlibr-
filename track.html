@@ -74,7 +74,7 @@ a.whatsapp { display: block; text-align: center; background: #25d366; color: #04
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, addDoc, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -94,7 +94,6 @@ let offerData = null;
 let providerId = null;
 let providerInfo = null;
 
-// ================= Load Offer =================
 async function loadOffer() {
   if (!offerId) {
     offerTitle.textContent = "Invalid or missing offer link.";
@@ -122,7 +121,7 @@ async function loadOffer() {
     }
 
     if (providerId !== "unknown") {
-      const providerSnap = await getDoc(doc(db, "providers", providerId));
+      const providerSnap = await getDoc(doc(db, "users", providerId));
       providerInfo = providerSnap.exists() ? providerSnap.data() : null;
     }
 
@@ -132,16 +131,7 @@ async function loadOffer() {
     offerDescription.textContent = offerData.description || "No description available.";
     offerCategory.textContent = offerData.category || "Uncategorized";
 
-    // Optional: Track clicks for promoter analytics
-    if (promoterId !== "direct") {
-      await addDoc(collection(db, `promoter-stats/${promoterId}/clicks`), {
-        offerId,
-        timestamp: new Date().toISOString()
-      });
-    }
-
     window.providerPhone = providerInfo?.phone || offerData.providerPhone || "+231000000000";
-
   } catch (err) {
     console.error(err);
     offerTitle.textContent = "Error loading offer.";
@@ -151,7 +141,7 @@ async function loadOffer() {
 
 loadOffer();
 
-// ================= Form Submission =================
+// --- Form Submission ---
 requestForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.style.display = "none";
@@ -177,8 +167,9 @@ requestForm.addEventListener("submit", async (e) => {
       clientName,
       clientContact,
       note,
-      status: "pending",
+      status: "pending",         // pending until provider/admin marks as completed
       createdAt: new Date().toISOString(),
+
       providerName: providerInfo?.name || "",
       providerEmail: providerInfo?.email || "",
       providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
@@ -186,30 +177,38 @@ requestForm.addEventListener("submit", async (e) => {
       commissionValue: offerData.commissionValue || 0
     };
 
+    // --- Create deal in global collection ---
     const dealRef = await addDoc(collection(db, "deals"), dealData);
     const dealId = dealRef.id;
 
-    // Unified Notifications
-    const notifications = [
-      { uid: "admin", title: "New Deal Request", message: `${clientName} requested offer "${dealData.offerTitle}"` },
-      { uid: providerId, title: "You Have a New Deal Request", message: `A client requested your offer "${dealData.offerTitle}".` }
-    ];
+    // --- Admin notification ---
+    await addDoc(collection(db, "admin-notifications"), {
+      type: "deal",
+      title: "New Deal Request",
+      message: `${clientName} requested offer "${dealData.offerTitle}"`,
+      dealId,
+      ...dealData
+    });
 
-    if (promoterId !== "direct") {
-      notifications.push({ uid: promoterId, title: "You Generated a Deal!", message: `Your shared link converted into a deal for "${dealData.offerTitle}".` });
-      // Increment promoter deal counter
-      const promoterRef = doc(db, "freelancers", promoterId);
-      await updateDoc(promoterRef, { totalDealsGenerated: increment(1) });
+    // --- Provider notification ---
+    if (providerId !== "unknown") {
+      await addDoc(collection(db, `provider-notifications/${providerId}`), {
+        type: "deal",
+        title: "You Have a New Deal Request",
+        message: `A client requested your offer "${dealData.offerTitle}".`,
+        dealId,
+        ...dealData
+      });
     }
 
-    for (let notif of notifications) {
-      await addDoc(collection(db, `notifications/${notif.uid}/notifications`), {
+    // --- Promoter notification (if link used) ---
+    if (promoterId !== "direct") {
+      await addDoc(collection(db, `freelancer-notifications/${promoterId}`), {
         type: "deal",
+        title: "You Generated a Deal!",
+        message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
         dealId,
-        ...dealData,
-        title: notif.title,
-        message: notif.message,
-        createdAt: new Date().toISOString()
+        ...dealData
       });
     }
 
