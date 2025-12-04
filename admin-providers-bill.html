@@ -37,7 +37,7 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { auth, db } from "./firebase.js";
-import { collection, doc, setDoc, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, setDoc, addDoc, query, where, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const notif = document.getElementById("notif");
 const providersContainer = document.getElementById("providersContainer");
@@ -56,6 +56,26 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href="login.html"; 
     return;
   }
+
+  if(!user.emailVerified){
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
+
+  // --- Firestore Role Check ---
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  if(!userDoc.exists() || !["admin","super_admin"].includes(userDoc.data().role)){
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
+
+  // Update session
+  const uData = userDoc.data();
+  userSession = { uid: user.uid, name: uData.name, email: uData.email, role: uData.role };
+  localStorage.setItem('userSession', JSON.stringify(userSession));
+
   loadBills();
 });
 
