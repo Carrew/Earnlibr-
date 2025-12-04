@@ -33,10 +33,9 @@ h1 { font-size:24px; margin-bottom:20px; background:linear-gradient(90deg,#4a90e
 <div id="paymentsContainer">Loading provider payments...</div>
 
 <script type="module">
-import { db } from './firebase.js';
-import { 
-  collection, query, where, onSnapshot, doc, updateDoc, addDoc, getDoc 
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { collection, query, where, onSnapshot, doc, updateDoc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const notif = document.getElementById("notif");
 const paymentsContainer = document.getElementById("paymentsContainer");
@@ -48,22 +47,54 @@ const showNotif = (msg, type='success')=>{
   setTimeout(()=> notif.style.display='none',4000);
 };
 
-// --- Fetch bills pending verification ---
-const billsQuery = query(collection(db, "bills"), where("status","==","paid_pending_verification"));
+// --- AUTH CHECK ---
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
 
-onSnapshot(billsQuery, snapshot=>{
-  paymentsContainer.innerHTML="";
-  if(snapshot.empty){
-    paymentsContainer.innerHTML="<p style='opacity:.6;text-align:center;'>No payments pending verification.</p>";
+onAuthStateChanged(auth, async (user)=>{
+  if(!user || user.uid !== userSession.uid){
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
     return;
   }
 
-  snapshot.docs.forEach(docSnap=>{
-    const bill = docSnap.data();
-    renderBillCard(bill);
-  });
+  if(!user.emailVerified){
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
+
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  if(!userDoc.exists() || !["admin","super_admin"].includes(userDoc.data().role)){
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
+
+  // Passed auth — load bills
+  loadBills();
 });
 
+// --- Load Bills ---
+function loadBills(){
+  const billsQuery = query(collection(db, "bills"), where("status","==","paid_pending_verification"));
+
+  onSnapshot(billsQuery, snapshot=>{
+    paymentsContainer.innerHTML="";
+    if(snapshot.empty){
+      paymentsContainer.innerHTML="<p style='opacity:.6;text-align:center;'>No payments pending verification.</p>";
+      return;
+    }
+
+    snapshot.docs.forEach(docSnap=>{
+      const bill = docSnap.data();
+      renderBillCard(bill);
+    });
+  });
+}
+
+// --- Render Bill Card ---
 function renderBillCard(bill){
   const card = document.createElement("div");
   card.className="bill-card";
@@ -100,9 +131,7 @@ function renderBillCard(bill){
   });
 
   // Toggle breakdown
-  card.querySelector(".btn-toggleOffers").onclick=()=>{
-    breakdown.style.display = breakdown.style.display==="none"?"block":"none";
-  };
+  card.querySelector(".btn-toggleOffers").onclick=()=>{ breakdown.style.display = breakdown.style.display==="none"?"block":"none"; };
 
   // Confirm payment
   card.querySelector(".btn-verify").onclick=async ()=>{
@@ -111,7 +140,7 @@ function renderBillCard(bill){
       const timestamp = new Date().toISOString();
       const providerId = bill.providerId;
 
-      // 1. Update completedDeals
+      // Update completed deals
       for(const offer of Object.values(bill.offers || {})){
         for(const deal of offer.deals){
           const dealRef = doc(db, "completedDeals", deal.dealId);
@@ -119,15 +148,13 @@ function renderBillCard(bill){
         }
       }
 
-      // 2. Update provider bill
+      // Update provider & global bills
       const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
-      await updateDoc(providerBillRef, { status: "paid", verifiedAt: timestamp });
-
-      // 3. Update global bill
       const globalBillRef = doc(db, "bills", bill.billId);
+      await updateDoc(providerBillRef, { status: "paid", verifiedAt: timestamp });
       await updateDoc(globalBillRef, { status: "paid", verifiedAt: timestamp });
 
-      // 4. Notify provider
+      // Notify provider
       await addDoc(collection(db, `providers/${providerId}/notifications`), {
         type: "payment_verified",
         billId: bill.billId,
@@ -151,15 +178,11 @@ function renderBillCard(bill){
       const timestamp = new Date().toISOString();
       const providerId = bill.providerId;
 
-      // Update provider bill
       const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
-      await updateDoc(providerBillRef, { status: "rejected", rejectionNote:`Admin rejected payment on ${timestamp}` });
-
-      // Update global bill
       const globalBillRef = doc(db, "bills", bill.billId);
+      await updateDoc(providerBillRef, { status: "rejected", rejectionNote:`Admin rejected payment on ${timestamp}` });
       await updateDoc(globalBillRef, { status: "rejected" });
 
-      // Notify provider
       await addDoc(collection(db, `providers/${providerId}/notifications`), {
         type: "payment_rejected",
         billId: bill.billId,
@@ -179,5 +202,6 @@ function renderBillCard(bill){
   paymentsContainer.appendChild(card);
 }
 </script>
+
 </body>
 </html>
