@@ -167,7 +167,7 @@ requestForm.addEventListener("submit", async (e) => {
       clientName,
       clientContact,
       note,
-      status: "pending",         // pending until provider/admin marks as completed
+      status: "pending",
       createdAt: new Date().toISOString(),
 
       providerName: providerInfo?.name || "",
@@ -177,7 +177,7 @@ requestForm.addEventListener("submit", async (e) => {
       commissionValue: offerData.commissionValue || 0
     };
 
-    // --- Create deal in global collection ---
+    // --- Create deal globally ---
     const dealRef = await addDoc(collection(db, "deals"), dealData);
     const dealId = dealRef.id;
 
@@ -190,26 +190,32 @@ requestForm.addEventListener("submit", async (e) => {
       ...dealData
     });
 
-    // --- Provider notification ---
+    // --- Provider notification (FIXED PATH) ---
     if (providerId !== "unknown") {
-      await addDoc(collection(db, `provider-notifications/${providerId}`), {
-        type: "deal",
-        title: "You Have a New Deal Request",
-        message: `A client requested your offer "${dealData.offerTitle}".`,
-        dealId,
-        ...dealData
-      });
+      await addDoc(
+        collection(db, "provider-notifications", providerId, "items"),
+        {
+          type: "deal",
+          title: "You Have a New Deal Request",
+          message: `A client requested your offer "${dealData.offerTitle}".`,
+          dealId,
+          ...dealData
+        }
+      );
     }
 
-    // --- Promoter notification (if link used) ---
+    // --- Promoter notification (FIXED PATH) ---
     if (promoterId !== "direct") {
-      await addDoc(collection(db, `freelancer-notifications/${promoterId}`), {
-        type: "deal",
-        title: "You Generated a Deal!",
-        message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
-        dealId,
-        ...dealData
-      });
+      await addDoc(
+        collection(db, "freelancer-notifications", promoterId, "items"),
+        {
+          type: "deal",
+          title: "You Generated a Deal!",
+          message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
+          dealId,
+          ...dealData
+        }
+      );
     }
 
     requestForm.style.display = "none";
@@ -218,6 +224,7 @@ requestForm.addEventListener("submit", async (e) => {
       ✅ Your request was received!<br>
       The provider will contact you shortly or you may reach them directly at:<br>
       <strong>${dealData.providerPhone}</strong>`;
+
     whatsappBtn.style.display = "block";
     whatsappBtn.href = `https://wa.me/${dealData.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
 
