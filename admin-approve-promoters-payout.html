@@ -43,10 +43,11 @@
 <div id="requestsContainer">Loading withdrawal requests...</div>
 
 <script type="module">
-import { db } from './firebase.js';
+import { auth, db } from './firebase.js';
 import { 
   doc, collection, getDoc, query, where, orderBy, onSnapshot, runTransaction 
 } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
 
 const notif = document.getElementById('notif');
 const container = document.getElementById('requestsContainer');
@@ -58,14 +59,25 @@ const showNotif = (msg, type='success') => {
   setTimeout(() => notif.style.display = 'none', 4000);
 };
 
-// ----- SECURITY: Check admin session -----
-const session = JSON.parse(localStorage.getItem('userSession'));
-if(!session || session.role !== 'admin'){
-  showNotif('⚠ You must be logged in as admin to access this page.', 'error');
-  container.innerHTML = '';
-  setTimeout(() => window.location.href = 'login.html', 2000);
-} else {
+// ----- SECURITY: Check Firebase Auth + localStorage role -----
+onAuthStateChanged(auth, user => {
+  if(!user){
+    showNotif('⚠ You must be logged in to access this page.', 'error');
+    container.innerHTML = '';
+    setTimeout(() => window.location.href = 'login.html', 2000);
+    return;
+  }
 
+  const session = JSON.parse(localStorage.getItem('userSession'));
+  const role = session?.role?.toLowerCase();
+  if(!role || !['admin','super_admin'].includes(role)){
+    showNotif('⚠ You must be an admin to access this page.', 'error');
+    container.innerHTML = '';
+    setTimeout(() => window.location.href = 'login.html', 2000);
+    return;
+  }
+
+  // ----- Fetch pending withdrawal requests -----
   const withdrawalsCol = collection(db, 'withdrawal-requests');
   const q = query(withdrawalsCol, where('status', '==', 'pending'), orderBy('requestedAt', 'desc'));
 
@@ -224,7 +236,7 @@ if(!session || session.role !== 'admin'){
     container.appendChild(card);
   }
 
-}
+});
 </script>
 
 </body>
