@@ -80,7 +80,6 @@ import { db } from './firebase.js';
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   updateDoc,
   addDoc,
@@ -97,7 +96,6 @@ const session = JSON.parse(sessionRaw);
 if (session.role !== 'provider') { window.location.href='login.html'; throw new Error('Unauthorized'); }
 
 const providerId = session.uid;
-
 const notif = document.getElementById('notif');
 const billContainer = document.getElementById('billContainer');
 const filterStatus = document.getElementById('filterStatus');
@@ -112,10 +110,12 @@ const showNotif = (msg, type='success') => {
 
 let billsData = [];
 
-// Listen to provider bills
-const billsRef = collection(db, "bills", providerId, "items");
+// --- Firestore reference matching admin workflow ---
+const billsRef = collection(db, "providers", providerId, "bills");
 
-onSnapshot(billsRef, snapshot => {
+const billsQuery = query(billsRef, orderBy("createdAt","desc"));
+
+onSnapshot(billsQuery, snapshot => {
   billsData = snapshot.docs.map(doc => doc.data());
   renderBills();
 });
@@ -145,7 +145,7 @@ function renderBills(){
     });
 
     card.innerHTML = `
-      <h3>${bill.providerName} — Bill #${bill.billId.slice(-6)}</h3>
+      <h3>Bill #${bill.billId.slice(-6)}</h3>
       <div><strong>Created:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
       <div>${totalsHTML}</div>
 
@@ -168,23 +168,38 @@ function renderBills(){
         const dealDiv = document.createElement('div');
         dealDiv.className = 'deal-item';
         dealDiv.textContent =
-          `DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note}`;
+          `DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note||"None"}`;
         offerDiv.appendChild(dealDiv);
       });
 
       breakdown.appendChild(offerDiv);
     });
 
-    // Toggles
+    // Toggle breakdown
     card.querySelector('.btn-toggleOffers').onclick = () => {
       breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
     };
 
-    // Mark paid
+    // Mark as paid
     card.querySelector('.btn-pay').onclick = async () => {
       try {
         const timestamp = new Date().toISOString();
 
+        // Update provider-specific bill
+        const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
+        await updateDoc(providerBillRef, {
+          status: "paid_pending_verification",
+          updatedAt: timestamp
+        });
+
+        // Update global bill
+        const globalBillRef = doc(db, "bills", bill.billId);
+        await updateDoc(globalBillRef, {
+          status: "paid_pending_verification",
+          updatedAt: timestamp
+        });
+
+        // Notify admin
         await addDoc(collection(db, "admin_notifications"), {
           providerId,
           billId: bill.billId,
@@ -192,11 +207,6 @@ function renderBills(){
           offers: bill.offers,
           createdAt: timestamp,
           type: "providerPaymentNotification"
-        });
-
-        await updateDoc(doc(db, "bills", providerId, "items", bill.billId), {
-          status: "paid_pending_verification",
-          updatedAt: timestamp
         });
 
         showNotif("Payment notification sent to admin.");
