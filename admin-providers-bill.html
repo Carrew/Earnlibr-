@@ -1,138 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Admin Send Weekly Bills</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Admin Manual Billing</title>
 <style>
-  :root {
-    --bg: #0b0d17;
-    --card: #0f1724;
-    --accent1: #4a90e2;
-    --accent2: #a3ff6e;
-    --muted: #bfc7d6;
-    --danger: #ef4444;
-    --success: #4ade80;
-  }
-
-  body {
-    font-family: Inter, system-ui, Arial;
-    background: var(--bg);
-    color: #eef2f7;
-    margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(90deg, var(--accent1), var(--accent2));
-    padding: 20px;
-    color: #041018;
-    margin-bottom: 20px;
-  }
-
-  header img {
-    height: 50px;
-    margin-right: 15px;
-  }
-
-  header h1 {
-    font-size: 24px;
-    font-weight: bold;
-  }
-
-  .notif {
-    margin: 10px auto;
-    padding: 10px 15px;
-    width: 90%;
-    max-width: 500px;
-    border-radius: 8px;
-    display: none;
-    font-size: 14px;
-  }
-  .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success);}
-  .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger);}
-
-  .profile-card {
-    background: var(--card);
-    margin: 20px auto;
-    max-width: 500px;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  }
-  .profile-card h2 { margin: 5px 0; }
-  .profile-card p { margin: 2px 0; color: var(--muted); font-size: 14px; }
-  .logout-btn {
-    margin-top: 12px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    background: var(--danger);
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
-  }
-  .logout-btn:hover { opacity: 0.9; }
-
-  .controls { margin-bottom: 20px; display: flex; justify-content: flex-start; gap: 10px; }
-  .btn {
-    background: var(--success);
-    border: none;
-    padding: 8px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    color: #041018;
-  }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .provider-card {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  }
-  .provider-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .offer-breakdown {
-    background: #1a2235;
-    border-radius: 8px;
-    padding: 10px;
-    margin-top: 10px;
-    display: none;
-  }
-  .offer { border-bottom: 1px solid #2b3145; padding: 5px 0; }
-  .deal-item { font-size: 13px; margin-left: 10px; padding: 2px 0; }
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
+.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; }
+.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
+.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
+.provider-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); transition:opacity .5s, transform .3s; position:relative; }
+.provider-card:hover { transform:translateY(-4px); }
+.provider-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; }
+.btn.danger { background:#ef4444; color:#fff; }
+.btn:disabled { opacity:0.6; cursor:not-allowed; }
+.offer-breakdown { background:#1a2235; border-radius:8px; padding:10px; margin-top:10px; display:none; font-size:13px; }
+.toggle-offers { margin-top:10px; background:#4a90e2; color:#041018; }
+.card-notif { position:absolute; top:10px; right:10px; background:#1a2235; padding:6px 12px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.45); }
+.card-notif button { background:transparent; border:none; color:#a3ff6e; font-weight:700; cursor:pointer; }
+.card-notif button:hover { color:#4ade80; }
 </style>
 </head>
 <body>
 
-<header>
-  <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
-  <h1>EarnLibr Admin — Weekly Bills</h1>
-</header>
-
+<h1>Admin Manual Billing</h1>
 <div id="notif" class="notif"></div>
-
-<div class="profile-card">
-  <h2 id="adminName">Admin Name</h2>
-  <p id="adminEmail">admin@example.com</p>
-  <p id="adminPhone">+0000000000</p>
-  <p id="adminReferral">Referral Code: N/A</p>
-  <p id="adminCreated">Joined: N/A</p>
-  <button id="logoutBtn" class="logout-btn">Logout</button>
-</div>
 
 <div class="controls">
   <button id="sendAll" class="btn">📤 Send All Eligible Bills</button>
@@ -141,202 +35,133 @@
 <div id="providersContainer">Loading pending bills...</div>
 
 <script type="module">
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  addDoc,
-  doc,
-  setDoc,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { auth, db } from "./firebase.js";
+import { collection, doc, setDoc, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-import { db } from "./firebase.js";
-
-const notif = document.getElementById('notif');
-const providersContainer = document.getElementById('providersContainer');
-const sendAllBtn = document.getElementById('sendAll');
+const notif = document.getElementById("notif");
+const providersContainer = document.getElementById("providersContainer");
+const sendAllBtn = document.getElementById("sendAll");
 const THRESHOLDS = { USD: 1, LRD: 300 };
-
 let grouped = {};
 
-// 🔒 ADMIN SECURITY
-const session = JSON.parse(localStorage.getItem('userSession'));
-if (!session || session.role !== 'admin') {
-  notif.textContent = 'You must be logged in as admin.';
-  notif.className = 'notif error';
-  notif.style.display = 'block';
-  setTimeout(() => window.location.href = 'index.html', 2000);
-}
+// --- AUTH CHECK ---
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
 
-document.getElementById('adminName').textContent = session.name;
-document.getElementById('adminEmail').textContent = session.email;
-
-// 📌 LOGOUT
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem("userSession");
-  window.location.href = "index.html";
-});
-
-// Notification helper
-const showNotif = (msg) => {
-  notif.textContent = msg;
-  notif.className = "notif success";
-  notif.style.display = "block";
-  setTimeout(() => (notif.style.display = "none"), 4000);
-};
-
-// 📌 LIVE FETCH Completed Deals (providerPaid = false)
-const dealsQuery = query(
-  collection(db, "deals_completed"),
-  where("providerPaid", "==", false)
-);
-
-onSnapshot(dealsQuery, (snapshot) => {
-  providersContainer.innerHTML = "";
-  grouped = {};
-
-  if (snapshot.empty) {
-    providersContainer.innerHTML = "<p>No unpaid deals.</p>";
+onAuthStateChanged(auth, async (user) => {
+  if(!user || user.uid !== userSession.uid){ 
+    localStorage.removeItem("userSession"); 
+    window.location.href="login.html"; 
     return;
   }
-
-  snapshot.forEach((docSnap) => {
-    const d = docSnap.data();
-    const providerId = d.providerId;
-
-    if (!grouped[providerId])
-      grouped[providerId] = { name: d.providerName, offers: {}, totals: {} };
-
-    if (!grouped[providerId].offers[d.offerId]) {
-      grouped[providerId].offers[d.offerId] = {
-        offerTitle: d.offerTitle,
-        currency: d.currency || "USD",
-        total: 0,
-        deals: []
-      };
-    }
-
-    let offer = grouped[providerId].offers[d.offerId];
-    offer.total += Number(d.commissionEarned);
-    offer.deals.push({
-      dealId: docSnap.id,
-      clientName: d.clientName,
-      clientContact: d.clientContact,
-      commissionEarned: d.commissionEarned,
-      createdAt: d.createdAt
-    });
-
-    const curr = d.currency || "USD";
-    if (!grouped[providerId].totals[curr]) grouped[providerId].totals[curr] = 0;
-    grouped[providerId].totals[curr] += Number(d.commissionEarned);
-  });
-
-  // Render UI
-  renderProviders();
+  loadBills();
 });
 
-// UI: Provider Cards
-function renderProviders() {
-  providersContainer.innerHTML = "";
+// --- Notifications ---
+const showNotif = (msg,type="success")=>{
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display="block";
+  setTimeout(()=>{ notif.style.display="none"; },3000);
+};
 
-  Object.keys(grouped).forEach((providerId) => {
-    const p = grouped[providerId];
+// --- Load Pending Deals & Group by Provider ---
+function loadBills(){
+  const dealsQuery = query(collection(db,"deals_completed"), where("providerPaid","==",false));
+  onSnapshot(dealsQuery, snapshot=>{
+    providersContainer.innerHTML="";
+    grouped={};
 
-    const card = document.createElement("div");
-    card.className = "provider-card";
+    if(snapshot.empty){ providersContainer.innerHTML="<p>No unpaid deals.</p>"; return; }
 
-    let totalsHTML = "";
-    Object.entries(p.totals).forEach(([curr, amt]) => {
-      totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
+    snapshot.forEach(docSnap=>{
+      const d = docSnap.data();
+      const providerId = d.providerId;
+      if(!grouped[providerId]) grouped[providerId] = { name:d.providerName, offers:{}, totals:{} };
+
+      if(!grouped[providerId].offers[d.offerId]){
+        grouped[providerId].offers[d.offerId]={ offerTitle:d.offerTitle, currency:d.currency||"USD", total:0, deals:[] };
+      }
+
+      let offer = grouped[providerId].offers[d.offerId];
+      offer.total += Number(d.commissionEarned);
+      offer.deals.push({ dealId:docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned });
+
+      const curr = d.currency||"USD";
+      if(!grouped[providerId].totals[curr]) grouped[providerId].totals[curr]=0;
+      grouped[providerId].totals[curr]+=Number(d.commissionEarned);
     });
 
-    card.innerHTML = `
+    renderProviders();
+  });
+}
+
+// --- Render Provider Cards ---
+function renderProviders(){
+  providersContainer.innerHTML="";
+  Object.keys(grouped).forEach(providerId=>{
+    const p = grouped[providerId];
+    const card = document.createElement("div");
+    card.className="provider-card";
+
+    let totalsHTML="";
+    Object.entries(p.totals).forEach(([curr,amt])=>{ totalsHTML+=`<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`; });
+
+    card.innerHTML=`
       <div class="provider-header">
         <h2>${p.name}</h2>
         <button class="btn sendBill">Send Bill</button>
       </div>
       ${totalsHTML}
-      <button class="btn toggleOffers">Show Details</button>
+      <button class="btn toggle-offers">Show Details</button>
       <div class="offer-breakdown"></div>
     `;
 
-    providersContainer.appendChild(card);
-
     const breakdown = card.querySelector(".offer-breakdown");
-
-    Object.values(p.offers).forEach((offer) => {
+    Object.values(p.offers).forEach(offer=>{
       const d = document.createElement("div");
-      d.className = "offer";
-      d.innerHTML = `<strong>${offer.offerTitle} — ${offer.currency} ${offer.total}</strong>`;
-
-      offer.deals.forEach((deal) => {
-        const small = document.createElement("div");
-        small.className = "deal-item";
-        small.textContent = `Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
+      d.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+      offer.deals.forEach(deal=>{
+        const small=document.createElement("div");
+        small.textContent=`Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
         d.appendChild(small);
       });
-
       breakdown.appendChild(d);
     });
 
-    card.querySelector(".toggleOffers").onclick = () => {
-      breakdown.style.display =
-        breakdown.style.display === "none" ? "block" : "none";
-    };
+    card.querySelector(".toggle-offers").onclick=()=>{ breakdown.style.display = breakdown.style.display==="none"?"block":"none"; };
+    card.querySelector(".sendBill").onclick=()=>sendBill(providerId,p);
 
-    card.querySelector(".sendBill").onclick = () =>
-      sendBill(providerId, p);
+    providersContainer.appendChild(card);
   });
 }
 
-// 📤 SEND BILL (single provider)
-async function sendBill(providerId, provider) {
-  const eligible = Object.entries(provider.totals).some(
-    ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
-  );
+// --- Send Single Bill ---
+async function sendBill(providerId,provider){
+  const eligible = Object.entries(provider.totals).some(([curr,amt])=>amt >= (THRESHOLDS[curr]||0));
+  if(!eligible) return showNotif("Below threshold","error");
 
-  if (!eligible) return showNotif("Below threshold.");
-
-  const billRef = doc(collection(db, "bills"));
+  const billRef = doc(collection(db,"bills"));
   const billId = billRef.id;
+  const billData = { billId, providerId, providerName:provider.name, totals:provider.totals, offers:provider.offers, createdAt:new Date().toISOString(), status:"pending" };
 
-  const billData = {
-    billId,
-    providerId,
-    providerName: provider.name,
-    totals: provider.totals,
-    offers: provider.offers,
-    createdAt: new Date().toISOString(),
-    status: "pending"
-  };
-
-  await setDoc(billRef, billData);
-
-  await setDoc(doc(db, `providers/${providerId}/bills/${billId}`), billData);
-
-  await addDoc(collection(db, `providers/${providerId}/notifications`), {
-    type: "billing",
-    billId,
-    message: "Your weekly bill is ready",
-    createdAt: new Date().toISOString(),
-    unread: true
-  });
+  await setDoc(billRef,billData);
+  await setDoc(doc(db,`providers/${providerId}/bills/${billId}`),billData);
+  await addDoc(collection(db,`providers/${providerId}/notifications`), { type:"billing", billId, message:"Your weekly bill is ready", createdAt:new Date().toISOString(), unread:true });
 
   showNotif(`Bill sent to ${provider.name}`);
 }
 
-// 📤 SEND ALL
-sendAllBtn.onclick = async () => {
-  sendAllBtn.disabled = true;
-  for (const [providerId, provider] of Object.entries(grouped)) {
-    const eligible = Object.entries(provider.totals).some(
-      ([curr, amt]) => amt >= (THRESHOLDS[curr] || 0)
-    );
-    if (eligible) await sendBill(providerId, provider);
+// --- Send All Eligible Bills ---
+sendAllBtn.onclick = async ()=>{
+  sendAllBtn.disabled=true;
+  for(const [providerId,provider] of Object.entries(grouped)){
+    const eligible = Object.entries(provider.totals).some(([curr,amt])=>amt>=(THRESHOLDS[curr]||0));
+    if(eligible) await sendBill(providerId,provider);
   }
-  sendAllBtn.disabled = false;
+  sendAllBtn.disabled=false;
   showNotif("All eligible bills sent!");
 };
 </script>
