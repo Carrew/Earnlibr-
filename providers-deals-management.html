@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Provider Deals Management (Upgraded)</title>
-
+<title>EarnLibr — Provider Deals Management (Firestore)</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
@@ -36,8 +35,10 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 
 <script type="module">
 import { auth, db } from './firebase.js';
-import { ref, onValue, get, update, remove, push, set, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, runTransaction, query, where, orderBy, onSnapshot 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
 const notif = document.getElementById("notif");
@@ -61,133 +62,120 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "login.html";
     return;
   }
-
-  const snap = await get(ref(db, `users/${user.uid}`));
-  if(!snap.exists() || snap.val().role !== "provider"){
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
   loadDeals(user.uid);
 });
 
-/* Helper Functions */
+/* --- Helper Functions --- */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
-/* --- New: Update Platform Earnings (with daily revenue) --- */
-const updatePlatformEarnings = async (platformShare, currency='USD', timestamp) => {
-  const platformEarningsRef = ref(db, `platform-earnings/${currency}`);
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-  await runTransaction(platformEarningsRef, (current) => {
-    if(current===null) {
-      return { 
-        totalRevenue: round(platformShare),
-        dealsCount: 1,
-        lastUpdated: timestamp,
-        dailyRevenue: { [today]: round(platformShare) }
-      };
-    } else {
-      const daily = current.dailyRevenue || {};
-      daily[today] = round((daily[today] || 0) + platformShare);
-      return { 
-        ...current,
-        totalRevenue: round((current.totalRevenue || 0) + platformShare),
-        dealsCount: (current.dealsCount || 0) + 1,
-        lastUpdated: timestamp,
-        dailyRevenue: daily
-      };
-    }
-  });
-};
 
 /* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card){
   try {
     const timestamp = new Date().toISOString();
-    const currency = deal.currency || "USD";
+    const currency = deal.offerCurrency || "USD";
 
-    const platformSnap = await get(ref(db, "platform-settings/commission"));
-    const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.val().percentage) : 20;
+    const dealRef = doc(db, "deals", dealId);
+    const offerRef = doc(db, "offers_all", deal.offerId);
 
-    const offerRef = ref(db, `offers/${deal.providerId}/${deal.offerId}`);
-    const offerSnap = await get(offerRef);
-    if(!offerSnap.exists()) throw new Error("Offer not found");
-    const offer = offerSnap.val();
+    await runTransaction(db, async (t) => {
+      const offerSnap = await t.get(offerRef);
+      if(!offerSnap.exists()) throw new Error("Offer not found");
+      const offer = offerSnap.data();
 
-    let commissionEarned = 0;
-    if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
-    else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
-    else commissionEarned = deal.commissionValue;
+      let commissionEarned = 0;
+      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
+      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
+      else commissionEarned = deal.commissionValue || 0;
+      commissionEarned = round(commissionEarned);
 
-    commissionEarned = round(commissionEarned);
-    const platformShare = round(commissionEarned*platformPercentage/100);
-    const promoterNet = round(commissionEarned-platformShare);
+      const platformSnap = await getDoc(doc(db, "platform-settings", "commission"));
+      const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
+      const platformShare = round(commissionEarned*platformPercentage/100);
+      const promoterNet = round(commissionEarned-platformShare);
 
-    // Update offer financials
-    await update(offerRef,{
-      promoSpent: round((offer.promoSpent||0)+commissionEarned),
-      amountOwed: round((offer.amountOwed||0)+commissionEarned),
-      outstandingBalance: round((offer.amountOwed||0+commissionEarned) - (offer.amountPaid||0))
-    });
-
-    // Update promoter earnings
-    if(deal.promoterId!=="direct"){
-      await set(ref(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`), {
-        ...deal,
-        commissionAmount: promoterNet,
-        fullCommission: commissionEarned,
-        platformTax: platformShare,
-        currency,
-        completedAt: timestamp,
-        completedBy: "provider",
-        withdrawn:false
+      // Update offer totals
+      t.update(offerRef, {
+        promoSpent: round((offer.promoSpent||0)+commissionEarned),
+        amountOwed: round((offer.amountOwed||0)+commissionEarned),
+        outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
       });
 
-      const metaRef = ref(db, `promoter-earnings/${deal.promoterId}/metadata`);
-      const metaSnap = await get(metaRef);
-      let meta = metaSnap.exists() ? metaSnap.val() : { totalLifetimeEarnings:{}, totalWithdrawn:{}, currentBalance:{} };
-      meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0) + promoterNet;
-      meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
-      meta.lastUpdated = timestamp;
-      await update(metaRef, meta);
-    }
+      // Update promoter earnings
+      if(deal.promoterId && deal.promoterId !== "direct") {
+        const promoterDealRef = doc(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
+        t.set(promoterDealRef, {
+          ...deal,
+          commissionAmount: promoterNet,
+          fullCommission: commissionEarned,
+          platformTax: platformShare,
+          completedAt: timestamp,
+          withdrawn: false
+        });
 
-    // --- New: Update platform earnings ---
-    await updatePlatformEarnings(platformShare, currency, timestamp);
+        const metaRef = doc(db, `promoter-earnings/${deal.promoterId}/metadata`);
+        const metaSnap = await t.get(metaRef);
+        let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
+        meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
+        meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
+        meta.lastUpdated = timestamp;
+        t.set(metaRef, meta, { merge:true });
+      }
 
-    // Move deal to completed
-    await set(ref(db, `completed-deals/${dealId}`), {...deal,status:"completed",completedAt:timestamp,completedBy:"provider",commissionEarned,promoterNet,platformShare,providerPaid:false});
-    await remove(ref(db, `deals/${dealId}`));
+      // Update platform earnings
+      const platformRef = doc(db, `platform-earnings/${currency}`);
+      const platformSnap2 = await t.get(platformRef);
+      const today = timestamp.split("T")[0];
+      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+      platformData.totalRevenue += platformShare;
+      platformData.dealsCount += 1;
+      platformData.dailyRevenue[today] = (platformData.dailyRevenue[today]||0) + platformShare;
+      t.set(platformRef, platformData, { merge:true });
+
+      // Move deal to completed-deals
+      const completedRef = doc(db, "completed-deals", dealId);
+      t.set(completedRef, {
+        ...deal,
+        status: "completed",
+        completedAt: timestamp,
+        completedBy: "provider",
+        commissionEarned,
+        platformShare,
+        promoterNet,
+        providerPaid:false
+      });
+
+      // Delete pending deal
+      t.delete(dealRef);
+    });
+
+    // Notifications
+    const notifData = { title:"Deal Completed ✅", message:`Deal ${dealId} marked complete.`, type:"completed", createdAt: timestamp };
+    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
+    if(deal.promoterId && deal.promoterId!=="direct") 
+      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+
     card.remove();
-
-    const notifData = { title:"Deal Completed ✅", message:`Deal ${dealId} marked complete.`, type:"completed", createdAt:timestamp, commissionEarned, promoterNet, platformShare };
-    await push(ref(db, `notifications/${deal.providerId}`), notifData);
-    if(deal.promoterId!=="direct") await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-
     showNotif("Deal completed successfully");
-  }
-  catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
+  } catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
 }
 
 /* --- Cancel Deal --- */
 async function processCancelDeal(dealId, deal, card){
   try {
     const timestamp = new Date().toISOString();
-    await remove(ref(db, `deals/${dealId}`));
+    await deleteDoc(doc(db, "deals", dealId));
+
+    const notifData = { title:"Deal Cancelled ❌", message:`Deal ${dealId} cancelled by provider.`, type:"cancelled", createdAt: timestamp };
+    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
+    if(deal.promoterId && deal.promoterId!=="direct") 
+      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+
     card.remove();
-
-    const notifData = { title:"Deal Cancelled ❌", message:`Deal ${dealId} cancelled by provider.`, type:"cancelled", createdAt:timestamp };
-    await push(ref(db, `notifications/${deal.providerId}`), notifData);
-    if(deal.promoterId!=="direct") await push(ref(db, `notifications/${deal.promoterId}`), notifData);
-
     showNotif("Deal cancelled","error");
-  }
-  catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
+  } catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
 }
 
-/* --- Schedule Actions (Undo + Spinner) --- */
+/* --- Schedule Actions --- */
 function scheduleAction(type, dealId, deal, card){
   const box = document.createElement("div");
   box.className="card-notif";
@@ -197,9 +185,9 @@ function scheduleAction(type, dealId, deal, card){
   const buttons = card.querySelectorAll("button");
   buttons.forEach(btn=>{ btn.disabled=true; btn.classList.add("loading"); });
 
-  let cancelled = false;
-  box.querySelector("button").onclick = () => {
-    cancelled = true;
+  let cancelled=false;
+  box.querySelector("button").onclick=()=>{
+    cancelled=true;
     box.remove();
     buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
     showNotif("Action cancelled","error");
@@ -208,8 +196,8 @@ function scheduleAction(type, dealId, deal, card){
   setTimeout(async ()=>{
     box.remove();
     if(!cancelled){
-      if(type==="complete") await processCompleteDeal(dealId,deal,card);
-      else await processCancelDeal(dealId,deal,card);
+      if(type==="complete") await processCompleteDeal(dealId, deal, card);
+      else await processCancelDeal(dealId, deal, card);
     }
     buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
   },5000);
@@ -217,20 +205,13 @@ function scheduleAction(type, dealId, deal, card){
 
 /* --- Load Deals --- */
 function loadDeals(providerId){
-  const dealsRef = ref(db, "deals");
-  onValue(dealsRef, snapshot=>{
+  const dealsQuery = query(collection(db, "deals"), where("providerId", "==", providerId), orderBy("createdAt","desc"));
+  onSnapshot(dealsQuery, snapshot=>{
     dealsContainer.innerHTML="";
-    if(!snapshot.exists()) return dealsContainer.innerHTML="<p>No deals found.</p>";
+    if(snapshot.empty) return dealsContainer.innerHTML="<p>No active deals yet.</p>";
 
-    const allDeals = snapshot.val();
-    const providerDeals = Object.keys(allDeals).filter(id=>allDeals[id].providerId===providerId)
-      .sort((a,b)=>new Date(allDeals[b].createdAt)-new Date(allDeals[a].createdAt));
-
-    if(!providerDeals.length) return dealsContainer.innerHTML="<p>No active deals yet.</p>";
-
-    providerDeals.forEach(dealId=>{
-      const deal=allDeals[dealId];
-      renderDealCard(dealId,deal);
+    snapshot.docs.forEach(docSnap=>{
+      renderDealCard(docSnap.id, docSnap.data());
     });
   });
 }
