@@ -3,346 +3,180 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Providers Payment Verification by Admin</title>
+<title>Admin — Verify Provider Payments</title>
 <style>
-  :root {
-    --bg: #0b0d17;
-    --card: #0f1724;
-    --accent1: #4a90e2;
-    --accent2: #a3ff6e;
-    --muted: #bfc7d6;
-    --danger: #ef4444;
-    --success: #4ade80;
-    --pending: #facc15;
-  }
-
-  body {
-    font-family: Inter, system-ui, Arial;
-    background: var(--bg);
-    color: #eef2f7;
-    margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(90deg, var(--accent1), var(--accent2));
-    padding: 20px;
-    color: #041018;
-    margin-bottom: 20px;
-  }
-
-  header img {
-    height: 50px;
-    margin-right: 15px;
-  }
-
-  header h1 {
-    font-size: 24px;
-    font-weight: bold;
-  }
-
-  .notif {
-    margin: 10px auto;
-    padding: 10px 15px;
-    width: 90%;
-    max-width: 500px;
-    border-radius: 8px;
-    display: none;
-    font-size: 14px;
-  }
-  .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success);}
-  .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger);}
-
-  .profile-card {
-    background: var(--card);
-    margin: 20px auto;
-    max-width: 500px;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  }
-  .profile-card h2 { margin: 5px 0; }
-  .profile-card p { margin: 2px 0; color: var(--muted); font-size: 14px; }
-  .logout-btn {
-    margin-top: 12px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    background: var(--danger);
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
-  }
-  .logout-btn:hover { opacity: 0.9; }
-
-  .bill-card {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    border-left: 4px solid var(--pending);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .bill-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.6);
-  }
-
-  .bill-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .status {
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: bold;
-    text-transform: capitalize;
-    background: var(--pending);
-    color: #000;
-  }
-
-  .btn {
-    padding: 8px 14px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-top: 10px;
-    margin-right: 10px;
-  }
-  .btn.verify { background: var(--success); color: #041018; }
-  .btn.reject { background: var(--danger); color: #fff; }
-
+body { font-family: Inter,system-ui,Arial; background:#0b0d17; color:#eef2f7; margin:0; padding:20px; }
+h1 { font-size:24px; margin-bottom:20px; background:linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; }
+.notif { display:none; padding:12px 16px; margin-bottom:20px; border-radius:8px; font-weight:600; }
+.notif.success { border-left:4px solid #4ade80; color:#4ade80; background:rgba(74,222,128,0.05); }
+.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; background:rgba(239,68,68,0.05); }
+.bill-card { background:#0f1724; padding:16px; border-radius:12px; margin-bottom:20px; box-shadow:0 8px 20px rgba(0,0,0,0.4); border-left:4px solid #facc15; transition:0.2s; }
+.bill-card:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(0,0,0,0.5); }
+.btn { padding:8px 14px; border:none; border-radius:8px; font-weight:600; cursor:pointer; margin-top:10px; transition:0.2s; }
+.btn-verify { background:#4ade80; color:#041018; }
+.btn-reject { background:#ef4444; color:#fff; }
+.btn-verify:hover, .btn-reject:hover { opacity:0.9; }
+.offer-breakdown { margin-top:10px; display:none; }
+.offer { border-bottom:1px solid #2b3145; padding:6px 0; }
+.deal-item { font-size:13px; margin-left:12px; padding:2px 0; }
+.btn-toggleOffers { background:#3b82f6; color:#fff; margin-top:10px; }
+.btn-toggleOffers:hover { opacity:0.9; }
+.status { display:inline-block; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:bold; text-transform:capitalize; background:#facc15; color:#000; margin-left:10px; }
+.status.paid { background:#4ade80; color:#041018; }
+.status.rejected { background:#ef4444; color:#fff; }
 </style>
 </head>
 <body>
 
-<header>
-  <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
-  <h1>EarnLibr Admin — Payment Verification</h1>
-</header>
-
+<h1>Admin — Verify Provider Payments</h1>
 <div id="notif" class="notif"></div>
-
-<div class="profile-card">
-  <h2 id="adminName">Admin Name</h2>
-  <p id="adminEmail">admin@example.com</p>
-  <p id="adminPhone">+0000000000</p>
-  <p id="adminReferral">Referral Code: N/A</p>
-  <p id="adminCreated">Joined: N/A</p>
-  <button id="logoutBtn" class="logout-btn">Logout</button>
-</div>
-
-<div id="verifyContainer">Loading bills pending verification...</div>
+<div id="paymentsContainer">Loading provider payments...</div>
 
 <script type="module">
+import { db } from './firebase.js';
 import { 
-  db 
-} from './firebase.js';
-
-import {
-  doc,
-  collection,
-  getDoc,
-  getDocs,
-  updateDoc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  setDoc,
-  addDoc
+  collection, query, where, onSnapshot, doc, updateDoc, addDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// ─────────────────────────────────────────────
-//  ADMIN DATA
-// ─────────────────────────────────────────────
-const notif = document.getElementById('notif');
-const adminName = document.getElementById('adminName');
-const adminEmail = document.getElementById('adminEmail');
-const adminPhone = document.getElementById('adminPhone');
-const adminReferral = document.getElementById('adminReferral');
-const adminCreated = document.getElementById('adminCreated');
-const logoutBtn = document.getElementById('logoutBtn');
-const container = document.getElementById('verifyContainer');
+const notif = document.getElementById("notif");
+const paymentsContainer = document.getElementById("paymentsContainer");
 
-// ─────────────────────────────────────────────
-//  AUTH CHECK
-// ─────────────────────────────────────────────
-const session = JSON.parse(localStorage.getItem('userSession'));
-
-if(!session || session.role !== 'admin'){
-  notif.textContent = '⚠ You must be logged in as admin.';
-  notif.className = 'notif error';
-  notif.style.display = 'block';
-  setTimeout(()=> window.location.href='index.html', 2000);
-} else {
-  adminName.textContent = session.name;
-  adminEmail.textContent = session.email;
-  adminPhone.textContent = session.phone || 'N/A';
-  adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
-  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString()}`;
-}
-
-logoutBtn.addEventListener('click', ()=>{
-  localStorage.removeItem('userSession');
-  window.location.href='index.html';
-});
-
-// SMALL HELPER
 const showNotif = (msg, type='success')=>{
   notif.textContent = msg;
   notif.className = `notif ${type}`;
-  notif.style.display = 'block';
-  setTimeout(()=> notif.style.display='none', 4000);
+  notif.style.display='block';
+  setTimeout(()=> notif.style.display='none',4000);
 };
 
-// ─────────────────────────────────────────────
-//  LISTEN TO ALL ADMIN BILLS
-// ─────────────────────────────────────────────
-const billsQuery = query(
-  collection(db, "admin_bills"),
-  where("status", "==", "paid_pending_verification"),
-  orderBy("createdAt", "desc")
-);
+// --- Fetch bills pending verification ---
+const billsQuery = query(collection(db, "bills"), where("status","==","paid_pending_verification"));
 
-onSnapshot(billsQuery, snapshot =>{
-  container.innerHTML = "";
-
+onSnapshot(billsQuery, snapshot=>{
+  paymentsContainer.innerHTML="";
   if(snapshot.empty){
-    container.innerHTML = '<p>No bills pending verification.</p>';
+    paymentsContainer.innerHTML="<p style='opacity:.6;text-align:center;'>No payments pending verification.</p>";
     return;
   }
 
-  snapshot.forEach(docSnap =>{
-    renderBillCard(docSnap.id, docSnap.data());
+  snapshot.docs.forEach(docSnap=>{
+    const bill = docSnap.data();
+    renderBillCard(bill);
   });
 });
 
-// ─────────────────────────────────────────────
-//  RENDER BILL CARD
-// ─────────────────────────────────────────────
-function renderBillCard(billId, bill){
-  const card = document.createElement('div');
-  card.className = 'bill-card';
-  card.id = billId;
+function renderBillCard(bill){
+  const card = document.createElement("div");
+  card.className="bill-card";
 
   let totalsHTML="";
-  Object.entries(bill.totals).forEach(([curr, amt])=>{
-    totalsHTML += `<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`;
+  Object.entries(bill.totals || {}).forEach(([curr, amt])=>{
+    totalsHTML += `<div><strong>${curr} Total:</strong> ${amt.toFixed(2)}</div>`;
   });
 
-  card.innerHTML = `
-    <div class="bill-header">
-      <h3>${bill.providerName} — Bill #${billId.slice(-6)}</h3>
-      <span class="status">${bill.status.replace(/_/g,' ')}</span>
-    </div>
-    <div><strong>Date:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
-    ${totalsHTML}
-    <br>
-    <button class="btn verify">✅ Verify Payment</button>
-    <button class="btn reject">❌ Reject Payment</button>
+  card.innerHTML=`
+    <h3>Provider: ${bill.providerName} — Bill #${bill.billId.slice(-6)} <span class="status">${bill.status}</span></h3>
+    <div><strong>Created:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
+    <div>${totalsHTML}</div>
+    <button class="btn btn-toggleOffers">Show Offer & Deals Breakdown</button>
+    <div class="offer-breakdown"></div>
+    <button class="btn btn-verify">✅ Confirm Payment</button>
+    <button class="btn btn-reject">❌ Reject Payment</button>
   `;
 
-  card.querySelector('.verify').onclick = () => processVerification(billId, bill, "verified");
-  card.querySelector('.reject').onclick = () => processVerification(billId, bill, "pending");
+  const breakdown = card.querySelector(".offer-breakdown");
 
-  container.appendChild(card);
-}
+  // Offer & deal breakdown
+  Object.values(bill.offers || {}).forEach(offer=>{
+    const offerDiv = document.createElement("div");
+    offerDiv.className="offer";
+    offerDiv.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+    offer.deals.forEach(d=>{
+      const dealDiv = document.createElement("div");
+      dealDiv.className="deal-item";
+      dealDiv.textContent=`DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note||"None"}`;
+      offerDiv.appendChild(dealDiv);
+    });
+    breakdown.appendChild(offerDiv);
+  });
 
-// ─────────────────────────────────────────────
-//  PROCESS PAYMENT VERIFICATION
-// ─────────────────────────────────────────────
-async function processVerification(billId, bill, newStatus){
-  const providerId = bill.providerId;
-  const timestamp = new Date().toISOString();
+  // Toggle breakdown
+  card.querySelector(".btn-toggleOffers").onclick=()=>{
+    breakdown.style.display = breakdown.style.display==="none"?"block":"none";
+  };
 
-  if(newStatus === "verified"){
+  // Confirm payment
+  card.querySelector(".btn-verify").onclick=async ()=>{
     if(!confirm("Confirm verifying this provider payment?")) return;
+    try{
+      const timestamp = new Date().toISOString();
+      const providerId = bill.providerId;
 
-    // For each offer → update completedDeals + update provider offer
-    for(const offer of Object.values(bill.offers)){
-      let totalPaid = 0;
-
-      // 1. Update each associated completed deal's payment status
-      for(const deal of offer.deals){
-
-        // The old code used 'd.id', the new code uses 'deal.dealId' (assuming 'deal.dealId' is correct from bill generation)
-        await updateDoc(
-          doc(db, "completedDeals", deal.dealId),
-          {
-            providerPaid: true,
-            paymentAmount: deal.commissionEarned,
-            paymentNotes: `Verified by admin on ${timestamp}`
-          }
-        );
-
-        totalPaid += deal.commissionEarned;
+      // 1. Update completedDeals
+      for(const offer of Object.values(bill.offers || {})){
+        for(const deal of offer.deals){
+          const dealRef = doc(db, "completedDeals", deal.dealId);
+          await updateDoc(dealRef, { providerPaid: true, paymentAmount: deal.commissionEarned, paymentNotes: `Verified by admin on ${timestamp}` });
+        }
       }
 
-      // 2. Update provider's offer tracking
-      const offerRef = doc(db, "offers", providerId, "offers", offer.offerId);
-      const offerSnap = await getDoc(offerRef);
+      // 2. Update provider bill
+      const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
+      await updateDoc(providerBillRef, { status: "paid", verifiedAt: timestamp });
 
-      if(offerSnap.exists()){
-        const data = offerSnap.data();
+      // 3. Update global bill
+      const globalBillRef = doc(db, "bills", bill.billId);
+      await updateDoc(globalBillRef, { status: "paid", verifiedAt: timestamp });
 
-        await updateDoc(offerRef, {
-          amountPaid: (data.amountPaid || 0) + totalPaid,
-          outstandingBalance: Math.max((data.outstandingBalance || 0) - totalPaid, 0)
-        });
-      }
+      // 4. Notify provider
+      await addDoc(collection(db, `providers/${providerId}/notifications`), {
+        type: "payment_verified",
+        billId: bill.billId,
+        message: `Your payment for Bill #${bill.billId.slice(-6)} has been verified.`,
+        createdAt: timestamp,
+        unread: true
+      });
+
+      card.remove();
+      showNotif(`Bill #${bill.billId.slice(-6)} marked as Paid`);
+    } catch(err){
+      console.error(err);
+      showNotif("Error verifying payment: "+err.message,"error");
     }
+  };
 
-    // 3. Timestamp the verification on the provider's bill record
-    await updateDoc(doc(db, "providers", providerId, "bills", billId), {
-      verifiedAt: timestamp
-    });
+  // Reject payment
+  card.querySelector(".btn-reject").onclick=async ()=>{
+    if(!confirm("Reject this provider payment?")) return;
+    try{
+      const timestamp = new Date().toISOString();
+      const providerId = bill.providerId;
 
-  } else if(newStatus === "pending"){
-    if(!confirm("Reject this payment?")) return;
+      // Update provider bill
+      const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
+      await updateDoc(providerBillRef, { status: "rejected", rejectionNote:`Admin rejected payment on ${timestamp}` });
 
-    // 1. Note the rejection on the provider's bill record
-    await updateDoc(doc(db, "providers", providerId, "bills", billId), {
-      rejectionNote: `Admin rejected payment on ${timestamp}`
-    });
-  }
+      // Update global bill
+      const globalBillRef = doc(db, "bills", bill.billId);
+      await updateDoc(globalBillRef, { status: "rejected" });
 
-  // 4. Update bill status globally (admin_bills) and locally (providers/bills)
-  await updateDoc(doc(db, "providers", providerId, "bills", billId), {
-    status: newStatus,
-    updatedAt: timestamp
-  });
+      // Notify provider
+      await addDoc(collection(db, `providers/${providerId}/notifications`), {
+        type: "payment_rejected",
+        billId: bill.billId,
+        message: `Your payment for Bill #${bill.billId.slice(-6)} has been rejected.`,
+        createdAt: timestamp,
+        unread: true
+      });
 
-  await updateDoc(doc(db, "admin_bills", billId), {
-    status: newStatus,
-    updatedAt: timestamp
-  });
+      card.remove();
+      showNotif(`Bill #${bill.billId.slice(-6)} rejected`,"error");
+    } catch(err){
+      console.error(err);
+      showNotif("Error rejecting payment: "+err.message,"error");
+    }
+  };
 
-  // 5. Push notification to the provider
-  await addDoc(collection(db, "notifications", providerId, "items"), {
-    title: newStatus === "verified" ? "Payment Verified ✅" : "Payment Rejected ❌",
-    message: newStatus === "verified"
-      ? `Your payment for Bill #${billId.slice(-6)} has been confirmed.`
-      : `Your payment for Bill #${billId.slice(-6)} was rejected.`,
-    type: newStatus === "verified" ? "payment_verified" : "payment_rejected",
-    billId,
-    createdAt: timestamp
-  });
-
-  showNotif(`Bill ${newStatus === "verified" ? "verified" : "rejected"} successfully.`);
-
-  document.getElementById(billId)?.remove();
+  paymentsContainer.appendChild(card);
 }
 </script>
 </body>
