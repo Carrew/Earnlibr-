@@ -28,7 +28,6 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 </style>
 </head>
 <body>
-
 <h1>Your Deals</h1>
 <div id="notif" class="notif"></div>
 <div id="dealsContainer">Loading deals...</div>
@@ -36,8 +35,8 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { 
-  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, where, orderBy, onSnapshot 
+import {
+  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, where, orderBy, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -52,17 +51,27 @@ const showNotif = (msg, type="success") => {
 
 /* --- Session & Auth Check --- */
 let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+console.log("Loaded user session from localStorage:", userSession);
+
+if(!userSession){
+  console.warn("No user session found, redirecting to login...");
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
 userSession = JSON.parse(userSession);
+console.log("Parsed user session:", userSession);
 
 onAuthStateChanged(auth, async (user) => {
+  console.log("Auth state changed, user:", user);
   if(!user || user.uid !== userSession.uid){
+    console.warn("User not logged in or UID mismatch, redirecting...");
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
 
   if(!user.emailVerified){
+    console.warn("User email not verified, redirecting...");
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
@@ -70,7 +79,10 @@ onAuthStateChanged(auth, async (user) => {
 
   // Firestore user doc check
   const userDoc = await getDoc(doc(db, 'users', user.uid));
+  console.log("Fetched user document:", userDoc.exists() ? userDoc.data() : "Does not exist");
+
   if(!userDoc.exists() || userDoc.data().role !== 'provider'){
+    console.error("User is not a provider, redirecting...");
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
@@ -80,6 +92,7 @@ onAuthStateChanged(auth, async (user) => {
   const uData = userDoc.data();
   userSession = { uid: user.uid, name: uData.name, email: uData.email, role: uData.role };
   localStorage.setItem('userSession', JSON.stringify(userSession));
+  console.log("Updated local session with Firestore data:", userSession);
 
   loadDeals(user.uid);
 });
@@ -87,111 +100,64 @@ onAuthStateChanged(auth, async (user) => {
 /* --- Helper --- */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-/* --- Complete Deal --- */
-async function processCompleteDeal(dealId, deal, card){
-  try {
-    const timestamp = new Date().toISOString();
-    const currency = deal.offerCurrency || "USD";
+/* --- Load Deals --- */
+function loadDeals(providerId){
+  console.log("Loading deals for providerId:", providerId);
 
-    const dealRef = doc(db, "deals", dealId);
-    const offerRef = doc(db, "offers_all", deal.offerId);
+  const dealsQuery = query(
+    collection(db, "deals"),
+    where("providerId", "==", providerId),
+    orderBy("createdAt", "desc")
+  );
 
-    await runTransaction(db, async (t) => {
-      const offerSnap = await t.get(offerRef);
-      if(!offerSnap.exists()) throw new Error("Offer not found");
-      const offer = offerSnap.data();
+  onSnapshot(dealsQuery,
+    snapshot => {
+      console.log("Deals snapshot received:", snapshot);
+      dealsContainer.innerHTML = "";
 
-      let commissionEarned = 0;
-      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
-      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
-      else commissionEarned = deal.commissionValue || 0;
-      commissionEarned = round(commissionEarned);
-
-      const platformSnap = await getDoc(doc(db, "platform-settings", "commission"));
-      const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
-      const platformShare = round(commissionEarned*platformPercentage/100);
-      const promoterNet = round(commissionEarned-platformShare);
-
-      // Update offer totals
-      t.update(offerRef, {
-        promoSpent: round((offer.promoSpent||0)+commissionEarned),
-        amountOwed: round((offer.amountOwed||0)+commissionEarned),
-        outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
-      });
-
-      // Update promoter earnings
-      if(deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef = doc(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
-        t.set(promoterDealRef, {
-          ...deal,
-          commissionAmount: promoterNet,
-          fullCommission: commissionEarned,
-          platformTax: platformShare,
-          completedAt: timestamp,
-          withdrawn: false
-        });
-
-        const metaRef = doc(db, `promoter-earnings/${deal.promoterId}/metadata`);
-        const metaSnap = await t.get(metaRef);
-        let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
-        meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
-        meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
-        meta.lastUpdated = timestamp;
-        t.set(metaRef, meta, { merge:true });
+      if(snapshot.empty){
+        console.warn("No active deals found.");
+        dealsContainer.innerHTML = "<p>No active deals yet.</p>";
+        return;
       }
 
-      // Update platform earnings
-      const platformRef = doc(db, `platform-earnings/${currency}`);
-      const platformSnap2 = await t.get(platformRef);
-      const today = timestamp.split("T")[0];
-      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
-      platformData.totalRevenue += platformShare;
-      platformData.dealsCount += 1;
-      platformData.dailyRevenue[today] = (platformData.dailyRevenue[today]||0) + platformShare;
-      t.set(platformRef, platformData, { merge:true });
-
-      // Move deal to completed-deals
-      const completedRef = doc(db, "completed-deals", dealId);
-      t.set(completedRef, {
-        ...deal,
-        status: "completed",
-        completedAt: timestamp,
-        completedBy: "provider",
-        commissionEarned,
-        platformShare,
-        promoterNet,
-        providerPaid:false
+      snapshot.docs.forEach(docSnap => {
+        console.log("Rendering deal:", docSnap.id, docSnap.data());
+        renderDealCard(docSnap.id, docSnap.data());
       });
-
-      // Delete pending deal
-      t.delete(dealRef);
-    });
-
-    // Notifications
-    const notifData = { title:"Deal Completed ✅", message:`Deal ${dealId} marked complete.`, type:"completed", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
-
-    card.remove();
-    showNotif("Deal completed successfully");
-  } catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
+    },
+    error => {
+      console.error("Error fetching deals snapshot:", error);
+      dealsContainer.innerHTML = "<p>Error loading deals.</p>";
+      showNotif("Error fetching deals: " + error.message, "error");
+    }
+  );
 }
 
-/* --- Cancel Deal --- */
-async function processCancelDeal(dealId, deal, card){
-  try {
-    const timestamp = new Date().toISOString();
-    await deleteDoc(doc(db, "deals", dealId));
+/* --- Render Deal Card --- */
+function renderDealCard(dealId, deal){
+  const card = document.createElement("div");
+  card.className="deal-card "+(deal.status||"");
 
-    const notifData = { title:"Deal Cancelled ❌", message:`Deal ${dealId} cancelled by provider.`, type:"cancelled", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+  card.innerHTML = `
+    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
+    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
+    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
+    <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
+    <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
 
-    card.remove();
-    showNotif("Deal cancelled","error");
-  } catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
+    <div class="deal-actions">
+      <button class="complete">Mark Completed</button>
+      <button class="cancel">Mark Cancelled</button>
+    </div>
+
+    <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status||"Pending"}</div>
+  `;
+
+  card.querySelector(".complete").onclick=()=>scheduleAction("complete", dealId, deal, card);
+  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel", dealId, deal, card);
+
+  dealsContainer.appendChild(card);
 }
 
 /* --- Schedule Actions --- */
@@ -222,48 +188,10 @@ function scheduleAction(type, dealId, deal, card){
   },5000);
 }
 
-/* --- Load Deals --- */
-function loadDeals(providerId){
-  const dealsQuery = query(
-    collection(db, "deals"), 
-    where("providerId", "==", providerId), 
-    orderBy("createdAt","desc")
-  );
-  onSnapshot(dealsQuery, snapshot=>{
-    dealsContainer.innerHTML="";
-    if(snapshot.empty) return dealsContainer.innerHTML="<p>No active deals yet.</p>";
+/* --- Complete & Cancel Deal functions --- */
+// Keep your existing processCompleteDeal and processCancelDeal functions as-is.
+// You can also add console.log inside them to track transaction success/failure.
 
-    snapshot.docs.forEach(docSnap=>{
-      renderDealCard(docSnap.id, docSnap.data());
-    });
-  });
-}
-
-/* --- Render Deal Card --- */
-function renderDealCard(dealId, deal){
-  const card = document.createElement("div");
-  card.className="deal-card "+(deal.status||"");
-
-  card.innerHTML = `
-    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
-    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
-    <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
-    <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
-
-    <div class="deal-actions">
-      <button class="complete">Mark Completed</button>
-      <button class="cancel">Mark Cancelled</button>
-    </div>
-
-    <div class="timestamp">Created: ${new Date(deal.createdAt).toLocaleString()} | Status: ${deal.status||"Pending"}</div>
-  `;
-
-  card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
-  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
-
-  dealsContainer.appendChild(card);
-}
 </script>
 </body>
 </html>
