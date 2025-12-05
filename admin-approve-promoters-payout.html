@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Approve Withdrawals</title>
+
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
@@ -23,103 +24,160 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 <div id="requestsContainer">Loading requests...</div>
 
 <script type="module">
-import { auth, db } from './firebase.js';
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, getDocs, updateDoc, query, where, runTransaction 
+  collection, doc, getDoc, getDocs, updateDoc,
+  query, where, runTransaction 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const requestsContainer = document.getElementById("requestsContainer");
 const notif = document.getElementById("notif");
+const requestsContainer = document.getElementById("requestsContainer");
 
 const showNotif = (msg, type="success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 3000);
+  setTimeout(() => notif.style.display = "none", 3000);
 };
 
-/* --- Admin Auth --- */
-onAuthStateChanged(auth, async (user) => {
-  if(!user){ window.location.href = "login.html"; return; }
+/* -------------------------------------------
+   AUTHENTICATION — MATCHES YOUR LOGIN SYSTEM
+-------------------------------------------- */
+let userSession = localStorage.getItem("userSession");
 
-  const adminDoc = await getDoc(doc(db, "admins", user.uid));
-  if(!adminDoc.exists() || !["admin","super_admin"].includes(adminDoc.data().role)){
-    window.location.href = "login.html"; return;
+if (!userSession) {
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
+userSession = JSON.parse(userSession);
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user || user.uid !== userSession.uid) {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
   }
+
+  if (!user.emailVerified) {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  // Check admin Firestore record (like login page)
+  const adminRef = doc(db, "admins", user.uid);
+  const adminSnap = await getDoc(adminRef);
+
+  if (!adminSnap.exists() || !["admin", "super_admin"].includes(adminSnap.data().role)) {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  const data = adminSnap.data();
+
+  // Same session structure as login
+  userSession = {
+    uid: user.uid,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    referralCode: data.referralCode || "",
+    phone: data.phone || "",
+    country: data.country || "",
+    createdAt: data.createdAt || ""
+  };
+
+  localStorage.setItem("userSession", JSON.stringify(userSession));
 
   loadRequests();
 });
 
-/* --- Load Pending Requests --- */
-async function loadRequests(){
-  const reqQuery = query(collection(db, "withdrawal-requests"), where("status", "==", "pending"));
+/* -------------------------------------------
+   LOAD WITHDRAWAL REQUESTS
+-------------------------------------------- */
+async function loadRequests() {
+  const reqQuery = query(
+    collection(db, "withdrawal-requests"),
+    where("status", "==", "pending")
+  );
+
   const reqSnap = await getDocs(reqQuery);
   requestsContainer.innerHTML = "";
 
-  if(reqSnap.empty){
+  if (reqSnap.empty) {
     requestsContainer.innerHTML = "<p>No pending withdrawal requests.</p>";
     return;
   }
 
-  reqSnap.forEach(docSnap => renderRequestBox(docSnap.id, docSnap.data()));
+  reqSnap.forEach(docSnap => {
+    renderRequestBox(docSnap.id, docSnap.data());
+  });
 }
 
-/* --- Render Request Box --- */
-function renderRequestBox(reqId, req){
+/* -------------------------------------------
+   DISPLAY REQUEST BOX
+-------------------------------------------- */
+function renderRequestBox(reqId, req) {
   const box = document.createElement("div");
   box.className = "request-box";
 
   box.innerHTML = `
-    <p><strong>Promoter:</strong> ${req.promoterId}</p>
+    <p><strong>Promoter ID:</strong> ${req.promoterId}</p>
     <p><strong>Currency:</strong> ${req.currency}</p>
     <p><strong>Amount:</strong> ${req.amount}</p>
     <p><strong>Deals:</strong> ${req.dealIds.join(", ")}</p>
     <button class="approve">Approve</button>
     <button class="reject">Reject</button>
   `;
+
   requestsContainer.appendChild(box);
 
   box.querySelector(".approve").onclick = () => processApproval(reqId, req, true, box);
   box.querySelector(".reject").onclick = () => processApproval(reqId, req, false, box);
 }
 
-/* --- Process Approval/Reject --- */
-async function processApproval(reqId, req, approve=true, box){
+/* -------------------------------------------
+   PROCESS APPROVE/REJECT
+-------------------------------------------- */
+async function processApproval(reqId, req, approve = true, box) {
   try {
     await runTransaction(db, async (t) => {
       const reqRef = doc(db, "withdrawal-requests", reqId);
       const reqSnap = await t.get(reqRef);
-      if(!reqSnap.exists()) throw new Error("Request not found or already processed");
+      if (!reqSnap.exists()) throw new Error("Request already processed");
 
-      if(approve){
-        // Mark all deals withdrawn
-        for(const dealId of req.dealIds){
+      if (approve) {
+        // Mark deals withdrawn
+        for (const dealId of req.dealIds) {
           const dealRef = doc(db, "promoter-earnings", req.promoterId, "deals", dealId);
           t.update(dealRef, { withdrawn: true });
         }
 
-        // Update promoter metadata
+        // Update metadata
         const metaRef = doc(db, "promoter-earnings", req.promoterId, "metadata", "summary");
         const metaSnap = await t.get(metaRef);
-        if(!metaSnap.exists()) throw new Error("Metadata not found");
-        const meta = metaSnap.data();
-        meta.totalWithdrawn[req.currency] = (meta.totalWithdrawn[req.currency]||0) + req.amount;
-        meta.currentBalance[req.currency] = (meta.totalLifetimeEarnings[req.currency]||0) - meta.totalWithdrawn[req.currency];
-        meta.lastUpdated = new Date().toISOString();
-        t.set(metaRef, meta, { merge:true });
+        if (!metaSnap.exists()) throw new Error("Metadata missing");
 
-        // Mark request approved
+        const meta = metaSnap.data();
+        meta.totalWithdrawn[req.currency] = (meta.totalWithdrawn[req.currency] || 0) + req.amount;
+        meta.currentBalance[req.currency] =
+          (meta.totalLifetimeEarnings[req.currency] || 0) -
+          meta.totalWithdrawn[req.currency];
+
+        meta.lastUpdated = new Date().toISOString();
+        t.set(metaRef, meta, { merge: true });
+
         t.update(reqRef, { status: "approved", processedAt: new Date().toISOString() });
       } else {
-        // Reject request
         t.update(reqRef, { status: "rejected", processedAt: new Date().toISOString() });
       }
     });
 
     showNotif(`Request ${approve ? "approved" : "rejected"} successfully`);
     box.remove();
-  } catch(err){
+  } catch (err) {
     console.error(err);
     showNotif(err.message, "error");
   }
