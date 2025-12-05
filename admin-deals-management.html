@@ -142,7 +142,9 @@ async function processCompleteDeal(dealId, deal, card){
 
       // Update promoter earnings
       if(deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef = doc(db, `promoter-earnings/${deal.promoterId}/deals/${dealId}`);
+        
+        // --- FIX 1: Corrected subcollection reference for the deal document (4 segments) ---
+        const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
         t.set(promoterDealRef, {
           ...deal,
           commissionAmount: promoterNet,
@@ -152,7 +154,9 @@ async function processCompleteDeal(dealId, deal, card){
           withdrawn: false
         });
 
-        const metaRef = doc(db, `promoter-earnings/${deal.promoterId}/metadata`);
+        // --- FIX 2: Corrected subcollection reference for the metadata document (4 segments) ---
+        // Using "summary" as the specific document ID within the "metadata" subcollection
+        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
         const metaSnap = await t.get(metaRef);
         let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
         meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
