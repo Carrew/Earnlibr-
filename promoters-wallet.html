@@ -3,174 +3,134 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Promoter Wallet</title>
+<title>Promoter Wallet</title>
 <style>
-  /* Keep all your current styles */
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.wallet-box { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.wallet-box h3 { margin-top: 0; }
+.wallet-box p { margin: 4px 0; font-size: 14px; }
+.wallet-box button { margin-top: 10px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; background: #4ade80; color: #041018; font-weight: 700; }
+.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
+.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
 </style>
 </head>
 <body>
-<header>
-  <h1>💰 Promoter Wallet</h1>
-  <button class="dashboard-btn" onclick="window.location.href='promoter-dashboard.html'">← Dashboard</button>
-</header>
 
+<h1>Promoter Wallet</h1>
 <div id="notif" class="notif"></div>
-<div id="walletContainer" class="wallet-container"></div>
-
-<!-- Withdrawal Confirmation Modal -->
-<div id="withdrawModal" class="modal">
-  <div class="modal-content">
-    <h3 id="modalText">Confirm withdrawal?</h3>
-    <div class="modal-actions">
-      <button id="confirmWithdraw" class="confirm-btn">Yes, Withdraw</button>
-      <button id="cancelWithdraw" class="cancel-btn">Cancel</button>
-    </div>
-  </div>
-</div>
+<div id="walletContainer">Loading wallet...</div>
 
 <script type="module">
-import { auth, db } from "./firebase.js";
+import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { doc, onSnapshot, collection, query, orderBy, getDoc, setDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { 
+  doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const walletContainer = document.getElementById('walletContainer');
-const notif = document.getElementById('notif');
-const modal = document.getElementById('withdrawModal');
-const modalText = document.getElementById('modalText');
-const confirmBtn = document.getElementById('confirmWithdraw');
-const cancelBtn = document.getElementById('cancelWithdraw');
+const walletContainer = document.getElementById("walletContainer");
+const notif = document.getElementById("notif");
 
-let selectedCurrency = null;
-let selectedAmount = 0;
-let selectedDeals = [];
-let promoterId = null;
-
-function showNotif(msg, type = "success") {
+const showNotif = (msg, type="success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => (notif.style.display = "none"), 4000);
-}
-
-function openModal(currency, amount, deals) {
-  selectedCurrency = currency;
-  selectedAmount = amount;
-  selectedDeals = deals;
-  modalText.textContent = `Confirm withdrawal of ${amount.toFixed(2)} ${currency}?`;
-  modal.classList.add('show');
-}
-
-function closeModal() {
-  modal.classList.remove('show');
-}
-cancelBtn.onclick = closeModal;
-
-confirmBtn.onclick = async () => {
-  closeModal();
-  try {
-    const timestamp = new Date().toISOString();
-    const withdrawalId = `wr-${selectedCurrency}-${Date.now()}`;
-    
-    // Add withdrawal request to Firestore
-    await addDoc(collection(db, 'withdrawal-requests'), {
-      withdrawalId,
-      promoterId,
-      currency: selectedCurrency,
-      dealIds: selectedDeals,
-      amount: selectedAmount,
-      status: "pending",
-      requestedAt: timestamp,
-    });
-
-    // Update deals to mark withdrawn & reset currentBalance
-    const batchUpdates = [];
-    for (const dealId of selectedDeals) {
-      const dealRef = doc(db, 'promoter-earnings', promoterId, 'deals', dealId);
-      batchUpdates.push(updateDoc(dealRef, { withdrawn: true }));
-    }
-
-    const metaRef = doc(db, 'promoter-earnings', promoterId, 'metadata', 'meta');
-    const metaSnap = await getDoc(metaRef);
-    if (metaSnap.exists()) {
-      const metaData = metaSnap.data();
-      const newBalances = { ...(metaData.currentBalance || {}) };
-      newBalances[selectedCurrency] = 0;
-      batchUpdates.push(updateDoc(metaRef, { currentBalance: newBalances, lastUpdated: timestamp }));
-    }
-
-    await Promise.all(batchUpdates);
-    showNotif(`✅ ${selectedCurrency} withdrawal requested!`);
-  } catch (err) {
-    console.error(err);
-    showNotif("Error submitting withdrawal: " + err.message, "error");
-  }
+  setTimeout(() => { notif.style.display = "none"; }, 3000);
 };
 
-// ------------------- Auth -------------------
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return (window.location.href = "login.html");
-  const userRef = doc(db, 'users', user.uid);
-  const snap = await getDoc(userRef);
-  const userData = snap.exists() ? snap.data() : null;
-  if (!userData || userData.role !== "freelancer") return (window.location.href = "login.html");
+/* --- Session & Auth Check --- */
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
 
-  promoterId = user.uid;
-  loadWallet(promoterId);
+onAuthStateChanged(auth, async (user) => {
+  if(!user || user.uid !== userSession.uid){
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+  if(!user.emailVerified){
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  // Firestore check
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  if(!userDoc.exists() || userDoc.data().role !== 'promoter'){
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  userSession = { uid: user.uid, name: userDoc.data().name, email: userDoc.data().email, role: userDoc.data().role };
+  localStorage.setItem('userSession', JSON.stringify(userSession));
+
+  loadWallet(user.uid);
 });
 
-// ------------------- Load Wallet -------------------
-function loadWallet(uid) {
-  const metaRef = doc(db, 'promoter-earnings', uid, 'metadata', 'meta');
-  onSnapshot(metaRef, (snap) => {
-    walletContainer.innerHTML = '';
-    if (!snap.exists()) {
-      walletContainer.innerHTML = "<p>No wallet data available yet.</p>";
-      return;
+/* --- Load Wallet --- */
+async function loadWallet(promoterId){
+  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
+  const metaSnap = await getDoc(metaRef);
+  if(!metaSnap.exists()){
+    walletContainer.innerHTML = "<p>No earnings yet.</p>";
+    return;
+  }
+
+  const meta = metaSnap.data();
+  walletContainer.innerHTML = "";
+
+  for(const currency in meta.currentBalance){
+    const withdrawable = meta.currentBalance[currency];
+    const totalWithdrawn = meta.totalWithdrawn[currency] || 0;
+    const totalLifetime = meta.totalLifetimeEarnings[currency] || 0;
+
+    const box = document.createElement("div");
+    box.className = "wallet-box";
+    box.innerHTML = `
+      <h3>${currency} Wallet</h3>
+      <p>Total Lifetime Earnings: ${totalLifetime}</p>
+      <p>Total Withdrawn: ${totalWithdrawn}</p>
+      <p>Available to Withdraw: ${withdrawable}</p>
+      <button id="withdraw-${currency}">Request Withdrawal</button>
+    `;
+    walletContainer.appendChild(box);
+
+    box.querySelector(`#withdraw-${currency}`).onclick = async () => {
+      await requestWithdrawal(promoterId, currency, withdrawable);
     }
-    const meta = snap.data();
-    const balances = meta.currentBalance || {};
-    const totalEarned = meta.totalLifetimeEarnings || {};
-    const withdrawn = meta.totalWithdrawn || {};
+  }
+}
 
-    Object.keys(balances).forEach(async (currency) => {
-      const curBalance = balances[currency] || 0;
-      const curLifetime = totalEarned[currency] || 0;
-      const curWithdrawn = withdrawn[currency] || 0;
+/* --- Request Withdrawal --- */
+async function requestWithdrawal(promoterId, currency, withdrawableAmount){
+  if(withdrawableAmount <= 0) return showNotif("No withdrawable balance","error");
 
-      const card = document.createElement("div");
-      card.className = "wallet-card";
-      card.innerHTML = `
-        <div class="currency-title">${currency}</div>
-        <div class="wallet-stat">💰 Current Balance: <span class="amount">${curBalance.toFixed(2)}</span></div>
-        <div class="wallet-stat">📈 Total Earned: ${curLifetime.toFixed(2)}</div>
-        <div class="wallet-stat">🏦 Withdrawn: ${curWithdrawn.toFixed(2)}</div>
-      `;
+  // Get eligible deals
+  const dealsQuery = query(
+    collection(db, "promoter-earnings", promoterId, "deals"),
+    where("withdrawn", "==", false),
+    where("offerCurrency", "==", currency)
+  );
 
-      if (curBalance > 0) {
-        const withdrawBtn = document.createElement("button");
-        withdrawBtn.className = "btn";
-        withdrawBtn.textContent = `Request ${currency} Withdrawal`;
+  const dealSnap = await getDocs(dealsQuery);
+  if(dealSnap.empty) return showNotif("No deals available for withdrawal","error");
 
-        // Get eligible deals
-        const dealsCol = collection(db, 'promoter-earnings', uid, 'deals');
-        const dealsQuery = query(dealsCol);
-        const dealsSnap = await getDoc(metaRef); // get metadata
-        withdrawBtn.onclick = async () => {
-          const dealsRef = collection(db, 'promoter-earnings', uid, 'deals');
-          const dealsSnap = await getDocs(dealsRef);
-          const pendingDeals = dealsSnap.docs
-            .filter(d => !d.data().withdrawn && (d.data().currency || 'USD') === currency)
-            .map(d => d.id);
-          if (pendingDeals.length === 0) return showNotif(`No ${currency} earnings to withdraw.`, 'error');
-          openModal(currency, curBalance, pendingDeals);
-        };
+  const dealIds = dealSnap.docs.map(d=>d.id);
 
-        card.appendChild(withdrawBtn);
-      }
-
-      walletContainer.appendChild(card);
-    });
+  // Create withdrawal request
+  await addDoc(collection(db, "withdrawal-requests"), {
+    promoterId,
+    currency,
+    amount: withdrawableAmount,
+    dealIds,
+    requestedAt: serverTimestamp(),
+    status: "pending"
   });
+
+  showNotif(`Withdrawal request for ${withdrawableAmount} ${currency} submitted`);
 }
 </script>
 </body>
