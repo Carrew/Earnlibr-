@@ -65,7 +65,6 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Check admin Firestore record (like login page)
   const adminRef = doc(db, "admins", user.uid);
   const adminSnap = await getDoc(adminRef);
 
@@ -76,8 +75,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const data = adminSnap.data();
-
-  // Same session structure as login
   userSession = {
     uid: user.uid,
     name: data.name,
@@ -139,44 +136,76 @@ function renderRequestBox(reqId, req) {
 }
 
 /* -------------------------------------------
-   PROCESS APPROVE/REJECT
+   PROCESS APPROVE/REJECT (FIXED TRANSACTION)
 -------------------------------------------- */
 async function processApproval(reqId, req, approve = true, box) {
   try {
     await runTransaction(db, async (t) => {
+
       const reqRef = doc(db, "withdrawal-requests", reqId);
+
+      // 1️⃣ READ REQUEST
       const reqSnap = await t.get(reqRef);
       if (!reqSnap.exists()) throw new Error("Request already processed");
 
+      let metaRef, metaSnap;
+
+      const dealRefs = [];
+      const dealSnaps = [];
+
       if (approve) {
-        // Mark deals withdrawn
+        // 2️⃣ READ ALL DEAL DOCS FIRST — NO WRITES YET
         for (const dealId of req.dealIds) {
           const dealRef = doc(db, "promoter-earnings", req.promoterId, "deals", dealId);
-          t.update(dealRef, { withdrawn: true });
+          dealRefs.push(dealRef);
+          dealSnaps.push(await t.get(dealRef)); 
         }
 
-        // Update metadata
-        const metaRef = doc(db, "promoter-earnings", req.promoterId, "metadata", "summary");
-        const metaSnap = await t.get(metaRef);
+        // 3️⃣ READ METADATA DOC
+        metaRef = doc(db, "promoter-earnings", req.promoterId, "metadata", "summary");
+        metaSnap = await t.get(metaRef);
         if (!metaSnap.exists()) throw new Error("Metadata missing");
+      }
 
+      // ------- ALL READS DONE — WRITES BEGIN BELOW -------
+
+      if (approve) {
+        // 4️⃣ WRITE: Mark deal docs withdrawn
+        for (const ref of dealRefs) {
+          t.update(ref, { withdrawn: true });
+        }
+
+        // 5️⃣ WRITE: Update metadata
         const meta = metaSnap.data();
-        meta.totalWithdrawn[req.currency] = (meta.totalWithdrawn[req.currency] || 0) + req.amount;
+        meta.totalWithdrawn[req.currency] =
+          (meta.totalWithdrawn[req.currency] || 0) + req.amount;
+
         meta.currentBalance[req.currency] =
           (meta.totalLifetimeEarnings[req.currency] || 0) -
           meta.totalWithdrawn[req.currency];
 
         meta.lastUpdated = new Date().toISOString();
+
         t.set(metaRef, meta, { merge: true });
 
-        t.update(reqRef, { status: "approved", processedAt: new Date().toISOString() });
+        // 6️⃣ WRITE: Mark request approved
+        t.update(reqRef, {
+          status: "approved",
+          processedAt: new Date().toISOString()
+        });
+
       } else {
-        t.update(reqRef, { status: "rejected", processedAt: new Date().toISOString() });
+        // Reject only updates the request
+        t.update(reqRef, {
+          status: "rejected",
+          processedAt: new Date().toISOString()
+        });
       }
     });
 
     showNotif(`Request ${approve ? "approved" : "rejected"} successfully`);
     box.remove();
+
   } catch (err) {
     console.error(err);
     showNotif(err.message, "error");
