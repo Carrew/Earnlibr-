@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Promoter Wallet</title>
+
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
@@ -32,49 +33,79 @@ import {
 const walletContainer = document.getElementById("walletContainer");
 const notif = document.getElementById("notif");
 
+/* --- Notify --- */
 const showNotif = (msg, type="success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 3000);
+  setTimeout(() => (notif.style.display = "none"), 3000);
 };
 
-/* --- Session & Auth Check --- */
+/* --- Load Session --- */
 let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+if (!userSession) {
+  window.location.href = "login.html";
+  throw new Error("No session found");
+}
 userSession = JSON.parse(userSession);
 
+/* --- AUTH CHECK: Match Login Logic --- */
 onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== userSession.uid){
+  if (!user || user.uid !== userSession.uid) {
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
-  if(!user.emailVerified){
+
+  if (!user.emailVerified) {
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
 
   // Firestore check
-  const userDoc = await getDoc(doc(db, 'users', user.uid));
-  if(!userDoc.exists() || userDoc.data().role !== 'promoter'){
+  const userDocRef = doc(db, "users", user.uid);
+  const userDoc = await getDoc(userDocRef);
+
+  if (!userDoc.exists()) {
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
 
-  userSession = { uid: user.uid, name: userDoc.data().name, email: userDoc.data().email, role: userDoc.data().role };
-  localStorage.setItem('userSession', JSON.stringify(userSession));
+  const data = userDoc.data();
 
+  // MUST MATCH LOGIN ROLE CHECK
+  if (data.role !== "freelancer") {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  // Rebuild session object exactly like login
+  userSession = {
+    uid: user.uid,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    referralCode: data.referralCode || "",
+    phone: data.phone || "",
+    country: data.country || "",
+    createdAt: data.createdAt || ""
+  };
+
+  localStorage.setItem("userSession", JSON.stringify(userSession));
+
+  // Load wallet
   loadWallet(user.uid);
 });
 
 /* --- Load Wallet --- */
-async function loadWallet(promoterId){
+async function loadWallet(promoterId) {
   const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
   const metaSnap = await getDoc(metaRef);
-  if(!metaSnap.exists()){
+
+  if (!metaSnap.exists()) {
     walletContainer.innerHTML = "<p>No earnings yet.</p>";
     return;
   }
@@ -82,7 +113,7 @@ async function loadWallet(promoterId){
   const meta = metaSnap.data();
   walletContainer.innerHTML = "";
 
-  for(const currency in meta.currentBalance){
+  for (const currency in meta.currentBalance) {
     const withdrawable = meta.currentBalance[currency];
     const totalWithdrawn = meta.totalWithdrawn[currency] || 0;
     const totalLifetime = meta.totalLifetimeEarnings[currency] || 0;
@@ -100,15 +131,15 @@ async function loadWallet(promoterId){
 
     box.querySelector(`#withdraw-${currency}`).onclick = async () => {
       await requestWithdrawal(promoterId, currency, withdrawable);
-    }
+    };
   }
 }
 
 /* --- Request Withdrawal --- */
-async function requestWithdrawal(promoterId, currency, withdrawableAmount){
-  if(withdrawableAmount <= 0) return showNotif("No withdrawable balance","error");
+async function requestWithdrawal(promoterId, currency, withdrawableAmount) {
+  if (withdrawableAmount <= 0)
+    return showNotif("No withdrawable balance", "error");
 
-  // Get eligible deals
   const dealsQuery = query(
     collection(db, "promoter-earnings", promoterId, "deals"),
     where("withdrawn", "==", false),
@@ -116,11 +147,11 @@ async function requestWithdrawal(promoterId, currency, withdrawableAmount){
   );
 
   const dealSnap = await getDocs(dealsQuery);
-  if(dealSnap.empty) return showNotif("No deals available for withdrawal","error");
+  if (dealSnap.empty)
+    return showNotif("No deals available for withdrawal", "error");
 
-  const dealIds = dealSnap.docs.map(d=>d.id);
+  const dealIds = dealSnap.docs.map((d) => d.id);
 
-  // Create withdrawal request
   await addDoc(collection(db, "withdrawal-requests"), {
     promoterId,
     currency,
