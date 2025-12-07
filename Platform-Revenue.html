@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Platform Revenue</title>
+<style>
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #1a2235; }
+.currency-header { margin-top: 20px; font-size: 18px; }
+.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
+.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+</style>
+</head>
+<body>
+
+<h1>Platform Revenue Dashboard</h1>
+<div id="notif" class="notif"></div>
+
+<div id="revenueContainer">Loading revenue...</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const revenueContainer = document.getElementById("revenueContainer");
+const notif = document.getElementById("notif");
+
+const showNotif = (msg, type="success") => {
+    notif.textContent = msg;
+    notif.className = `notif ${type}`;
+    notif.style.display = "block";
+    setTimeout(()=>notif.style.display="none",3000);
+};
+
+// Helper to format numbers as currency
+const formatCurrency = (num) => "$" + num.toFixed(2);
+
+/* --- Load Revenue --- */
+async function loadRevenue() {
+    revenueContainer.innerHTML = "Loading revenue...";
+    try {
+        // Assuming you have a few currencies; USD by default
+        const currencies = ["USD"]; // expand if needed
+        revenueContainer.innerHTML = "";
+
+        for (const currency of currencies) {
+            const platformRef = doc(db, `platform-earnings/${currency}`);
+            const snap = await getDoc(platformRef);
+            const data = snap.exists() ? snap.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+
+            const card = document.createElement("div");
+            card.className = "card";
+
+            let dailyRows = "";
+            for(const day in data.dailyRevenue){
+                dailyRows += `<tr><td>${day}</td><td>${formatCurrency(data.dailyRevenue[day])}</td></tr>`;
+            }
+
+            card.innerHTML = `
+                <div class="currency-header"><strong>Currency: ${currency}</strong></div>
+                <div>Total Revenue: ${formatCurrency(data.totalRevenue)}</div>
+                <div>Total Deals Completed: ${data.dealsCount}</div>
+                <table class="table">
+                    <thead><tr><th>Date</th><th>Revenue</th></tr></thead>
+                    <tbody>${dailyRows || "<tr><td colspan='2'>No revenue yet</td></tr>"}</tbody>
+                </table>
+            `;
+            revenueContainer.appendChild(card);
+        }
+    } catch(err) {
+        console.error(err);
+        showNotif("Error loading revenue: "+err.message, "error");
+    }
+}
+
+loadRevenue();
+</script>
+</body>
+</html>
