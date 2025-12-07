@@ -24,7 +24,7 @@ h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, onSnapshot, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
@@ -69,7 +69,7 @@ function loadBills(){
         const btn = document.createElement("button");
         btn.className="btn";
         btn.textContent="Verify Payment";
-        btn.onclick=()=>verifyPayment(bill.billId, bill.deals, btn);
+        btn.onclick=()=>verifyPayment(bill.billId, bill.deals, bill.providerId, btn);
         card.appendChild(btn);
         billsContainer.appendChild(card);
       }
@@ -77,33 +77,55 @@ function loadBills(){
   });
 }
 
+// --- Debugging helper ---
+async function checkDealExists(dealId){
+  const snap = await getDoc(doc(db,"completed-deals",dealId));
+  return snap.exists();
+}
+
 // --- Verify payment ---
-async function verifyPayment(billId, dealObjs, btn){
+async function verifyPayment(billId, dealObjs, providerId, btn){
   btn.disabled=true;
-  const dealIds = dealObjs.map(d => typeof d === "string" ? d : d.dealId);
   const timestamp = new Date().toISOString();
+  const dealIds = dealObjs.map(d => typeof d === "string" ? d : d.dealId);
+
+  console.log("Verifying bill:", billId, "Deals:", dealIds, "Provider:", providerId);
 
   try {
-    // Update bill
-    await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
-    await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
-
-    // Update all deals in completed-deals
+    // Step 1: Update all deals
     for(const dealId of dealIds){
+      const exists = await checkDealExists(dealId);
+      if(!exists){
+        console.warn("Deal does not exist:", dealId);
+        continue; // skip missing deals
+      }
       try{
-        const dealRef = doc(db,"completed-deals",dealId);
-        await updateDoc(dealRef,{
+        await updateDoc(doc(db,"completed-deals",dealId),{
           providerPaid:true,
           providerPaidAt:timestamp,
           linkedBillId:billId
         });
-      }catch(err){ console.error("Failed to update deal:",dealId,err); }
+        console.log("Updated deal:", dealId);
+      }catch(err){
+        console.error("Failed to update deal:",dealId,err);
+      }
     }
+
+    // Step 2: Update bill documents
+    try{
+      await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
+      console.log("Updated main bill:", billId);
+    }catch(err){ console.error("Failed to update main bill:", err); }
+
+    try{
+      await updateDoc(doc(db, `providers/${providerId}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
+      console.log("Updated provider bill:", billId);
+    }catch(err){ console.error("Failed to update provider bill:", err); }
 
     showNotif("Payment verified and deals marked paid!");
   }catch(err){
     console.error("Verification failed:", err);
-    showNotif("Error verifying payment","error");
+    showNotif("Error verifying payment: " + err.message,"error");
   }finally{
     btn.disabled=false;
   }
