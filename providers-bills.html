@@ -1,223 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Provider Bill — EarnLibr</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Provider Bills</title>
 <style>
-:root {
-  --bg:#0b0d17;
-  --card:#0f1724;
-  --accent1:#4a90e2;
-  --accent2:#a3ff6e;
-  --muted:#bfc7d6;
-  --radius:12px;
-  --glass: rgba(255,255,255,0.02);
-  --glass2: rgba(255,255,255,0.015);
-}
-
-body {
-  font-family: Inter,system-ui,Arial; margin:0; background:var(--bg); color:#eef2f7; padding:20px; min-height:100vh;
-}
-h1 {
-  font-size:24px; margin-bottom:20px;
-  background:linear-gradient(90deg,var(--accent1),var(--accent2));
-  -webkit-background-clip:text; color:transparent;
-}
-.notif {
-  display:none; padding:12px 16px; margin-bottom:20px; border-radius:8px;
-  font-weight:600;
-}
-.notif.success { border-left:4px solid var(--accent2); color:var(--accent2); background:rgba(74,144,226,0.05); }
-.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; background:rgba(239,68,68,0.05); }
-
-.bill-card {
-  background: linear-gradient(180deg,var(--glass),var(--glass2)); 
-  padding:18px; border-radius:var(--radius); margin-bottom:20px;
-  box-shadow:0 8px 20px rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.03);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.bill-card:hover { transform:translateY(-3px); box-shadow:0 12px 24px rgba(0,0,0,0.5); }
-
-.offer { border-bottom:1px solid #2b3145; padding:8px 0; cursor:pointer; }
-.deal-item { font-size:13px; margin-left:15px; padding:2px 0; }
-
-.btn-toggleOffers, .btn-pay {
-  padding:8px 14px; border:none; border-radius:8px; font-weight:600; cursor:pointer; margin-top:10px;
-  transition:0.2s;
-}
-.btn-toggleOffers { background:#3b82f6; color:#fff; }
-.btn-toggleOffers:hover { opacity:0.9; }
-.btn-pay { background:#4ade80; color:#041018; }
-.btn-pay:hover { opacity:0.9; }
-
-.filters {
-  margin-bottom:20px; display:flex; gap:12px; flex-wrap:wrap;
-}
-.filters select {
-  padding:6px 10px; border-radius:8px; border:1px solid #2b3145; background:var(--card); color:#eef2f7; cursor:pointer;
-}
+body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; }
+h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
+.bill-card { background:#0f1724; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); }
+.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; }
+.btn:disabled { opacity:0.6; cursor:not-allowed; }
+.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; display:none; }
+.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
+.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
 </style>
 </head>
 <body>
 
-<h1>Provider Weekly Bill</h1>
-
-<div class="filters">
-  <select id="filterStatus">
-    <option value="all">All Statuses</option>
-    <option value="pending">Pending</option>
-    <option value="paid_pending_verification">Paid (Pending Verification)</option>
-    <option value="paid">Paid</option>
-  </select>
-</div>
-
+<h1>Your Bills</h1>
 <div id="notif" class="notif"></div>
-<div id="billContainer">Loading your bills...</div>
+<div id="billsContainer">Loading bills...</div>
 
 <script type="module">
-import { db } from './firebase.js';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  updateDoc,
-  addDoc,
-  query,
-  where,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { collection, doc, updateDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// --- SESSION CHECK ---
-const sessionRaw = localStorage.getItem('userSession');
-if (!sessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
+const billsContainer = document.getElementById("billsContainer");
+const notif = document.getElementById("notif");
 
-const session = JSON.parse(sessionRaw);
-if (session.role !== 'provider') { window.location.href='login.html'; throw new Error('Unauthorized'); }
-
-const providerId = session.uid;
-const notif = document.getElementById('notif');
-const billContainer = document.getElementById('billContainer');
-const filterStatus = document.getElementById('filterStatus');
-
-// --- NOTIFICATION HELPER ---
-const showNotif = (msg, type='success') => {
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display = 'block';
-  setTimeout(()=> notif.style.display='none', 4000);
+const showNotif = (msg,type="success")=>{
+  notif.textContent=msg;
+  notif.className=`notif ${type}`;
+  notif.style.display="block";
+  setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-let billsData = [];
+// --- Auth check ---
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
 
-// --- Firestore reference matching admin workflow ---
-const billsRef = collection(db, "providers", providerId, "bills");
-
-const billsQuery = query(billsRef, orderBy("createdAt","desc"));
-
-onSnapshot(billsQuery, snapshot => {
-  billsData = snapshot.docs.map(doc => doc.data());
-  renderBills();
+onAuthStateChanged(auth, async user=>{
+  if(!user || user.uid !== userSession.uid){ localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
+  loadBills();
 });
 
-filterStatus.addEventListener("change", renderBills);
+// --- Load provider bills ---
+function loadBills(){
+  const billsQuery = query(collection(db, `providers/${userSession.uid}/bills`));
+  onSnapshot(billsQuery, snapshot=>{
+    billsContainer.innerHTML="";
+    if(snapshot.empty) { billsContainer.innerHTML="<p>No bills available.</p>"; return; }
 
-function renderBills(){
-  billContainer.innerHTML = '';
-  const filter = filterStatus.value;
+    snapshot.docs.forEach(docSnap=>{
+      const bill = docSnap.data();
+      const card = document.createElement("div");
+      card.className="bill-card";
+      card.innerHTML=`
+        <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
+        <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
+        <div><strong>Status:</strong> ${bill.status}</div>
+      `;
 
-  const bills = billsData
-    .filter(b => filter === 'all' || b.status === filter)
-    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  if(bills.length === 0){
-    billContainer.innerHTML = '<p style="opacity:.6;text-align:center;">No bills to display.</p>';
-    return;
-  }
-
-  bills.forEach(bill => {
-    const card = document.createElement('div');
-    card.className = 'bill-card';
-
-    let totalsHTML = "";
-    Object.entries(bill.totals).forEach(([currency, amount]) => {
-      totalsHTML += `<div><strong>${currency} Total:</strong> ${amount.toFixed(2)}</div>`;
-    });
-
-    card.innerHTML = `
-      <h3>Bill #${bill.billId.slice(-6)}</h3>
-      <div><strong>Created:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
-      <div>${totalsHTML}</div>
-
-      <button class="btn-toggleOffers">Show Offer & Deals Breakdown</button>
-      <div class="offer-breakdown" style="display:none;"></div>
-
-      <button class="btn-pay">Mark as Paid</button>
-      <div style="margin-top:6px; color:var(--muted); font-size:12px;">Status: ${bill.status}</div>
-    `;
-
-    const breakdown = card.querySelector('.offer-breakdown');
-
-    // Breakdown
-    Object.values(bill.offers).forEach(offer => {
-      const offerDiv = document.createElement('div');
-      offerDiv.className = 'offer';
-      offerDiv.innerHTML = `<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
-
-      offer.deals.forEach(d => {
-        const dealDiv = document.createElement('div');
-        dealDiv.className = 'deal-item';
-        dealDiv.textContent =
-          `DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note||"None"}`;
-        offerDiv.appendChild(dealDiv);
-      });
-
-      breakdown.appendChild(offerDiv);
-    });
-
-    // Toggle breakdown
-    card.querySelector('.btn-toggleOffers').onclick = () => {
-      breakdown.style.display = breakdown.style.display === 'none' ? 'block' : 'none';
-    };
-
-    // Mark as paid
-    card.querySelector('.btn-pay').onclick = async () => {
-      try {
-        const timestamp = new Date().toISOString();
-
-        // Update provider-specific bill
-        const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
-        await updateDoc(providerBillRef, {
-          status: "paid_pending_verification",
-          updatedAt: timestamp
-        });
-
-        // Update global bill
-        const globalBillRef = doc(db, "bills", bill.billId);
-        await updateDoc(globalBillRef, {
-          status: "paid_pending_verification",
-          updatedAt: timestamp
-        });
-
-        // Notify admin
-        await addDoc(collection(db, "admin_notifications"), {
-          providerId,
-          billId: bill.billId,
-          totals: bill.totals,
-          offers: bill.offers,
-          createdAt: timestamp,
-          type: "providerPaymentNotification"
-        });
-
-        showNotif("Payment notification sent to admin.");
-      } catch (err) {
-        console.error(err);
-        showNotif("Error sending payment notification: " + err.message, "error");
+      if(bill.status==="sent"){
+        const btn = document.createElement("button");
+        btn.className="btn";
+        btn.textContent="Mark as Paid";
+        btn.onclick=()=>markAsPaid(bill.billId, btn);
+        card.appendChild(btn);
       }
-    };
 
-    billContainer.appendChild(card);
+      billsContainer.appendChild(card);
+    });
   });
+}
+
+// --- Mark a bill as paid ---
+async function markAsPaid(billId, btn){
+  btn.disabled=true;
+  await updateDoc(doc(db,"bills",billId), { status:"provider_marked_paid", providerMarkedAt:new Date().toISOString() });
+  await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"provider_marked_paid", providerMarkedAt:new Date().toISOString() });
+  showNotif("Bill marked as paid!");
 }
 </script>
 </body>
