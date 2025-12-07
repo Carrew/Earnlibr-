@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Platform Earnings</title>
+<title>EarnLibr — Platform Earnings/Revenue</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
@@ -24,7 +24,7 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 
 <script type="module">
 import { db } from './firebase.js';
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const earningsContainer = document.getElementById("earningsContainer");
 const notif = document.getElementById("notif");
@@ -39,17 +39,21 @@ const showNotif = (msg, type="success") => {
 // Format numbers as currency
 const formatCurrency = (num) => "$" + num.toFixed(2);
 
-// Load platform earnings
+// Load all platform earnings dynamically
 async function loadEarnings() {
     earningsContainer.innerHTML = "Loading earnings...";
     try {
-        const currencies = ["USD"]; // add other currencies if needed
+        const earningsSnap = await getDocs(collection(db, "platform-earnings"));
         earningsContainer.innerHTML = "";
 
-        for (const currency of currencies) {
-            const platformRef = doc(db, `platform-earnings/${currency}`);
-            const snap = await getDoc(platformRef);
-            const data = snap.exists() ? snap.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+        if (earningsSnap.empty) {
+            earningsContainer.innerHTML = "<p>No earnings yet.</p>";
+            return;
+        }
+
+        earningsSnap.forEach(docSnap => {
+            const currency = docSnap.id; // document ID = currency code
+            const data = docSnap.data();
 
             const card = document.createElement("div");
             card.className = "card";
@@ -69,13 +73,14 @@ async function loadEarnings() {
                 </table>
             `;
             earningsContainer.appendChild(card);
-        }
+        });
     } catch(err) {
         console.error(err);
         showNotif("Error loading earnings: "+err.message,"error");
     }
 }
 
+// Initialize
 loadEarnings();
 </script>
 </body>
