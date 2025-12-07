@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Admin Manual Billing</title>
+<title>EarnLibr — Admin Send Bills</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
@@ -25,14 +25,14 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 </head>
 <body>
 
-<h1>Admin Manual Billing</h1>
+<h1>Admin Send Bills</h1>
 <div id="notif" class="notif"></div>
 
 <div class="controls">
   <button id="sendAll" class="btn">📤 Send All Eligible Bills</button>
 </div>
 
-<div id="providersContainer">Loading pending bills...</div>
+<div id="providersContainer">Loading unpaid deals...</div>
 
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -45,9 +45,9 @@ const sendAllBtn = document.getElementById("sendAll");
 const THRESHOLDS = { USD: 1, LRD: 300 };
 let grouped = {};
 
-// --- AUTH CHECK ---
+// --- Auth Check ---
 let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async (user) => {
@@ -63,41 +63,21 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // --- FIXED ROLE CHECK (users + admins, matching login) ---
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const adminDoc = await getDoc(doc(db, "admins", user.uid));
-
   let data = null;
   let role = null;
 
-  if (userDoc.exists()) {
-    data = userDoc.data();
-    role = data.role;
-  } else if (adminDoc.exists()) {
-    data = adminDoc.data();
-    role = data.role || "admin";
-  } else {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
+  if (userDoc.exists()) { data = userDoc.data(); role = data.role; }
+  else if (adminDoc.exists()) { data = adminDoc.data(); role = data.role || "admin"; }
+  else { localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
 
-  if (!["admin", "super_admin"].includes(role)) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
+  if (!["admin","super_admin"].includes(role)) { localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
 
-  userSession = {
-    uid: user.uid,
-    name: data.name,
-    email: data.email,
-    role: role
-  };
-
+  userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
   localStorage.setItem("userSession", JSON.stringify(userSession));
 
-  loadBills();
+  loadDeals();
 });
 
 // --- Notifications ---
@@ -108,9 +88,9 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// --- Load Pending Deals & Group by Provider ---
-function loadBills(){
-  const dealsQuery = query(collection(db,"deals_completed"), where("providerPaid","==",false));
+// --- Load unpaid completed deals ---
+function loadDeals(){
+  const dealsQuery = query(collection(db,"completed-deals"), where("providerPaid","==",false));
   onSnapshot(dealsQuery, snapshot=>{
     providersContainer.innerHTML="";
     grouped={};
@@ -120,26 +100,23 @@ function loadBills(){
     snapshot.forEach(docSnap=>{
       const d = docSnap.data();
       const providerId = d.providerId;
-      if(!grouped[providerId]) grouped[providerId] = { name:d.providerName, offers:{}, totals:{} };
+      const offerId = d.offerId;
+      if(!grouped[providerId]) grouped[providerId] = { name:d.providerName, offers:{} };
 
-      if(!grouped[providerId].offers[d.offerId]){
-        grouped[providerId].offers[d.offerId]={ offerTitle:d.offerTitle, currency:d.currency||"USD", total:0, deals:[] };
+      if(!grouped[providerId].offers[offerId]){
+        grouped[providerId].offers[offerId] = { offerTitle:d.offerTitle, currency:d.currency||"USD", total:0, deals:[] };
       }
 
-      let offer = grouped[providerId].offers[d.offerId];
+      const offer = grouped[providerId].offers[offerId];
       offer.total += Number(d.commissionEarned);
-      offer.deals.push({ dealId:docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned });
-
-      const curr = d.currency||"USD";
-      if(!grouped[providerId].totals[curr]) grouped[providerId].totals[curr]=0;
-      grouped[providerId].totals[curr]+=Number(d.commissionEarned);
+      offer.deals.push({ dealId: docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned });
     });
 
     renderProviders();
   });
 }
 
-// --- Render Provider Cards ---
+// --- Render provider cards ---
 function renderProviders(){
   providersContainer.innerHTML="";
   Object.keys(grouped).forEach(providerId=>{
@@ -148,59 +125,85 @@ function renderProviders(){
     card.className="provider-card";
 
     let totalsHTML="";
-    Object.entries(p.totals).forEach(([curr,amt])=>{ totalsHTML+=`<div><strong>${curr}:</strong> ${amt.toFixed(2)}</div>`; });
+    Object.values(p.offers).forEach(offer=>{
+      totalsHTML+=`<div><strong>${offer.offerTitle} (${offer.currency}):</strong> ${offer.total.toFixed(2)}</div>`;
+    });
 
     card.innerHTML=`
       <div class="provider-header">
         <h2>${p.name}</h2>
-        <button class="btn sendBill">Send Bill</button>
       </div>
       ${totalsHTML}
+      <div></div>
       <button class="btn toggle-offers">Show Details</button>
       <div class="offer-breakdown"></div>
     `;
 
     const breakdown = card.querySelector(".offer-breakdown");
-    Object.values(p.offers).forEach(offer=>{
-      const d = document.createElement("div");
-      d.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+    Object.entries(p.offers).forEach(([offerId,offer])=>{
+      const offerBox = document.createElement("div");
+      offerBox.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+
       offer.deals.forEach(deal=>{
-        const small=document.createElement("div");
-        small.textContent=`Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
-        d.appendChild(small);
+        const d = document.createElement("div");
+        d.textContent=`Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
+        offerBox.appendChild(d);
       });
-      breakdown.appendChild(d);
+
+      const sendBtn = document.createElement("button");
+      sendBtn.className="btn";
+      sendBtn.textContent="Send Bill";
+      sendBtn.onclick=()=>sendBill(providerId, offerId, offer);
+      offerBox.appendChild(sendBtn);
+
+      breakdown.appendChild(offerBox);
     });
 
-    card.querySelector(".toggle-offers").onclick=()=>{ breakdown.style.display = breakdown.style.display==="none"?"block":"none"; };
-    card.querySelector(".sendBill").onclick=()=>sendBill(providerId,p);
+    card.querySelector(".toggle-offers").onclick=()=>{ 
+      breakdown.style.display = breakdown.style.display==="none"?"block":"none"; 
+    };
 
     providersContainer.appendChild(card);
   });
 }
 
-// --- Send Single Bill ---
-async function sendBill(providerId,provider){
-  const eligible = Object.entries(provider.totals).some(([curr,amt])=>amt >= (THRESHOLDS[curr]||0));
-  if(!eligible) return showNotif("Below threshold","error");
+// --- Send Single Offer Bill ---
+async function sendBill(providerId, offerId, offer){
+  if(offer.total < (THRESHOLDS[offer.currency]||0)) return showNotif("Below threshold","error");
 
   const billRef = doc(collection(db,"bills"));
   const billId = billRef.id;
-  const billData = { billId, providerId, providerName:provider.name, totals:provider.totals, offers:provider.offers, createdAt:new Date().toISOString(), status:"pending" };
+  const dealIds = offer.deals.map(d=>d.dealId);
+
+  const billData = {
+    billId,
+    providerId,
+    providerName: grouped[providerId].name,
+    offerId,
+    offerTitle: offer.offerTitle,
+    currency: offer.currency,
+    total: offer.total,
+    deals: dealIds,
+    createdAt: new Date().toISOString(),
+    status:"sent"
+  };
 
   await setDoc(billRef,billData);
   await setDoc(doc(db,`providers/${providerId}/bills/${billId}`),billData);
-  await addDoc(collection(db,`providers/${providerId}/notifications`), { type:"billing", billId, message:"Your weekly bill is ready", createdAt:new Date().toISOString(), unread:true });
+  await addDoc(collection(db,`providers/${providerId}/notifications`), { type:"billing", billId, message:`Bill for ${offer.offerTitle} is ready`, createdAt:new Date().toISOString(), unread:true });
 
-  showNotif(`Bill sent to ${provider.name}`);
+  showNotif(`Bill sent for ${offer.offerTitle}`);
 }
 
 // --- Send All Eligible Bills ---
 sendAllBtn.onclick = async ()=>{
   sendAllBtn.disabled=true;
-  for(const [providerId,provider] of Object.entries(grouped)){
-    const eligible = Object.entries(provider.totals).some(([curr,amt])=>amt>=(THRESHOLDS[curr]||0));
-    if(eligible) await sendBill(providerId,provider);
+  for(const [providerId,p] of Object.entries(grouped)){
+    for(const [offerId,offer] of Object.entries(p.offers)){
+      if(offer.total >= (THRESHOLDS[offer.currency]||0)){
+        await sendBill(providerId, offerId, offer);
+      }
+    }
   }
   sendAllBtn.disabled=false;
   showNotif("All eligible bills sent!");
