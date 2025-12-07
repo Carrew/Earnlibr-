@@ -7,9 +7,10 @@
 <style>
 body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; }
 h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
+.controls { margin-bottom: 15px; }
 .bill-card { background:#0f1724; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); transition: opacity 0.5s; }
 .bill-card.verified { opacity:0.5; pointer-events:none; }
-.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: background 0.3s; }
+.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: background 0.3s; margin-right: 8px; }
 .btn:hover:not(:disabled) { background:#3ec16b; }
 .btn:disabled { opacity:0.6; cursor:not-allowed; }
 .notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; display:none; transition: opacity 0.3s; }
@@ -20,6 +21,9 @@ h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip
 <body>
 
 <h1>Verify Provider Payments</h1>
+<div class="controls">
+  <button id="verifyAllBtn" class="btn">Verify All</button>
+</div>
 <div id="notif" class="notif"></div>
 <div id="billsContainer">Loading bills...</div>
 
@@ -30,8 +34,8 @@ import { collection, doc, onSnapshot, updateDoc, getDoc } from "https://www.gsta
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
+const verifyAllBtn = document.getElementById("verifyAllBtn");
 
-// --- Show notification ---
 const showNotif = (msg,type="success")=>{
   notif.textContent = msg;
   notif.className = `notif ${type}`;
@@ -39,7 +43,6 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// --- Auth check ---
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
@@ -53,11 +56,13 @@ onAuthStateChanged(auth, async user=>{
   loadBills();
 });
 
-// --- Load bills marked provider_marked_paid ---
+let billCards = [];
+
 function loadBills(){
   const billsRef = collection(db, "bills");
   onSnapshot(billsRef, snapshot=>{
     billsContainer.innerHTML = "";
+    billCards = [];
     snapshot.docs.forEach(docSnap=>{
       const bill = docSnap.data();
       if(bill.status === "provider_marked_paid"){
@@ -75,12 +80,13 @@ function loadBills(){
         btn.onclick = ()=>verifyPayment(bill.billId, bill.deals, bill.providerId, btn, card);
         card.appendChild(btn);
         billsContainer.appendChild(card);
+        billCards.push({ billId: bill.billId, deals: bill.deals, providerId: bill.providerId, btn, card });
       }
     });
   });
 }
 
-// --- Verify payment ---
+// --- Verify single bill ---
 async function verifyPayment(billId, dealObjs, providerId, btn, card){
   btn.disabled = true;
   const originalText = btn.textContent;
@@ -89,24 +95,23 @@ async function verifyPayment(billId, dealObjs, providerId, btn, card){
   const dealIds = dealObjs.map(d => typeof d === "string" ? d : d.dealId);
 
   try {
-    // Update all deals
-    for(const dealId of dealIds){
+    // Update deals
+    await Promise.all(dealIds.map(async dealId=>{
       const snap = await getDoc(doc(db,"completed-deals",dealId));
-      if(!snap.exists()) continue;
+      if(!snap.exists()) return;
       await updateDoc(doc(db,"completed-deals",dealId),{
         providerPaid:true,
         providerPaidAt:timestamp,
         linkedBillId:billId
       });
-    }
+    }));
 
     // Update bills
     await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
     await updateDoc(doc(db, `providers/${providerId}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
 
-    showNotif("Payment verified successfully!");
-    card.classList.add("verified");          // mark visually
-    btn.textContent = "Verified ✅";           // update button
+    card.classList.add("verified");
+    btn.textContent = "Verified ✅";
   } catch(err){
     console.error("Verification failed:", err);
     showNotif("Error verifying payment","error");
@@ -114,6 +119,22 @@ async function verifyPayment(billId, dealObjs, providerId, btn, card){
     btn.textContent = originalText;
   }
 }
+
+// --- Verify all concurrently ---
+verifyAllBtn.onclick = async () => {
+  if(billCards.length === 0) return showNotif("No bills to verify","error");
+  verifyAllBtn.disabled = true;
+  verifyAllBtn.textContent = "Verifying All...";
+
+  // Run all verifications concurrently
+  await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card)));
+
+  verifyAllBtn.textContent = "Verify All ✅";
+  setTimeout(() => {
+    verifyAllBtn.disabled = false;
+    verifyAllBtn.textContent = "Verify All";
+  }, 2000);
+};
 </script>
 </body>
 </html>
