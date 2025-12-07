@@ -42,7 +42,11 @@ if(!userSession){ window.location.href="login.html"; throw new Error("No session
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async user=>{
-  if(!user || user.uid !== userSession.uid){ localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
+  if(!user || user.uid !== userSession.uid){ 
+    localStorage.removeItem("userSession"); 
+    window.location.href="login.html"; 
+    return; 
+  }
   loadBills();
 });
 
@@ -74,24 +78,35 @@ function loadBills(){
 }
 
 // --- Verify payment ---
-async function verifyPayment(billId, dealIds, btn){
+async function verifyPayment(billId, dealObjs, btn){
   btn.disabled=true;
+  const dealIds = dealObjs.map(d => typeof d === "string" ? d : d.dealId);
+  const timestamp = new Date().toISOString();
 
-  // 1️⃣ Update bill status
-  await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:new Date().toISOString() });
+  try {
+    // Update bill
+    await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
+    await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
 
-  // 2️⃣ Update provider-specific bill
-  const billSnap = await import('./firebase.js'); // optional: ensure correct ref
-  // for simplicity assume same path as global
+    // Update all deals in completed-deals
+    for(const dealId of dealIds){
+      try{
+        const dealRef = doc(db,"completed-deals",dealId);
+        await updateDoc(dealRef,{
+          providerPaid:true,
+          providerPaidAt:timestamp,
+          linkedBillId:billId
+        });
+      }catch(err){ console.error("Failed to update deal:",dealId,err); }
+    }
 
-  await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:new Date().toISOString() });
-
-  // 3️⃣ Update all deals in the bill
-  for(const dealId of dealIds){
-    await updateDoc(doc(db, "completed-deals", dealId), { providerPaid:true, providerPaidAt:new Date().toISOString(), linkedBillId:billId });
+    showNotif("Payment verified and deals marked paid!");
+  }catch(err){
+    console.error("Verification failed:", err);
+    showNotif("Error verifying payment","error");
+  }finally{
+    btn.disabled=false;
   }
-
-  showNotif("Payment verified and deals marked paid!");
 }
 </script>
 </body>
