@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Commission Settings</title>
+<title>EarnLibr — Platform Earnings</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.card { background: #0f1724; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); max-width: 400px; }
-input[type="number"] { width: 80px; padding: 6px; border-radius: 8px; border: none; margin-right: 10px; }
-button { padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; background: #4ade80; color: #041018; }
+.card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #1a2235; }
+.currency-header { margin-top: 20px; font-size: 18px; font-weight: bold; }
 .notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
 .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
 .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
@@ -17,20 +18,15 @@ button { padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; f
 </head>
 <body>
 
-<h1>Platform Commission Settings</h1>
+<h1>Platform Earnings Dashboard</h1>
 <div id="notif" class="notif"></div>
-
-<div class="card">
-    <label>Current Commission (%): <input type="number" id="commissionInput" min="0" max="100" step="0.1">%</label>
-    <button id="updateBtn">Update</button>
-</div>
+<div id="earningsContainer">Loading earnings...</div>
 
 <script type="module">
 import { db } from './firebase.js';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const commissionInput = document.getElementById("commissionInput");
-const updateBtn = document.getElementById("updateBtn");
+const earningsContainer = document.getElementById("earningsContainer");
 const notif = document.getElementById("notif");
 
 const showNotif = (msg, type="success") => {
@@ -40,33 +36,47 @@ const showNotif = (msg, type="success") => {
     setTimeout(()=>notif.style.display="none",3000);
 };
 
-// Load current commission
-async function loadCommission() {
+// Format numbers as currency
+const formatCurrency = (num) => "$" + num.toFixed(2);
+
+// Load platform earnings
+async function loadEarnings() {
+    earningsContainer.innerHTML = "Loading earnings...";
     try {
-        const snap = await getDoc(doc(db, "platform-settings", "commission"));
-        const percentage = snap.exists() ? parseFloat(snap.data().percentage) : 20;
-        commissionInput.value = percentage;
+        const currencies = ["USD"]; // add other currencies if needed
+        earningsContainer.innerHTML = "";
+
+        for (const currency of currencies) {
+            const platformRef = doc(db, `platform-earnings/${currency}`);
+            const snap = await getDoc(platformRef);
+            const data = snap.exists() ? snap.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+
+            const card = document.createElement("div");
+            card.className = "card";
+
+            let dailyRows = "";
+            for(const day in data.dailyRevenue){
+                dailyRows += `<tr><td>${day}</td><td>${formatCurrency(data.dailyRevenue[day])}</td></tr>`;
+            }
+
+            card.innerHTML = `
+                <div class="currency-header">Currency: ${currency}</div>
+                <div><strong>Total Earnings:</strong> ${formatCurrency(data.totalRevenue)}</div>
+                <div><strong>Deals Completed:</strong> ${data.dealsCount}</div>
+                <table class="table">
+                    <thead><tr><th>Date</th><th>Earnings</th></tr></thead>
+                    <tbody>${dailyRows || "<tr><td colspan='2'>No earnings yet</td></tr>"}</tbody>
+                </table>
+            `;
+            earningsContainer.appendChild(card);
+        }
     } catch(err) {
         console.error(err);
-        showNotif("Error loading commission: "+err.message, "error");
+        showNotif("Error loading earnings: "+err.message,"error");
     }
 }
 
-// Update commission
-updateBtn.onclick = async () => {
-    try {
-        const val = parseFloat(commissionInput.value);
-        if(isNaN(val) || val < 0 || val > 100) return showNotif("Enter a valid percentage (0-100)", "error");
-        await setDoc(doc(db, "platform-settings", "commission"), { percentage: val }, { merge:true });
-        showNotif("Commission updated successfully!");
-    } catch(err) {
-        console.error(err);
-        showNotif("Error updating commission: "+err.message, "error");
-    }
-};
-
-loadCommission();
+loadEarnings();
 </script>
-
 </body>
 </html>
