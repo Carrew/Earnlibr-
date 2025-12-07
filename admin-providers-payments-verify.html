@@ -1,234 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Verify Provider Payments</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Admin Verify Payments</title>
 <style>
-body { font-family: Inter,system-ui,Arial; background:#0b0d17; color:#eef2f7; margin:0; padding:20px; }
-h1 { font-size:24px; margin-bottom:20px; background:linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; }
-.notif { display:none; padding:12px 16px; margin-bottom:20px; border-radius:8px; font-weight:600; }
-.notif.success { border-left:4px solid #4ade80; color:#4ade80; background:rgba(74,222,128,0.05); }
-.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; background:rgba(239,68,68,0.05); }
-.bill-card { background:#0f1724; padding:16px; border-radius:12px; margin-bottom:20px; box-shadow:0 8px 20px rgba(0,0,0,0.4); border-left:4px solid #facc15; transition:0.2s; }
-.bill-card:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(0,0,0,0.5); }
-.btn { padding:8px 14px; border:none; border-radius:8px; font-weight:600; cursor:pointer; margin-top:10px; transition:0.2s; }
-.btn-verify { background:#4ade80; color:#041018; }
-.btn-reject { background:#ef4444; color:#fff; }
-.btn-verify:hover, .btn-reject:hover { opacity:0.9; }
-.offer-breakdown { margin-top:10px; display:none; }
-.offer { border-bottom:1px solid #2b3145; padding:6px 0; }
-.deal-item { font-size:13px; margin-left:12px; padding:2px 0; }
-.btn-toggleOffers { background:#3b82f6; color:#fff; margin-top:10px; }
-.btn-toggleOffers:hover { opacity:0.9; }
-.status { display:inline-block; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:bold; text-transform:capitalize; background:#facc15; color:#000; margin-left:10px; }
-.status.paid { background:#4ade80; color:#041018; }
-.status.rejected { background:#ef4444; color:#fff; }
+body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; }
+h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
+.bill-card { background:#0f1724; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); }
+.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; }
+.btn:disabled { opacity:0.6; cursor:not-allowed; }
+.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; display:none; }
+.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
+.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
 </style>
 </head>
 <body>
 
-<h1>Admin — Verify Provider Payments</h1>
+<h1>Verify Provider Payments</h1>
 <div id="notif" class="notif"></div>
-<div id="paymentsContainer">Loading provider payments...</div>
+<div id="billsContainer">Loading bills...</div>
 
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, query, where, onSnapshot, doc, updateDoc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
-const paymentsContainer = document.getElementById("paymentsContainer");
 
-const showNotif = (msg, type='success')=>{
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display='block';
-  setTimeout(()=> notif.style.display='none',4000);
+const showNotif = (msg,type="success")=>{
+  notif.textContent=msg;
+  notif.className=`notif ${type}`;
+  notif.style.display="block";
+  setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// --- AUTH CHECK ---
+// --- Auth check ---
 let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
 
-onAuthStateChanged(auth, async (user)=>{
-  if(!user || user.uid !== userSession.uid){
-    localStorage.removeItem("userSession");
-    window.location.href="login.html";
-    return;
-  }
-
-  if(!user.emailVerified){
-    localStorage.removeItem("userSession");
-    window.location.href="login.html";
-    return;
-  }
-
-  // --- FIXED AUTH CHECK (users + admins) ---
-  const userDoc = await getDoc(doc(db, "users", user.uid));
-  const adminDoc = await getDoc(doc(db, "admins", user.uid));
-
-  let data = null;
-  let role = null;
-
-  if (userDoc.exists()) {
-    data = userDoc.data();
-    role = data.role;
-  } else if (adminDoc.exists()) {
-    data = adminDoc.data();
-    role = data.role || "admin";
-  } else {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  if (!["admin", "super_admin"].includes(role)) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  userSession = {
-    uid: user.uid,
-    name: data.name,
-    email: data.email,
-    role: role
-  };
-
-  localStorage.setItem("userSession", JSON.stringify(userSession));
-
-  // Passed auth — load bills
+onAuthStateChanged(auth, async user=>{
+  if(!user || user.uid !== userSession.uid){ localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
   loadBills();
 });
 
-// --- Load Bills ---
+// --- Load bills marked provider_marked_paid ---
 function loadBills(){
-  const billsQuery = query(collection(db, "bills"), where("status","==","paid_pending_verification"));
-
-  onSnapshot(billsQuery, snapshot=>{
-    paymentsContainer.innerHTML="";
-    if(snapshot.empty){
-      paymentsContainer.innerHTML="<p style='opacity:.6;text-align:center;'>No payments pending verification.</p>";
-      return;
-    }
-
+  const billsRef = collection(db, "bills");
+  onSnapshot(billsRef, snapshot=>{
+    billsContainer.innerHTML="";
     snapshot.docs.forEach(docSnap=>{
       const bill = docSnap.data();
-      renderBillCard(bill);
+      if(bill.status==="provider_marked_paid"){
+        const card = document.createElement("div");
+        card.className="bill-card";
+        card.innerHTML=`
+          <div><strong>Provider:</strong> ${bill.providerName}</div>
+          <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
+          <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
+          <div><strong>Status:</strong> ${bill.status}</div>
+        `;
+        const btn = document.createElement("button");
+        btn.className="btn";
+        btn.textContent="Verify Payment";
+        btn.onclick=()=>verifyPayment(bill.billId, bill.deals, btn);
+        card.appendChild(btn);
+        billsContainer.appendChild(card);
+      }
     });
   });
 }
 
-// --- Render Bill Card ---
-function renderBillCard(bill){
-  const card = document.createElement("div");
-  card.className="bill-card";
+// --- Verify payment ---
+async function verifyPayment(billId, dealIds, btn){
+  btn.disabled=true;
 
-  let totalsHTML="";
-  Object.entries(bill.totals || {}).forEach(([curr, amt])=>{
-    totalsHTML += `<div><strong>${curr} Total:</strong> ${amt.toFixed(2)}</div>`;
-  });
+  // 1️⃣ Update bill status
+  await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:new Date().toISOString() });
 
-  card.innerHTML=`
-    <h3>Provider: ${bill.providerName} — Bill #${bill.billId.slice(-6)} <span class="status">${bill.status}</span></h3>
-    <div><strong>Created:</strong> ${new Date(bill.createdAt).toLocaleString()}</div>
-    <div>${totalsHTML}</div>
-    <button class="btn btn-toggleOffers">Show Offer & Deals Breakdown</button>
-    <div class="offer-breakdown"></div>
-    <button class="btn btn-verify">✅ Confirm Payment</button>
-    <button class="btn btn-reject">❌ Reject Payment</button>
-  `;
+  // 2️⃣ Update provider-specific bill
+  const billSnap = await import('./firebase.js'); // optional: ensure correct ref
+  // for simplicity assume same path as global
 
-  const breakdown = card.querySelector(".offer-breakdown");
+  await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:new Date().toISOString() });
 
-  // Offer & deal breakdown
-  Object.values(bill.offers || {}).forEach(offer=>{
-    const offerDiv = document.createElement("div");
-    offerDiv.className="offer";
-    offerDiv.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
-    offer.deals.forEach(d=>{
-      const dealDiv = document.createElement("div");
-      dealDiv.className="deal-item";
-      dealDiv.textContent=`DealID: ${d.dealId} | Client: ${d.clientName} | Commission: ${d.commissionEarned.toFixed(2)} | Note: ${d.note||"None"}`;
-      offerDiv.appendChild(dealDiv);
-    });
-    breakdown.appendChild(offerDiv);
-  });
+  // 3️⃣ Update all deals in the bill
+  for(const dealId of dealIds){
+    await updateDoc(doc(db, "completed-deals", dealId), { providerPaid:true, providerPaidAt:new Date().toISOString(), linkedBillId:billId });
+  }
 
-  // Toggle breakdown
-  card.querySelector(".btn-toggleOffers").onclick=()=>{ breakdown.style.display = breakdown.style.display==="none"?"block":"none"; };
-
-  // Confirm payment
-  card.querySelector(".btn-verify").onclick=async ()=>{
-    if(!confirm("Confirm verifying this provider payment?")) return;
-    try{
-      const timestamp = new Date().toISOString();
-      const providerId = bill.providerId;
-
-      // Update completed deals
-      for(const offer of Object.values(bill.offers || {})){
-        for(const deal of offer.deals){
-          const dealRef = doc(db, "completedDeals", deal.dealId);
-          await updateDoc(dealRef, { providerPaid: true, paymentAmount: deal.commissionEarned, paymentNotes: `Verified by admin on ${timestamp}` });
-        }
-      }
-
-      // Update provider & global bills
-      const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
-      const globalBillRef = doc(db, "bills", bill.billId);
-      await updateDoc(providerBillRef, { status: "paid", verifiedAt: timestamp });
-      await updateDoc(globalBillRef, { status: "paid", verifiedAt: timestamp });
-
-      // Notify provider
-      await addDoc(collection(db, `providers/${providerId}/notifications`), {
-        type: "payment_verified",
-        billId: bill.billId,
-        message: `Your payment for Bill #${bill.billId.slice(-6)} has been verified.`,
-        createdAt: timestamp,
-        unread: true
-      });
-
-      card.remove();
-      showNotif(`Bill #${bill.billId.slice(-6)} marked as Paid`);
-    } catch(err){
-      console.error(err);
-      showNotif("Error verifying payment: "+err.message,"error");
-    }
-  };
-
-  // Reject payment
-  card.querySelector(".btn-reject").onclick=async ()=>{
-    if(!confirm("Reject this provider payment?")) return;
-    try{
-      const timestamp = new Date().toISOString();
-      const providerId = bill.providerId;
-
-      const providerBillRef = doc(db, "providers", providerId, "bills", bill.billId);
-      const globalBillRef = doc(db, "bills", bill.billId);
-      await updateDoc(providerBillRef, { status: "rejected", rejectionNote:`Admin rejected payment on ${timestamp}` });
-      await updateDoc(globalBillRef, { status: "rejected" });
-
-      await addDoc(collection(db, `providers/${providerId}/notifications`), {
-        type: "payment_rejected",
-        billId: bill.billId,
-        message: `Your payment for Bill #${bill.billId.slice(-6)} has been rejected.`,
-        createdAt: timestamp,
-        unread: true
-      });
-
-      card.remove();
-      showNotif(`Bill #${bill.billId.slice(-6)} rejected`,"error");
-    } catch(err){
-      console.error(err);
-      showNotif("Error rejecting payment: "+err.message,"error");
-    }
-  };
-
-  paymentsContainer.appendChild(card);
+  showNotif("Payment verified and deals marked paid!");
 }
 </script>
-
 </body>
 </html>
