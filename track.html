@@ -169,7 +169,6 @@ requestForm.addEventListener("submit", async (e) => {
       note,
       status: "pending",
       createdAt: new Date().toISOString(),
-
       providerName: providerInfo?.name || "",
       providerEmail: providerInfo?.email || "",
       providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
@@ -177,12 +176,11 @@ requestForm.addEventListener("submit", async (e) => {
       commissionValue: offerData.commissionValue || 0
     };
 
-    // --- Create deal globally ---
     const dealRef = await addDoc(collection(db, "deals"), dealData);
     const dealId = dealRef.id;
 
-    // --- Admin notification ---
-    await addDoc(collection(db, "admin-notifications"), {
+    // --- Admin Notification ---
+    await addDoc(collection(db, "admin_notifications"), {
       type: "deal",
       title: "New Deal Request",
       message: `${clientName} requested offer "${dealData.offerTitle}"`,
@@ -190,32 +188,26 @@ requestForm.addEventListener("submit", async (e) => {
       ...dealData
     });
 
-    // --- Provider notification (FIXED PATH) ---
+    // --- Provider Notification ---
     if (providerId !== "unknown") {
-      await addDoc(
-        collection(db, "provider-notifications", providerId, "items"),
-        {
-          type: "deal",
-          title: "You Have a New Deal Request",
-          message: `A client requested your offer "${dealData.offerTitle}".`,
-          dealId,
-          ...dealData
-        }
-      );
+      await addDoc(collection(db, "notifications", providerId, "items"), {
+        type: "deal",
+        title: "You Have a New Deal Request",
+        message: `A client requested your offer "${dealData.offerTitle}".`,
+        dealId,
+        ...dealData
+      });
     }
 
-    // --- Promoter notification (FIXED PATH) ---
+    // --- Promoter Notification ---
     if (promoterId !== "direct") {
-      await addDoc(
-        collection(db, "freelancer-notifications", promoterId, "items"),
-        {
-          type: "deal",
-          title: "You Generated a Deal!",
-          message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
-          dealId,
-          ...dealData
-        }
-      );
+      await addDoc(collection(db, "notifications", promoterId, "items"), {
+        type: "deal",
+        title: "You Generated a Deal!",
+        message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
+        dealId,
+        ...dealData
+      });
     }
 
     requestForm.style.display = "none";
