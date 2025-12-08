@@ -30,7 +30,7 @@ h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, onSnapshot, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, onSnapshot, updateDoc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
@@ -42,6 +42,20 @@ const showNotif = (msg,type="success")=>{
   notif.style.display = "block";
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
+
+// --- Model A Notification Helper ---
+async function sendNotification(uid, title, message) {
+  try {
+    await addDoc(collection(db, `notifications/${uid}/items`), {
+      title,
+      message,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch(err) {
+    console.error("Notification error:", err);
+  }
+}
 
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
@@ -77,17 +91,17 @@ function loadBills(){
         const btn = document.createElement("button");
         btn.className = "btn";
         btn.textContent = "Verify Payment";
-        btn.onclick = ()=>verifyPayment(bill.billId, bill.deals, bill.providerId, btn, card);
+        btn.onclick = ()=>verifyPayment(bill.billId, bill.deals, bill.providerId, btn, card, bill.offerTitle, bill.total, bill.currency);
         card.appendChild(btn);
         billsContainer.appendChild(card);
-        billCards.push({ billId: bill.billId, deals: bill.deals, providerId: bill.providerId, btn, card });
+        billCards.push({ billId: bill.billId, deals: bill.deals, providerId: bill.providerId, btn, card, offerTitle: bill.offerTitle, total: bill.total, currency: bill.currency });
       }
     });
   });
 }
 
 // --- Verify single bill ---
-async function verifyPayment(billId, dealObjs, providerId, btn, card){
+async function verifyPayment(billId, dealObjs, providerId, btn, card, offerTitle, total, currency){
   btn.disabled = true;
   const originalText = btn.textContent;
   btn.textContent = "Verifying...";
@@ -110,6 +124,9 @@ async function verifyPayment(billId, dealObjs, providerId, btn, card){
     await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
     await updateDoc(doc(db, `providers/${providerId}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
 
+    // ✅ Send notification to provider
+    await sendNotification(providerId, "Payment Verified ✅", `Your payment for ${offerTitle} (${total.toFixed(2)} ${currency}) has been verified by admin.`);
+
     card.classList.add("verified");
     btn.textContent = "Verified ✅";
   } catch(err){
@@ -127,7 +144,7 @@ verifyAllBtn.onclick = async () => {
   verifyAllBtn.textContent = "Verifying All...";
 
   // Run all verifications concurrently
-  await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card)));
+  await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card, b.offerTitle, b.total, b.currency)));
 
   verifyAllBtn.textContent = "Verify All ✅";
   setTimeout(() => {
