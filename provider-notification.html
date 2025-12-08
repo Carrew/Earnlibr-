@@ -1,74 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EarnLibr — Notifications</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px;}
-    h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px;}
-    .notif-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
-    .notif-message { flex:1; }
-    .notif-time { font-size:12px; color:#bfc7d6; margin-left:10px; }
-    .mark-read { background:#4ade80; color:#041018; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:700;}
-    .unread { border-left:4px solid #4a90e2; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Provider Notifications</title>
+<style>
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #e74c3c;
+}
+body { font-family: Inter, system-ui, Arial, sans-serif; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; font-size: 24px; }
+.notif-list { display: flex; flex-direction: column; gap: 12px; }
+.notif-card { background: var(--card); border-radius: 12px; padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,0.5); border-left: 5px solid var(--accent1); transition: opacity 0.3s, background 0.3s; position: relative; }
+.notif-card.read { background: #1a2235; opacity: 0.6; border-left: 5px solid #2d3748; }
+.notif-card.approved { border-left-color: #4ade80; }
+.notif-card.rejected { border-left-color: var(--danger); }
+.notif-card h2 { font-size: 1.15rem; margin: 0 0 8px 0; color: #fff; }
+.notif-card p { font-size: 0.95rem; margin: 0 0 10px 0; color: var(--muted); line-height: 1.4; }
+.notif-meta { font-size: 0.75rem; color: #7f8a9e; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.mark-read-btn { background: var(--accent1); color: var(--bg); border: none; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: background 0.2s; }
+.mark-read-btn:hover { background: #5f9fe7; }
+.mark-read-btn:disabled { background: #3b82f6; cursor: default; opacity: 0.8; }
+.in-page-notif { 
+  position: fixed; top: 20px; right: 20px; 
+  padding: 12px 20px; border-radius: 8px; 
+  font-weight: 700; font-size: 0.9rem; 
+  z-index: 1000; display: none; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.in-page-notif.success { background: #4ade80; color: #041018; }
+.in-page-notif.error { background: #ef4444; color: #fff; }
+</style>
 </head>
 <body>
 
-<h1>Provider Notifications</h1>
-<div id="notificationsContainer">Loading...</div>
+<h1>Provider Notifications 📧</h1>
+<div id="inPageNotif" class="in-page-notif"></div>
+<div id="notifList" class="notif-list">Loading notifications...</div>
 
 <script type="module">
-  import { auth, db } from './firebase.js';
-  import { ref, onValue, update } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
+import { db, auth } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, updateDoc, query, orderBy, onSnapshot, getDoc
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-  const notificationsContainer = document.getElementById('notificationsContainer');
+const notifList = document.getElementById("notifList");
+const inPageNotif = document.getElementById("inPageNotif");
+let currentUserId = null;
 
-  // Check session
-  const userSessionRaw = localStorage.getItem('userSession');
-  if (!userSessionRaw) {
-    window.location.href = 'login.html';
-    throw new Error('No user session');
+/* --- Notification UI Helper --- */
+function showInPageNotif(message, type="success", duration=3000) {
+  inPageNotif.textContent = message;
+  inPageNotif.className = `in-page-notif ${type}`;
+  inPageNotif.style.display = "block";
+  setTimeout(() => inPageNotif.style.display = "none", duration);
+}
+
+/* --- Core Logic --- */
+async function markAsRead(notifId, card, btn) {
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    // Targeting the provider's personal subcollection
+    const notifRef = doc(db, `notifications/${currentUserId}/items`, notifId);
+    await updateDoc(notifRef, { read: true });
+    
+    // UI update
+    card.classList.add('read');
+    btn.textContent = 'Read';
+    showInPageNotif('Notification marked as read.', 'success');
+  } catch(err) {
+    console.error("Error marking notification as read:", err);
+    btn.disabled = false;
+    btn.textContent = 'Mark Read';
+    showInPageNotif('Failed to mark as read.', 'error');
   }
-  const userSession = JSON.parse(userSessionRaw);
-  const uid = userSession.uid;
+}
 
-  const notifRef = ref(db, `notifications/${uid}`);
+function renderNotification(docSnap) {
+  const data = docSnap.data();
+  const id = docSnap.id;
+  const card = document.createElement('div');
+  const timestamp = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : data.createdAt || 'N/A';
   
-  // Listen for notifications in real-time
-  onValue(notifRef, (snapshot) => {
-    notificationsContainer.innerHTML = '';
-    if (!snapshot.exists()) {
-      notificationsContainer.innerHTML = '<p>No notifications yet.</p>';
+  card.className = `notif-card ${data.read ? 'read' : 'unread'} ${data.type || ''}`;
+  card.innerHTML = `
+    <h2>${data.title || 'Untitled Notification'}</h2>
+    <p>${data.message || 'No message content.'}</p>
+    <div class="notif-meta">
+      <span>Type: ${data.type || 'Alert'}</span>
+      <span>Received: ${timestamp}</span>
+      <button class="mark-read-btn">${data.read ? 'Read' : 'Mark Read'}</button>
+    </div>
+  `;
+
+  const btn = card.querySelector('.mark-read-btn');
+  if (data.read) {
+    btn.disabled = true;
+  } else {
+    btn.onclick = () => markAsRead(id, card, btn);
+  }
+
+  return card;
+}
+
+function loadNotifications(userId) {
+  currentUserId = userId;
+  // Targeting the user's personal subcollection
+  const notifsQuery = query(
+    collection(db, `notifications/${userId}/items`), 
+    orderBy("createdAt", "desc")
+  );
+
+  onSnapshot(notifsQuery, snapshot => {
+    notifList.innerHTML = '';
+    if (snapshot.empty) {
+      notifList.innerHTML = '<p style="color:var(--muted)">No new notifications.</p>';
       return;
     }
 
-    const notifs = snapshot.val();
-    for (const notifId in notifs) {
-      const notif = notifs[notifId];
-      const card = document.createElement('div');
-      card.className = 'notif-card' + (notif.read ? '' : ' unread');
-
-      const time = new Date(notif.timestamp).toLocaleString();
-
-      card.innerHTML = `
-        <div class="notif-message">${notif.message}<span class="notif-time">${time}</span></div>
-        ${!notif.read ? '<button class="mark-read">Mark Read</button>' : ''}
-      `;
-
-      if (!notif.read) {
-        card.querySelector('.mark-read').onclick = async () => {
-          const updates = {};
-          updates[`${notifId}/read`] = true;
-          await update(notifRef, updates);
-        };
-      }
-
-      notificationsContainer.appendChild(card);
-    }
+    snapshot.forEach(docSnap => {
+      notifList.appendChild(renderNotification(docSnap));
+    });
+  }, error => {
+    console.error("Error fetching provider notifications:", error);
+    notifList.innerHTML = `<p style="color:var(--danger)">Error loading notifications: ${error.message}</p>`;
   });
-</script>
+}
 
+/* --- Auth & Role Check (Matching Login Logic) --- */
+onAuthStateChanged(auth, async (user) => {
+  if (!user || !user.emailVerified) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const role = userDoc.data()?.role;
+    
+    if (!userDoc.exists() || role !== 'provider') {
+      showInPageNotif("Unauthorized access. Redirecting.", "error", 4000);
+      setTimeout(() => { auth.signOut(); window.location.href = 'login.html'; }, 1000);
+      return;
+    }
+
+    loadNotifications(user.uid);
+
+  } catch (err) {
+    console.error("Auth verification failed:", err);
+    showInPageNotif("Authentication check failed. Redirecting.", "error", 4000);
+    setTimeout(() => { auth.signOut(); window.location.href = 'login.html'; }, 1000);
+  }
+});
+</script>
 </body>
 </html>
