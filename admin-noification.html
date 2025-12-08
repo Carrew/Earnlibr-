@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EarnLibr — Admin Notifications</title>
+<style>
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.notif-list { display: flex; flex-direction: column; gap: 10px; }
+.notif-card { background: #0f1724; border-radius: 10px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border-left: 4px solid #4a90e2; transition: background 0.3s; position: relative; }
+.notif-card.read { background: #1a2235; opacity: 0.7; border-left: 4px solid #1a2235; }
+.notif-card.new_offer { border-left-color: #a3ff6e; }
+.notif-card h2 { font-size: 1.1rem; margin: 0 0 5px 0; color: #fff; }
+.notif-card p { font-size: 0.9rem; margin: 0 0 10px 0; color: #bfc7d6; }
+.notif-meta { font-size: 0.75rem; color: #7f8a9e; display: flex; justify-content: space-between; align-items: center; }
+.mark-read-btn { background: #4a90e2; color: #0b0d17; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: 700; transition: opacity 0.3s; }
+.mark-read-btn:hover { opacity: 0.8; }
+.mark-read-btn:disabled { background: #3b82f6; cursor: default; }
+</style>
+</head>
+<body>
+
+<h1>Admin System Notifications 🔔</h1>
+<div id="notifList" class="notif-list">Loading notifications...</div>
+
+<script type="module">
+import { db, auth } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, updateDoc, query, orderBy, onSnapshot, getDoc, where
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const notifList = document.getElementById("notifList");
+const ADMIN_ROLES = ['admin', 'super_admin'];
+
+/* --- Core Logic --- */
+async function markAsRead(notifId, card, btn) {
+  try {
+    btn.disabled = true;
+    const notifRef = doc(db, "admin_notifications", notifId);
+    await updateDoc(notifRef, { read: true });
+    card.classList.add('read');
+    btn.textContent = 'Read';
+  } catch(err) {
+    console.error("Error marking notification as read:", err);
+    btn.disabled = false;
+  }
+}
+
+function renderNotification(docSnap) {
+  const data = docSnap.data();
+  const id = docSnap.id;
+  const card = document.createElement('div');
+  const timestamp = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : data.createdAt || 'N/A';
+  
+  card.className = `notif-card ${data.read ? 'read' : 'unread'} ${data.type || ''}`;
+  card.innerHTML = `
+    <h2>${data.title || 'Untitled Notification'}</h2>
+    <p>${data.message || 'No message content.'}</p>
+    <div class="notif-meta">
+      <span>Type: ${data.type || 'System'}</span>
+      <span>Received: ${timestamp}</span>
+      <button class="mark-read-btn">${data.read ? 'Read' : 'Mark Read'}</button>
+    </div>
+  `;
+
+  const btn = card.querySelector('.mark-read-btn');
+  if (data.read) {
+    btn.disabled = true;
+  } else {
+    btn.onclick = () => markAsRead(id, card, btn);
+  }
+
+  return card;
+}
+
+function loadNotifications() {
+  // Targeting the central admin_notifications collection
+  const notifsQuery = query(
+    collection(db, "admin_notifications"), 
+    orderBy("createdAt", "desc")
+  );
+
+  onSnapshot(notifsQuery, snapshot => {
+    notifList.innerHTML = '';
+    if (snapshot.empty) {
+      notifList.innerHTML = '<p>No system notifications.</p>';
+      return;
+    }
+
+    snapshot.forEach(docSnap => {
+      notifList.appendChild(renderNotification(docSnap));
+    });
+  }, error => {
+    console.error("Error fetching admin notifications:", error);
+    notifList.innerHTML = `<p style="color:#ef4444;">Error loading notifications: ${error.message}</p>`;
+  });
+}
+
+/* --- Auth & Role Check --- */
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = 'login.html'; // Redirect to login
+    return;
+  }
+
+  try {
+    const adminDoc = await getDoc(doc(db, "admins", user.uid));
+    const userData = adminDoc.data();
+    const role = userData?.role || 'user';
+    
+    if (!adminDoc.exists() || !ADMIN_ROLES.includes(role)) {
+      alert("Unauthorized access. Redirecting.");
+      auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+
+    loadNotifications();
+
+  } catch (err) {
+    console.error("Auth verification failed:", err);
+    window.location.href = 'login.html';
+  }
+});
+</script>
+</body>
+</html>
