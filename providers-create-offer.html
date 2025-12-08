@@ -113,7 +113,7 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 const providerNameEl = document.getElementById('providerName');
@@ -136,6 +136,22 @@ const commissionType = document.getElementById('commissionType');
 const commissionValue = document.getElementById('commissionValue');
 const promotionBudget = document.getElementById('promotionBudget');
 const totalProducts = document.getElementById('totalProducts');
+
+// --- 1. Centralized Admin Notification Helper ---
+// This writes to a common collection that all admins can monitor.
+async function sendAdminNotification(title, message) {
+  try {
+    await addDoc(collection(db, `admin_notifications`), {
+      title,
+      message,
+      type: "new_offer",
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch(err) {
+    console.error("Admin Notification error:", err);
+  }
+}
 
 function showNotification(message, type='info', duration=3000) {
   const notif = document.createElement('div');
@@ -162,7 +178,7 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// optional image compression function
+// optional image compression function (unchanged)
 async function compressImage(file, maxSizeMB = 2) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -263,7 +279,14 @@ function setupFormSubmit() {
     };
 
     try {
+      // Add offer to pending collection
       await addDoc(collection(db, "offers_pending"), offerData);
+      
+      // Notify Admin using the helper function
+      const adminTitle = "New Offer Submitted 🔔";
+      const adminMessage = `Provider **${userSession.name}** submitted a new offer: "${offerData.title}". Requires verification.`;
+      await sendAdminNotification(adminTitle, adminMessage);
+
       showNotification("Offer submitted successfully!", "success", 3000);
       offerForm.reset();
       imagePreview.style.display = "none";
