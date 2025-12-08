@@ -37,10 +37,6 @@
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
     .greeting h1 { font-size:20px; margin:0; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
     .greeting p { margin:4px 0 0 0; color:var(--muted); font-size:13px; }
-    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-    .stat { padding:14px; border-radius:10px; background:linear-gradient(180deg,rgba(255,255,255,0.01), rgba(255,255,255,0.008)); }
-    .stat h3 { margin:0 0 6px 0; font-size:12px; color:var(--muted); }
-    .stat p { margin:0; font-size:18px; font-weight:700; }
     .grid-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:18px; }
     .grid-card { background:var(--card); border-radius:12px; padding:25px 15px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: transform 0.2s, box-shadow 0.2s; }
     .grid-card:hover { transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.6); }
@@ -98,13 +94,7 @@
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat"><h3>Total Offers</h3><p id="totalOffers">—</p></div>
-      <div class="stat"><h3>Verified Deals</h3><p id="totalVerified">—</p></div>
-      <div class="stat"><h3>Total Generated</h3><p id="totalGenerated">$—</p></div>
-      <div class="stat"><h3>Total Spent</h3><p id="totalSpent">$—</p></div>
-    </div>
-
+    <!-- Grid Cards -->
     <div class="grid-cards">
       <div class="grid-card" onclick="navigate('providers-create-offer.html')"><i class="fas fa-plus-circle"></i><span>Create Offer</span></div>
       <div class="grid-card" onclick="navigate('providers-manage-offers.html')"><i class="fas fa-edit"></i><span>Manage Offers</span></div>
@@ -116,9 +106,8 @@
 </div>
 
 <script type="module">
-import { auth, db } from "./firebase.js";
+import { auth } from "./firebase.js";
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 // Sidebar toggle
 const sidebar = document.getElementById('sidebar');
@@ -160,16 +149,6 @@ if(!sessionRaw){ window.location.href='login.html'; throw new Error('No session'
 const session = JSON.parse(sessionRaw);
 if(session.role!=='provider'){ window.location.href='login.html'; throw new Error('Unauthorized'); }
 
-// Firebase Auth check
-onAuthStateChanged(auth, async (user)=>{
-  if(!user || user.uid!==session.uid || !user.emailVerified){
-    localStorage.removeItem('userSession');
-    window.location.href='login.html';
-  } else {
-    loadProviderData();
-  }
-});
-
 // Populate profile UI
 const avatarEl = document.getElementById('avatar');
 document.getElementById('providerName').textContent = session.name;
@@ -181,21 +160,6 @@ document.getElementById('providerReferral').textContent = `Referral: ${session.r
 document.getElementById('providerCreated').textContent = `Joined: ${session.createdAt||'—'}`;
 avatarEl.textContent = session.name.charAt(0).toUpperCase();
 document.getElementById('greet').textContent = `Welcome back, ${session.name}`;
-
-// Load provider data from Firestore
-function fmt(n){ return Number(n||0).toLocaleString(); }
-async function loadProviderData(){
-  try {
-    const docRef = doc(db,'users',session.uid);
-    const snap = await getDoc(docRef);
-    const data = snap.exists()? snap.data() : {};
-
-    document.getElementById('totalOffers').textContent = data.totalOffers||0;
-    document.getElementById('totalVerified').textContent = data.totalVerified||0;
-    document.getElementById('totalGenerated').textContent = `$${fmt(data.totalGenerated)}`;
-    document.getElementById('totalSpent').textContent = `$${fmt(data.totalSpent)}`;
-  } catch(err){ console.error('Failed to load provider data', err); }
-}
 </script>
 </body>
 </html>
