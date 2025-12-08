@@ -37,7 +37,7 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, where, orderBy, onSnapshot 
+  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, where, orderBy, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -49,6 +49,20 @@ const showNotif = (msg, type="success") => {
   notif.style.display = "block";
   setTimeout(() => { notif.style.display = "none"; }, 3000);
 };
+
+/* --- Notification Helper --- */
+async function sendNotification(uid, title, message) {
+  try {
+    await addDoc(collection(db, `notifications/${uid}/items`), {
+      title,
+      message,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch(err) {
+    console.error("Notification error:", err);
+  }
+}
 
 /* --- Session & Auth Check --- */
 let userSession = localStorage.getItem("userSession");
@@ -95,7 +109,6 @@ async function processCompleteDeal(dealId, deal, card){
     const offerRef = doc(db, "offers_all", deal.offerId);
 
     await runTransaction(db, async (t) => {
-      // ✅ Read all docs first
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
@@ -114,7 +127,6 @@ async function processCompleteDeal(dealId, deal, card){
       const platformSnap = await getDoc(doc(db, "platform-settings", "commission"));
       const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
 
-      // --- Calculations ---
       let commissionEarned = 0;
       if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
       else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
@@ -124,7 +136,6 @@ async function processCompleteDeal(dealId, deal, card){
       const platformShare = round(commissionEarned*platformPercentage/100);
       const promoterNet = round(commissionEarned-platformShare);
 
-      // ✅ All writes after reads
       t.update(offerRef, {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
@@ -170,10 +181,9 @@ async function processCompleteDeal(dealId, deal, card){
       t.delete(dealRef);
     });
 
-    const notifData = { title:"Deal Completed ✅", message:`Deal ${dealId} marked complete.`, type:"completed", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+    // Send notifications via helper
+    if(deal.providerId) await sendNotification(deal.providerId, "Deal Completed ✅", `Deal ${dealId} marked complete.`);
+    if(deal.promoterId && deal.promoterId!=="direct") await sendNotification(deal.promoterId, "Deal Completed ✅", `Deal ${dealId} marked complete.`);
 
     card.remove();
     showNotif("Deal completed successfully");
@@ -186,10 +196,8 @@ async function processCancelDeal(dealId, deal, card){
     const timestamp = new Date().toISOString();
     await deleteDoc(doc(db, "deals", dealId));
 
-    const notifData = { title:"Deal Cancelled ❌", message:`Deal ${dealId} cancelled by provider.`, type:"cancelled", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+    if(deal.providerId) await sendNotification(deal.providerId, "Deal Cancelled ❌", `Deal ${dealId} cancelled by provider.`);
+    if(deal.promoterId && deal.promoterId!=="direct") await sendNotification(deal.promoterId, "Deal Cancelled ❌", `Deal ${dealId} cancelled by provider.`);
 
     card.remove();
     showNotif("Deal cancelled","error");
