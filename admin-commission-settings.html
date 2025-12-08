@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Platform Earnings</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Commission Settings</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #1a2235; }
-.currency-header { margin-top: 20px; font-size: 18px; font-weight: bold; }
+.setting-card { background: #0f1724; border-radius: 12px; padding: 20px; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.setting-card input { width: 100%; padding: 10px; margin-top: 10px; border-radius: 8px; border: none; background: #1a2235; color: #eef2f7; }
+.setting-card button { margin-top: 15px; padding: 10px 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; background: #4ade80; color: #041018; }
+.setting-card button.loading { pointer-events: none; opacity: 0.7; position: relative; }
+.setting-card button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 .notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
 .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
 .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
@@ -18,65 +20,86 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 </head>
 <body>
 
-<h1>Platform Earnings Dashboard</h1>
+<h1>Platform Commission Settings</h1>
+
 <div id="notif" class="notif"></div>
-<div id="earningsContainer">Loading earnings...</div>
+
+<div class="setting-card">
+  <label for="commission">Commission Percentage (%)</label>
+  <input type="number" id="commission" placeholder="Enter commission percentage" min="0" max="100" step="0.01"/>
+  <button id="updateCommission">Update Commission</button>
+</div>
 
 <script type="module">
 import { db } from './firebase.js';
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const earningsContainer = document.getElementById("earningsContainer");
+const commissionInput = document.getElementById("commission");
+const updateBtn = document.getElementById("updateCommission");
 const notif = document.getElementById("notif");
 
 const showNotif = (msg, type="success") => {
-    notif.textContent = msg;
-    notif.className = `notif ${type}`;
-    notif.style.display = "block";
-    setTimeout(()=>notif.style.display="none",3000);
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(() => { notif.style.display = "none"; }, 3000);
 };
 
-// Format numbers as currency
-const formatCurrency = (num) => "$" + num.toFixed(2);
-
-// Load platform earnings
-async function loadEarnings() {
-    earningsContainer.innerHTML = "Loading earnings...";
-    try {
-        const currencies = ["USD"]; // add other currencies if needed
-        earningsContainer.innerHTML = "";
-
-        for (const currency of currencies) {
-            const platformRef = doc(db, `platform-earnings/${currency}`);
-            const snap = await getDoc(platformRef);
-            const data = snap.exists() ? snap.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
-
-            const card = document.createElement("div");
-            card.className = "card";
-
-            let dailyRows = "";
-            for(const day in data.dailyRevenue){
-                dailyRows += `<tr><td>${day}</td><td>${formatCurrency(data.dailyRevenue[day])}</td></tr>`;
-            }
-
-            card.innerHTML = `
-                <div class="currency-header">Currency: ${currency}</div>
-                <div><strong>Total Earnings:</strong> ${formatCurrency(data.totalRevenue)}</div>
-                <div><strong>Deals Completed:</strong> ${data.dealsCount}</div>
-                <table class="table">
-                    <thead><tr><th>Date</th><th>Earnings</th></tr></thead>
-                    <tbody>${dailyRows || "<tr><td colspan='2'>No earnings yet</td></tr>"}</tbody>
-                </table>
-            `;
-            earningsContainer.appendChild(card);
-        }
-    } catch(err) {
-        console.error(err);
-        showNotif("Error loading earnings: "+err.message,"error");
-    }
+// Load current commission
+async function loadCommission() {
+  const docRef = doc(db, "platform-settings", "commission");
+  const snap = await getDoc(docRef);
+  if(snap.exists()) {
+    commissionInput.value = snap.data().percentage;
+  }
 }
 
-loadEarnings();
+// Send notification to all promoters
+async function sendNotificationToPromoters(newCommission) {
+  try {
+    // Query users with role "promoter"
+    const promotersQuery = query(collection(db, "users"), where("role", "==", "promoter"));
+    const snapshot = await getDocs(promotersQuery);
+
+    const notifPromises = [];
+    snapshot.forEach(userDoc => {
+      const uid = userDoc.id;
+      notifPromises.push(addDoc(collection(db, `notifications/${uid}/items`), {
+        title: "Commission Updated 💰",
+        message: `The platform commission has been updated to ${newCommission}%`,
+        createdAt: serverTimestamp(),
+        read: false
+      }));
+    });
+    await Promise.all(notifPromises);
+  } catch(err) {
+    console.error("Error sending notifications:", err);
+  }
+}
+
+// Update commission
+updateBtn.onclick = async () => {
+  const newCommission = parseFloat(commissionInput.value);
+  if(isNaN(newCommission) || newCommission < 0 || newCommission > 100) {
+    showNotif("Please enter a valid percentage (0-100)","error");
+    return;
+  }
+
+  updateBtn.classList.add("loading");
+  try {
+    await setDoc(doc(db, "platform-settings", "commission"), { percentage: newCommission }, { merge: true });
+    await sendNotificationToPromoters(newCommission);
+    showNotif(`Commission updated to ${newCommission}%`);
+  } catch(err) {
+    console.error(err);
+    showNotif("Error updating commission","error");
+  } finally {
+    updateBtn.classList.remove("loading");
+  }
+}
+
+loadCommission();
 </script>
+
 </body>
 </html>
