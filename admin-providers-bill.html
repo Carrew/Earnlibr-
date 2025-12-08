@@ -37,7 +37,7 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { auth, db } from "./firebase.js";
-import { collection, doc, setDoc, addDoc, query, where, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, setDoc, addDoc, query, where, onSnapshot, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const notif = document.getElementById("notif");
 const providersContainer = document.getElementById("providersContainer");
@@ -45,7 +45,7 @@ const sendAllBtn = document.getElementById("sendAll");
 const THRESHOLDS = { USD: 1, LRD: 300 };
 let grouped = {};
 
-// --- Auth Check (Retained from Snippet 1) ---
+// --- Auth Check ---
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
@@ -88,6 +88,20 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
+// --- Model A Notification Helper ---
+async function sendNotification(uid, title, message) {
+  try {
+    await addDoc(collection(db, `notifications/${uid}/items`), {
+      title,
+      message,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch(err) {
+    console.error("Notification error:", err);
+  }
+}
+
 // --- Load unpaid completed deals ---
 function loadDeals(){
   const dealsQuery = query(collection(db,"completed-deals"), where("providerPaid","==",false));
@@ -108,8 +122,6 @@ function loadDeals(){
       }
 
       const offer = grouped[providerId].offers[offerId];
-      // Deals pulled from "completed-deals" should be unpaid, but storing the deal object
-      // with ID and commission earned for billing.
       offer.total += Number(d.commissionEarned);
       offer.deals.push({ dealId: docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned, providerPaid: d.providerPaid });
     });
@@ -169,19 +181,15 @@ function renderProviders(){
   });
 }
 
-// --- Send Single Offer Bill (Modified to use Snippet 2's robust logic) ---
+// --- Send Single Offer Bill ---
 async function sendBill(providerId, offerId, offer){
   if(offer.total < (THRESHOLDS[offer.currency]||0)) return showNotif("Below threshold","error");
 
-  // Logic from Snippet 2: Filter deals to ensure only unpaid ones are included.
-  // Note: Since loadDeals filters for providerPaid==false, this check acts as a safeguard.
   const unpaidDeals = offer.deals.filter(d => d.providerPaid !== true);
   if(unpaidDeals.length === 0) return showNotif("All deals already paid","error");
 
   const billRef = doc(collection(db,"bills"));
   const billId = billRef.id;
-  
-  // Logic from Snippet 2: Map only the IDs of the confirmed unpaid deals.
   const dealIds = unpaidDeals.map(d=>d.dealId);
 
   const billData = {
@@ -192,14 +200,16 @@ async function sendBill(providerId, offerId, offer){
     offerTitle: offer.offerTitle,
     currency: offer.currency,
     total: offer.total,
-    deals: dealIds, // Now contains only unpaid deal IDs
+    deals: dealIds,
     createdAt: new Date().toISOString(),
     status:"sent"
   };
 
   await setDoc(billRef,billData);
   await setDoc(doc(db,`providers/${providerId}/bills/${billId}`),billData);
-  await addDoc(collection(db,`providers/${providerId}/notifications`), { type:"billing", billId, message:`Bill for ${offer.offerTitle} is ready`, createdAt:new Date().toISOString(), unread:true });
+  
+  // Model A notification
+  await sendNotification(providerId, `Bill Ready 🧾`, `A bill for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} is ready.`);
 
   showNotif(`Bill sent for ${offer.offerTitle}`);
 }
