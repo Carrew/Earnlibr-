@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +38,7 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, orderBy, onSnapshot 
+  collection, doc, getDoc, setDoc, deleteDoc, addDoc, runTransaction, query, orderBy, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -108,6 +109,20 @@ onAuthStateChanged(auth, async (user) => {
 /* --- Helper --- */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
+/* --- Model A Notification --- */
+async function sendNotification(uid, title, message) {
+  try {
+    await addDoc(collection(db, `notifications/${uid}/items`), {
+      title,
+      message,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch(err) {
+    console.error("Notification error:", err);
+  }
+}
+
 /* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card){
   try {
@@ -118,7 +133,6 @@ async function processCompleteDeal(dealId, deal, card){
     const offerRef = doc(db, "offers_all", deal.offerId);
 
     await runTransaction(db, async (t) => {
-      // ✅ Read all documents first
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
@@ -137,7 +151,6 @@ async function processCompleteDeal(dealId, deal, card){
       const platformSnap = await getDoc(doc(db, "platform-settings", "commission"));
       const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
 
-      // --- Calculations ---
       let commissionEarned = 0;
       if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
       else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
@@ -147,7 +160,6 @@ async function processCompleteDeal(dealId, deal, card){
       const platformShare = round(commissionEarned*platformPercentage/100);
       const promoterNet = round(commissionEarned-platformShare);
 
-      // ✅ All writes after reads
       t.update(offerRef, {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
@@ -193,10 +205,10 @@ async function processCompleteDeal(dealId, deal, card){
       t.delete(dealRef);
     });
 
+    // Send Model A notifications
     const notifData = { title:"Deal Completed ✅", message:`Deal ${dealId} marked complete by admin.`, type:"completed", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+    if(deal.providerId) await sendNotification(deal.providerId, notifData.title, notifData.message);
+    if(deal.promoterId && deal.promoterId!=="direct") await sendNotification(deal.promoterId, notifData.title, notifData.message);
 
     card.remove();
     showNotif("Deal completed successfully");
@@ -210,9 +222,8 @@ async function processCancelDeal(dealId, deal, card){
     await deleteDoc(doc(db, "deals", dealId));
 
     const notifData = { title:"Deal Cancelled ❌", message:`Deal ${dealId} cancelled by admin.`, type:"cancelled", createdAt: timestamp };
-    await addDoc(collection(db, `notifications/${deal.providerId}/items`), notifData);
-    if(deal.promoterId && deal.promoterId!=="direct") 
-      await addDoc(collection(db, `notifications/${deal.promoterId}/items`), notifData);
+    if(deal.providerId) await sendNotification(deal.providerId, notifData.title, notifData.message);
+    if(deal.promoterId && deal.promoterId!=="direct") await sendNotification(deal.promoterId, notifData.title, notifData.message);
 
     card.remove();
     showNotif("Deal cancelled","error");
