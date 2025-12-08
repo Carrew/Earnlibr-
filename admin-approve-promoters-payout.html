@@ -28,7 +28,7 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
   collection, doc, getDoc, getDocs, updateDoc,
-  query, where, runTransaction 
+  query, where, runTransaction, addDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const notif = document.getElementById("notif");
@@ -92,6 +92,22 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* -------------------------------------------
+   SEND NOTIFICATION — MODEL A
+-------------------------------------------- */
+async function sendNotification(uid, title, message) {
+  try {
+    await addDoc(collection(db, `notifications/${uid}/items`), {
+      title,
+      message,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+  } catch (err) {
+    console.error("Notification error:", err);
+  }
+}
+
+/* -------------------------------------------
    LOAD WITHDRAWAL REQUESTS
 -------------------------------------------- */
 async function loadRequests() {
@@ -149,7 +165,6 @@ async function processApproval(reqId, req, approve = true, box) {
       if (!reqSnap.exists()) throw new Error("Request already processed");
 
       let metaRef, metaSnap;
-
       const dealRefs = [];
       const dealSnaps = [];
 
@@ -158,7 +173,7 @@ async function processApproval(reqId, req, approve = true, box) {
         for (const dealId of req.dealIds) {
           const dealRef = doc(db, "promoter-earnings", req.promoterId, "deals", dealId);
           dealRefs.push(dealRef);
-          dealSnaps.push(await t.get(dealRef)); 
+          dealSnaps.push(await t.get(dealRef));
         }
 
         // 3️⃣ READ METADATA DOC
@@ -168,7 +183,6 @@ async function processApproval(reqId, req, approve = true, box) {
       }
 
       // ------- ALL READS DONE — WRITES BEGIN BELOW -------
-
       if (approve) {
         // 4️⃣ WRITE: Mark deal docs withdrawn
         for (const ref of dealRefs) {
@@ -194,12 +208,26 @@ async function processApproval(reqId, req, approve = true, box) {
           processedAt: new Date().toISOString()
         });
 
+        // 7️⃣ SEND STANDARDIZED NOTIFICATION — APPROVAL
+        await sendNotification(
+          req.promoterId,
+          "Withdrawal Approved ✅",
+          `Your withdrawal request of ${req.amount} ${req.currency} has been approved and processed successfully.`
+        );
+
       } else {
         // Reject only updates the request
         t.update(reqRef, {
           status: "rejected",
           processedAt: new Date().toISOString()
         });
+
+        // 7️⃣ SEND STANDARDIZED NOTIFICATION — REJECTION
+        await sendNotification(
+          req.promoterId,
+          "Withdrawal Rejected ❌",
+          `Your withdrawal request of ${req.amount} ${req.currency} has been rejected. Please contact support for more information.`
+        );
       }
     });
 
