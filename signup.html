@@ -4,58 +4,65 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>EarnLibr — Sign Up</title>
+
   <style>
     :root {
-      --bg:#0b0d17;
-      --card:#0f1724;
-      --accent1:#4a90e2;
-      --accent2:#a3ff6e;
-      --muted:#bfc7d6;
-      --danger:#e74c3c;
+      --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2;
+      --accent2:#a3ff6e; --muted:#bfc7d6; --danger:#e74c3c;
     }
     body {
-      margin:0;
-      font-family:Inter,system-ui,Arial;
+      margin:0; font-family:Inter,system-ui,Arial;
       background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
-      color:#eef2f7;
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
+      color:#eef2f7; min-height:100vh; display:flex;
+      align-items:center; justify-content:center; padding:20px;
     }
     .card {
-      width:100%;
-      max-width:420px;
+      width:100%; max-width:420px;
       background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
-      border-radius:14px;
-      padding:22px;
-      box-shadow:0 8px 30px rgba(2,6,23,0.6);
-      border:1px solid rgba(255,255,255,0.03);
-      overflow:hidden;
+      border-radius:14px; padding:22px; box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      border:1px solid rgba(255,255,255,0.03); overflow:hidden;
     }
     .image-header { width:100%; height:160px; border-radius:10px; overflow:hidden; margin-bottom:15px; }
     .image-header img { width:100%; height:100%; object-fit:cover; filter:brightness(0.8); }
-    h1 { font-size:22px; margin-bottom:6px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; }
+    h1 {
+      font-size:22px; margin-bottom:6px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text; color:transparent;
+    }
     p.lead { color:var(--muted); margin-bottom:14px; font-size:13px }
     label { display:block; font-size:13px; color:var(--muted); margin-top:12px; margin-bottom:6px }
-    input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; }
+    input, select {
+      width:100%; padding:10px 12px; border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:#071427; color:#fff; font-size:14px;
+    }
     .password-wrap { position:relative; }
-    .toggle-password { position:absolute; top:50%; right:10px; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; }
+    .toggle-password {
+      position:absolute; top:50%; right:10px; transform:translateY(-50%);
+      background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px;
+    }
     .phone-group { display:flex; gap:8px; align-items:center; }
     .phone-group select { width:35%; } .phone-group input { width:65%; }
-    .btn { margin-top:18px; width:100%; padding:12px; border-radius:10px; border:0; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; font-weight:700; transition:opacity 0.2s; }
+    .btn {
+      margin-top:18px; width:100%; padding:12px; border-radius:10px;
+      border:0; cursor:pointer;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#041018; font-weight:700; transition:opacity 0.2s;
+    }
     .btn:hover { opacity:0.9; }
     .small { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
     .link { color:var(--accent2); text-decoration:none; font-weight:600; }
-    .error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; }
+    .error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; display:none; }
   </style>
 </head>
+
 <body>
   <div class="card">
+
     <div class="image-header">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg">
     </div>
+
     <h1>Join EarnLibr</h1>
     <p class="lead">Create your account to start earning and connecting securely.</p>
 
@@ -90,15 +97,21 @@
     <button id="signupBtn" class="btn">Create account</button>
 
     <div id="message" class="small"></div>
-    <div id="error" class="error" style="display:none"></div>
+    <div id="error" class="error"></div>
 
     <p class="small">Already have an account? <a class="link" href="login.html">Log in</a></p>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
-    import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import {
+      createUserWithEmailAndPassword,
+      sendEmailVerification
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    import {
+      doc, setDoc, getDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
     const signupBtn = document.getElementById('signupBtn');
     const msg = document.getElementById('message');
@@ -107,21 +120,22 @@
     const togglePassword = document.getElementById('togglePassword');
     const strengthDiv = document.getElementById('strength');
 
+    // referral code from URL
     const params = new URLSearchParams(window.location.search);
-    const refBy = params.get("ref");
+    const refByCode = params.get("ref");
 
-    function showMessage(t){ msg.textContent = t; }
-    function showError(e){ err.style.display='block'; err.textContent = e; }
+    const showMessage = t => msg.innerHTML = t;
+    const showError = e => { err.style.display='block'; err.textContent = e; };
 
-    // Toggle Password Visibility
-    togglePassword.addEventListener("click", () => {
+    // Toggle password visibility
+    togglePassword.onclick = () => {
       const isHidden = passwordInput.type === "password";
       passwordInput.type = isHidden ? "text" : "password";
       togglePassword.textContent = isHidden ? "🙈" : "👁️";
-    });
+    };
 
-    // Password Strength
-    passwordInput.addEventListener("input", () => {
+    // Password strength UI
+    passwordInput.oninput = () => {
       const pwd = passwordInput.value;
       const rules = {
         length: pwd.length >= 8,
@@ -132,7 +146,7 @@
       const strength = Object.values(rules).filter(Boolean).length;
       const texts = ["🔴 Very Weak","🟠 Weak","🟡 Fair","🟢 Good","✅ Strong"];
       strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
-    });
+    };
 
     // Load countries
     fetch("countries.json")
@@ -145,7 +159,7 @@
           opt.value = c.name; opt.textContent = c.name;
           countrySelect.appendChild(opt);
         });
-        countrySelect.addEventListener("change", () => {
+        countrySelect.onchange = () => {
           const selected = data.find(c => c.name === countrySelect.value);
           if(selected){
             codeSelect.innerHTML = "";
@@ -154,17 +168,18 @@
             codeOpt.textContent = selected.code;
             codeSelect.appendChild(codeOpt);
           }
-        });
-      }).catch(err => console.error("Failed to load countries:", err));
+        };
+      });
 
-    function generateShortID(name){
+    const generateShortID = name => {
       const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "user";
       const rand = Math.floor(1000 + Math.random() * 9000);
       return base + rand;
-    }
+    };
 
-    signupBtn.addEventListener('click', async () => {
-      err.style.display='none'; msg.textContent = '';
+    signupBtn.onclick = async () => {
+      err.style.display='none'; msg.textContent = "";
+
       const name = document.getElementById('name').value.trim();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
@@ -173,55 +188,68 @@
       const countryCode = document.getElementById('countryCode').value;
       const phoneInput = document.getElementById('phone').value.trim();
 
-      if (!name || !email || !password || !country || !phoneInput) {
-        showError('Please fill all required fields.');
-        return;
-      }
+      if (!name || !email || !password || !country || !phoneInput)
+        return showError("Please fill all required fields.");
 
-      const phone = phoneInput.replace(/^0+/, '');
-      const fullPhone = `${countryCode}${phone}`;
+      const fullPhone = `${countryCode}${phoneInput.replace(/^0+/, "")}`;
 
       signupBtn.disabled = true;
-      signupBtn.textContent = 'Creating...';
+      signupBtn.textContent = "Creating...";
 
       try {
+        // create auth user
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCred.user.uid;
+
         const shortID = generateShortID(name);
 
-        // Firestore save
-        await setDoc(doc(db, 'users', uid), {
+        // secure referral validation
+        let referredByUid = null;
+        if (refByCode) {
+          const snap = await getDoc(doc(db, "referralCodes", refByCode));
+          if (snap.exists()) referredByUid = snap.data().ownerUid;
+        }
+
+        // save referral code mapping
+        await setDoc(doc(db, "referralCodes", shortID), {
+          ownerUid: uid
+        }, { merge: true });
+
+        // save user profile
+        await setDoc(doc(db, "users", uid), {
           uid, name, email, role, country,
           phone: fullPhone,
           referralCode: shortID,
-          referredBy: refBy || null,
-          earnings: { total: 0, pending: 0, paid: 0 },
-          createdAt: new Date().toISOString()
-        });
+          referredBy: referredByUid,
+          createdAt: serverTimestamp()
+        }, { merge: true });
 
+        // email verification
         await sendEmailVerification(userCred.user);
 
         showMessage('✅ Account created! Please verify your email.');
-        msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Go to Gmail</a>`;
+        msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Open Gmail</a>`;
 
-        localStorage.setItem('userSession', JSON.stringify({ uid, name, email, role, shortID }));
+        localStorage.setItem("userSession", JSON.stringify({
+          uid, name, email, role, shortID
+        }));
 
         setTimeout(() => window.location.href = "login.html", 5000);
 
-      } catch(e){
+      } catch(e) {
         console.error(e);
-        const errorMap = {
+        const map = {
           "auth/email-already-in-use": "Email already in use.",
           "auth/invalid-email": "Invalid email address.",
-          "auth/weak-password": "Password too weak — must have 8+ chars, uppercase & number.",
-          "auth/password-does-not-meet-requirements": "Password must contain at least 8 characters, one uppercase letter, and one number.",
+          "auth/weak-password": "Password too weak — must have 8+ chars, uppercase, number.",
         };
-        showError(errorMap[e.code] || e.message || "Signup failed.");
-      } finally {
-        signupBtn.disabled = false;
-        signupBtn.textContent = 'Create account';
+        showError(map[e.code] || e.message);
       }
-    });
+
+      signupBtn.disabled = false;
+      signupBtn.textContent = "Create account";
+    };
   </script>
+
 </body>
 </html>
