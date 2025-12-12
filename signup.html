@@ -110,7 +110,7 @@
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
     import {
-      doc, setDoc, getDoc, serverTimestamp
+      doc, setDoc, getDoc, serverTimestamp, writeBatch
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
     const signupBtn = document.getElementById('signupBtn');
@@ -120,21 +120,18 @@
     const togglePassword = document.getElementById('togglePassword');
     const strengthDiv = document.getElementById('strength');
 
-    // referral code from URL
     const params = new URLSearchParams(window.location.search);
     const refByCode = params.get("ref");
 
     const showMessage = t => msg.innerHTML = t;
     const showError = e => { err.style.display='block'; err.textContent = e; };
 
-    // Toggle password visibility
     togglePassword.onclick = () => {
       const isHidden = passwordInput.type === "password";
       passwordInput.type = isHidden ? "text" : "password";
       togglePassword.textContent = isHidden ? "🙈" : "👁️";
     };
 
-    // Password strength UI
     passwordInput.oninput = () => {
       const pwd = passwordInput.value;
       const rules = {
@@ -148,7 +145,6 @@
       strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
     };
 
-    // Load countries
     fetch("countries.json")
       .then(res => res.json())
       .then(data => {
@@ -171,10 +167,8 @@
         };
       });
 
-    const generateShortID = name => {
-      const base = name ? name.split(" ")[0].toLowerCase().slice(0,4) : "user";
-      const rand = Math.floor(1000 + Math.random() * 9000);
-      return base + rand;
+    const generateReferralCode = () => {
+      return 'r' + Math.random().toString(36).substring(2,8);
     };
 
     signupBtn.onclick = async () => {
@@ -186,52 +180,51 @@
       const role = document.getElementById('role').value;
       const country = document.getElementById('country').value;
       const countryCode = document.getElementById('countryCode').value;
-      const phoneInput = document.getElementById('phone').value.trim();
+      let phoneInput = document.getElementById('phone').value.trim();
 
       if (!name || !email || !password || !country || !phoneInput)
         return showError("Please fill all required fields.");
 
+      phoneInput = phoneInput.replace(/\D/g, "");
       const fullPhone = `${countryCode}${phoneInput.replace(/^0+/, "")}`;
 
       signupBtn.disabled = true;
       signupBtn.textContent = "Creating...";
 
       try {
-        // create auth user
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCred.user.uid;
 
-        const shortID = generateShortID(name);
-
-        // secure referral validation
         let referredByUid = null;
         if (refByCode) {
           const snap = await getDoc(doc(db, "referralCodes", refByCode));
           if (snap.exists()) referredByUid = snap.data().ownerUid;
         }
 
-        // save referral code mapping
-        await setDoc(doc(db, "referralCodes", shortID), {
-          ownerUid: uid
-        }, { merge: true });
+        const referralCode = generateReferralCode();
+        const batch = writeBatch(db);
 
-        // save user profile
-        await setDoc(doc(db, "users", uid), {
+        batch.set(doc(db, "users", uid), {
           uid, name, email, role, country,
           phone: fullPhone,
-          referralCode: shortID,
+          referralCode,
           referredBy: referredByUid,
           createdAt: serverTimestamp()
-        }, { merge: true });
+        });
 
-        // email verification
+        batch.set(doc(db, "referralCodes", referralCode), {
+          ownerUid: uid
+        });
+
+        await batch.commit();
+
         await sendEmailVerification(userCred.user);
 
         showMessage('✅ Account created! Please verify your email.');
         msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Open Gmail</a>`;
 
         localStorage.setItem("userSession", JSON.stringify({
-          uid, name, email, role, shortID
+          uid, name, email, role, referralCode
         }));
 
         setTimeout(() => window.location.href = "login.html", 5000);
