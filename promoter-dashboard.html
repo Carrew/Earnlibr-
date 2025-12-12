@@ -29,25 +29,24 @@
       padding: 20px;
       color: #041018;
     }
-    header img {
-      height: 50px;
-      margin-right: 15px;
-    }
-    header h1 {
-      font-size: 24px;
-      font-weight: bold;
-    }
+    header img { height: 50px; margin-right: 15px; }
+    header h1 { font-size: 24px; font-weight: bold; }
     .notif {
-      margin: 10px auto;
-      padding: 10px 15px;
-      width: 90%;
-      max-width: 500px;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
       border-radius: 8px;
       display: none;
       font-size: 14px;
+      z-index: 1000;
+      min-width: 250px;
+      text-align: center;
+      opacity: 0.95;
     }
-    .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success);}
-    .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger);}
+    .notif.success { background: #1a2235; border-left: 4px solid var(--success); color: var(--success); }
+    .notif.error { background: #1a2235; border-left: 4px solid var(--danger); color: var(--danger); }
     .profile-card {
       background: var(--card);
       margin: 20px auto;
@@ -71,7 +70,6 @@
       transition: 0.2s;
     }
     .logout-btn:hover { opacity: 0.9; }
-
     .grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -129,116 +127,117 @@
 </div>
 
 <div class="grid-container">
-  <div class="grid-card" onclick="navigate('promoter-deals.html')">
-    <i class="fas fa-briefcase"></i>
-    <span>Deals</span>
-  </div>
-  <div class="grid-card" onclick="navigate('promoters-notifications.html')">
-    <i class="fas fa-bell"></i>
-    <span>Notifications</span>
-  </div>
-  <div class="grid-card" onclick="navigate('promoters-promotions.html')">
-    <i class="fas fa-bullhorn"></i>
-    <span>Promotions</span>
-  </div>
-  <div class="grid-card" onclick="navigate('promoters-wallet.html')">
-    <i class="fas fa-wallet"></i>
-    <span>Wallet</span>
-  </div>
-  <div class="grid-card" onclick="navigate('promoters-get-offers.html')">
-    <i class="fas fa-tags"></i>
-    <span>Get Offers</span>
-  </div>
+  <div class="grid-card" data-url="promoter-deals.html"><i class="fas fa-briefcase"></i><span>Deals</span></div>
+  <div class="grid-card" data-url="promoters-notifications.html"><i class="fas fa-bell"></i><span>Notifications</span></div>
+  <div class="grid-card" data-url="promoters-promotions.html"><i class="fas fa-bullhorn"></i><span>Promotions</span></div>
+  <div class="grid-card" data-url="promoters-wallet.html"><i class="fas fa-wallet"></i><span>Wallet</span></div>
+  <div class="grid-card" data-url="promoters-get-offers.html"><i class="fas fa-tags"></i><span>Get Offers</span></div>
 </div>
 
 <script type="module">
-  import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-  const notif = document.getElementById('notif');
-  const promoterName = document.getElementById('promoterName');
-  const promoterEmail = document.getElementById('promoterEmail');
-  const promoterPhone = document.getElementById('promoterPhone');
-  const promoterReferral = document.getElementById('promoterReferral');
-  const promoterCreated = document.getElementById('promoterCreated');
-  const logoutBtn = document.getElementById('logoutBtn');
+// DOM elements
+const notif = document.getElementById('notif');
+const promoterName = document.getElementById('promoterName');
+const promoterEmail = document.getElementById('promoterEmail');
+const promoterPhone = document.getElementById('promoterPhone');
+const promoterReferral = document.getElementById('promoterReferral');
+const promoterCreated = document.getElementById('promoterCreated');
+const logoutBtn = document.getElementById('logoutBtn');
+const gridCards = document.querySelectorAll('.grid-card');
 
-  function showNotif(type, msg) {
-    notif.className = `notif ${type}`;
-    notif.textContent = msg;
-    notif.style.display = 'block';
+// Show toast notification
+function showNotif(type, message, duration=2000) {
+  notif.className = `notif ${type}`;
+  notif.textContent = message;
+  notif.style.display = 'block';
+  setTimeout(() => notif.style.display = 'none', duration);
+}
+
+// Navigate to page
+function navigate(url) {
+  window.location.href = url;
+}
+
+// Attach navigation events
+gridCards.forEach(card => {
+  card.addEventListener('click', () => navigate(card.dataset.url));
+});
+
+// Logout
+logoutBtn.addEventListener('click', async () => {
+  await signOut(auth);
+  localStorage.removeItem('userSession');
+  navigate('login.html');
+});
+
+// Fetch user data from Firestore
+async function fetchUserData(uid) {
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  if (!userDoc.exists()) throw new Error('User document not found.');
+  return userDoc.data();
+}
+
+// Populate profile UI
+function populateProfile(data, user) {
+  promoterName.textContent = data.name || 'Unknown';
+  promoterEmail.textContent = data.email || user.email;
+  promoterPhone.textContent = data.phone || 'N/A';
+  promoterReferral.textContent = `Referral Code: ${data.referralCode || 'N/A'}`;
+  promoterCreated.textContent = `Joined: ${new Date(data.createdAt || user.metadata.creationTime).toLocaleDateString()}`;
+}
+
+// Update local session
+function updateLocalSession(data, uid) {
+  localStorage.setItem('userSession', JSON.stringify({
+    uid,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    referralCode: data.referralCode,
+    phone: data.phone,
+    country: data.country,
+    createdAt: data.createdAt
+  }));
+}
+
+// Enforce promoter role
+function enforcePromoterRole(data) {
+  if (data.role !== 'freelancer') {
+    showNotif('error', 'Unauthorized access. Only promoters allowed.', 2000);
+    setTimeout(() => navigate('login.html'), 2000);
+    throw new Error('Unauthorized');
+  }
+}
+
+// Auth listener
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    showNotif('error', '⚠ You must be logged in.', 1800);
+    setTimeout(() => navigate('login.html'), 1800);
+    return;
+  }
+  if (!user.emailVerified) {
+    showNotif('error', 'Please verify your email.', 1800);
+    setTimeout(() => navigate('login.html'), 1800);
+    return;
   }
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      showNotif('error', '⚠ You must be logged in as a promoter.');
-      setTimeout(() => window.location.href = 'login.html', 1800);
-      return;
-    }
-
-    if (!user.emailVerified) {
-      showNotif('error', 'Please verify your email before accessing the dashboard.');
-      setTimeout(() => window.location.href = 'login.html', 1800);
-      return;
-    }
-
-    try {
-      // Firestore: get user document
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      let userData = null;
-
-      if (userDoc.exists()) {
-        userData = userDoc.data();
-      } else {
-        // fallback: admins collection
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        if (adminDoc.exists()) userData = adminDoc.data();
-      }
-
-      if (!userData || userData.role !== 'freelancer') {
-        showNotif('error', 'Unauthorized access. Only promoters allowed.');
-        setTimeout(() => window.location.href = 'login.html', 2000);
-        return;
-      }
-
-      // Populate UI
-      promoterName.textContent = userData.name || 'Unknown';
-      promoterEmail.textContent = userData.email || user.email;
-      promoterPhone.textContent = userData.phone || 'N/A';
-      promoterReferral.textContent = `Referral Code: ${userData.referralCode || 'N/A'}`;
-      promoterCreated.textContent = `Joined: ${new Date(userData.createdAt || user.metadata.creationTime).toLocaleDateString()}`;
-
-      showNotif('success', '✅ Verified promoter access granted.');
-
-      // Update local session
-      localStorage.setItem('userSession', JSON.stringify({
-        uid: user.uid,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        referralCode: userData.referralCode,
-        phone: userData.phone,
-        country: userData.country,
-        createdAt: userData.createdAt
-      }));
-
-    } catch (err) {
-      console.error(err);
-      showNotif('error', 'Error loading user data.');
-      setTimeout(() => window.location.href = 'login.html', 2000);
-    }
-  });
-
-  logoutBtn.addEventListener('click', async () => {
-    await signOut(auth);
-    localStorage.removeItem('userSession');
-    window.location.href = 'login.html';
-  });
-
-  window.navigate = function(url) {
-    window.location.href = url;
-  };
+  try {
+    const userData = await fetchUserData(user.uid);
+    enforcePromoterRole(userData);
+    populateProfile(userData, user);
+    updateLocalSession(userData, user.uid);
+    showNotif('success', '✅ Verified promoter access granted.', 1500);
+  } catch (err) {
+    console.error(err);
+    showNotif('error', 'Error loading user data.', 2000);
+    setTimeout(() => navigate('login.html'), 2000);
+  }
+});
 </script>
 
 </body>
