@@ -24,7 +24,9 @@ h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, updateDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { 
+    collection, doc, updateDoc, query, where, onSnapshot, serverTimestamp, writeBatch 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
@@ -48,10 +50,15 @@ onAuthStateChanged(auth, async user=>{
 
 // --- Load provider bills ---
 function loadBills(){
-  const billsQuery = query(collection(db, `providers/${userSession.uid}/bills`));
+  // Query only bills that have been 'sent' and are not yet marked for approval
+  const billsQuery = query(
+    collection(db, `providers/${userSession.uid}/bills`),
+    where("status", "==", "sent") 
+  );
+  
   onSnapshot(billsQuery, snapshot=>{
     billsContainer.innerHTML="";
-    if(snapshot.empty) { billsContainer.innerHTML="<p>No bills available.</p>"; return; }
+    if(snapshot.empty) { billsContainer.innerHTML="<p>No pending bills to pay.</p>"; return; }
 
     snapshot.docs.forEach(docSnap=>{
       const bill = docSnap.data();
@@ -66,7 +73,7 @@ function loadBills(){
       if(bill.status==="sent"){
         const btn = document.createElement("button");
         btn.className="btn";
-        btn.textContent="Mark as Paid";
+        btn.textContent="Mark as Paid (Waiting Admin Approval)";
         btn.onclick=()=>markAsPaid(bill.billId, btn);
         card.appendChild(btn);
       }
@@ -76,12 +83,30 @@ function loadBills(){
   });
 }
 
-// --- Mark a bill as paid ---
+// --- Mark a bill as paid (UPGRADED: Uses writeBatch and serverTimestamp) ---
 async function markAsPaid(billId, btn){
   btn.disabled=true;
-  await updateDoc(doc(db,"bills",billId), { status:"provider_marked_paid", providerMarkedAt:new Date().toISOString() });
-  await updateDoc(doc(db, `providers/${userSession.uid}/bills/${billId}`), { status:"provider_marked_paid", providerMarkedAt:new Date().toISOString() });
-  showNotif("Bill marked as paid!");
+  try {
+    const batch = writeBatch(db);
+    const updateData = { 
+      status: "provider_marked_paid", 
+      providerMarkedAt: serverTimestamp() // Use serverTimestamp for integrity
+    };
+
+    // Update the main bill record
+    batch.update(doc(db,"bills",billId), updateData);
+    
+    // Update the provider's subcollection record
+    batch.update(doc(db, `providers/${userSession.uid}/bills/${billId}`), updateData);
+    
+    await batch.commit(); // Atomic update
+
+    showNotif("Bill marked as paid and sent for Admin Approval!");
+  } catch(err) {
+    console.error("Failed to mark bill as paid:", err);
+    showNotif("Error: Failed to update bill status.", "error");
+    btn.disabled=false; // Re-enable on failure
+  }
 }
 </script>
 </body>
