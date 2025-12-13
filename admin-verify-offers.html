@@ -50,7 +50,8 @@
 import { db, auth } from './firebase.js';        
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";        
 import {         
-  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, serverTimestamp         
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, serverTimestamp,
+  runTransaction, writeBatch // UPGRADE: Added runTransaction and writeBatch
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";        
 
 const offersContainer = document.getElementById('offersContainer');        
@@ -66,20 +67,24 @@ function showNotification(card, message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);        
 }        
 
-async function sendNotification(providerId, title, message) {
+// UPGRADE: Uses writeBatch for efficient, atomic notification sending
+async function sendNotifications(providerId, title, message) {
   try {
-    await addDoc(collection(db, `notifications/${providerId}/items`), {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, `notifications/${providerId}/items`)), {
       title,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
+    await batch.commit();
   } catch(err) {
-    console.error("Notification error:", err);
+    console.error("Batch notification error:", err);
   }
 }
 
 async function getProviderInfo(providerId) {        
+  // NOTE: This runs outside the transaction as a pre-fetch of static data
   const userDoc = await getDoc(doc(db, "providers", providerId));        
   return userDoc.exists() ? userDoc.data() : null;        
 }        
@@ -90,7 +95,7 @@ function handleUnauthorized(message) {
   setTimeout(() => window.location.href = 'login.html', 2000);        
 }        
 
-// ================== AUTH & SESSION ==================        
+// ================== AUTH & SESSION (unchanged) ==================        
 const sessionRaw = localStorage.getItem('userSession');        
 if (sessionRaw) userSession = JSON.parse(sessionRaw);        
 
@@ -120,7 +125,7 @@ onAuthStateChanged(auth, async (user) => {
   }        
 });        
 
-// ================== LOAD PENDING OFFERS ==================        
+// ================== LOAD PENDING OFFERS (unchanged) ==================        
 async function loadPendingOffers() {        
   const snapshot = await getDocs(collection(db, "offers_pending"));        
   offersContainer.innerHTML = '';        
@@ -153,7 +158,7 @@ function renderOfferCard(docSnap) {
       Promo Budget: ${offer.promotionBudget || 0}<br>        
       Promo Spent: ${offer.promoSpent || 0}<br><br>        
       <em>Category:</em> ${offer.category || 'Uncategorized'}<br>        
-      <em>Submitted:</em> ${offer.createdAt ? new Date(offer.createdAt).toLocaleString() : 'N/A'}<br>        
+      <em>Submitted:</em> ${offer.createdAt?.toDate()?.toLocaleString() || 'N/A'}<br>        
       <em>Provider ID:</em> ${providerId}        
     </div>        
     <div class="offer-actions">        
@@ -173,17 +178,40 @@ function renderOfferCard(docSnap) {
 
 // ================== APPROVE OFFER ==================        
 async function approveOffer(card, offer, offerId, providerId) {        
+  const pendingRef = doc(db, "offers_pending", offerId);
   const approveBtn = card.querySelector('.approve');        
   const rejectBtn = card.querySelector('.reject');        
   approveBtn.disabled = true;        
   rejectBtn.disabled = true;        
   showNotification(card, "Processing approval...", "info");        
 
+  // CRITICAL UPGRADE: SOFT LOCK TRANSACTION
+  try {
+    await runTransaction(db, async (t) => {
+      const snap = await t.get(pendingRef);
+      if (!snap.exists()) throw new Error("Offer not found or already processed.");
+      if (snap.data().status === "processing") throw new Error("Offer is currently being processed.");
+      
+      // Update status to 'processing' to block concurrent operations
+      t.update(pendingRef, { status: "processing" }); 
+    });
+  } catch (err) {
+    if (err.message.includes("being processed")) {
+      showNotification(card, "Offer is currently being processed.", "error");
+      return;
+    }
+    showNotification(card, `Lock failure: ${err.message}`, "error");
+    return; 
+  }
+
+  // Main Approval Logic (Image Upload & Database Transaction)
   try {        
-    const providerInfo = await getProviderInfo(providerId);        
+    const providerInfo = await getProviderInfo(providerId); // Pre-fetch provider info      
     let cloudUrl = null;        
 
+    // Image Upload (Cloudinary)
     if (offer.imageTemp) {        
+      // NOTE: Assumes offer.imageTemp is a Base64 string from the client
       const formData = new FormData();        
       formData.append('file', offer.imageTemp);        
       formData.append('upload_preset', 'Earnlibr');        
@@ -204,9 +232,9 @@ async function approveOffer(card, offer, offerId, providerId) {
       status: "active",        
       verified: true,        
       verifiedBy: userSession.role,        
-      approvedAt: serverTimestamp(),        
+      approvedAt: serverTimestamp(), // UPGRADE: Use serverTimestamp()
       promoSpent: offer.promoSpent || 0,        
-      amountOwed: 0,        
+      amountOwed: 0,
       amountPaid: 0,        
       outstandingBalance: 0,        
       paymentStatus: 'unpaid',        
@@ -224,11 +252,16 @@ async function approveOffer(card, offer, offerId, providerId) {
       uniqueLink: ""        
     };        
 
-    await setDoc(doc(db, "offers_all", offerId), approvedOffer);        
-    await setDoc(doc(db, `providers/${providerId}/offers/${offerId}`), approvedOffer);        
-    await deleteDoc(doc(db, "offers_pending", offerId));        
+    // Database Transaction
+    await runTransaction(db, async (t) => {
+      // Move pending offer to live collections and delete the pending document
+      t.set(doc(db, "offers_all", offerId), approvedOffer);        
+      t.set(doc(db, `providers/${providerId}/offers/${offerId}`), approvedOffer);        
+      t.delete(pendingRef); 
+    });
 
-    await sendNotification(providerId, "Offer Approved ✅", `Your offer "${offer.title}" has been approved and is now live.`);
+    // UPGRADE: Use batch notifications
+    await sendNotifications(providerId, "Offer Approved ✅", `Your offer "${offer.title}" has been approved and is now live.`);
 
     showNotification(card, "Offer approved successfully!", "success");        
     card.style.opacity = "0";        
@@ -236,6 +269,8 @@ async function approveOffer(card, offer, offerId, providerId) {
 
   } catch (err) {        
     console.error(err);        
+    // CRITICAL UPGRADE: Rollback status if transaction or Cloudinary fails
+    await setDoc(pendingRef, { status: "pending" }, { merge: true }).catch(e => console.error("Failed to reset status:", e));
     showNotification(card, "Error: " + err.message, "error");        
     approveBtn.disabled = false;        
     rejectBtn.disabled = false;        
@@ -253,7 +288,9 @@ async function rejectOffer(card, offer, offerId, providerId) {
 
   try {        
     await deleteDoc(doc(db, "offers_pending", offerId));        
-    await sendNotification(providerId, "Offer Rejected ❌", `Your offer "${offer.title}" was rejected. Please review and resubmit.`);
+    
+    // UPGRADE: Use batch notifications
+    await sendNotifications(providerId, "Offer Rejected ❌", `Your offer "${offer.title}" was rejected. Please review and resubmit.`);
 
     showNotification(card, "Offer rejected and provider notified.", "error");        
     card.style.opacity = "0";        
