@@ -30,7 +30,9 @@ h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, onSnapshot, updateDoc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { 
+    collection, doc, onSnapshot, getDoc, addDoc, serverTimestamp, writeBatch, query, where
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
@@ -43,17 +45,19 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// --- Model A Notification Helper ---
+// --- Notification Helper (UPGRADED to use writeBatch for consistency) ---
 async function sendNotification(uid, title, message) {
   try {
-    await addDoc(collection(db, `notifications/${uid}/items`), {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
       title,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
+    await batch.commit();
   } catch(err) {
-    console.error("Notification error:", err);
+    console.error("Batch notification error:", err);
   }
 }
 
@@ -67,84 +71,109 @@ onAuthStateChanged(auth, async user=>{
     window.location.href="login.html"; 
     return; 
   }
+  // NOTE: Add admin role check here if not already done in the main auth block
   loadBills();
 });
 
 let billCards = [];
 
 function loadBills(){
-  const billsRef = collection(db, "bills");
-  onSnapshot(billsRef, snapshot=>{
+  // Query only bills marked by the provider as paid
+  const billsQuery = query(collection(db, "bills"), where("status", "==", "provider_marked_paid"));
+  
+  onSnapshot(billsQuery, snapshot=>{
     billsContainer.innerHTML = "";
     billCards = [];
     snapshot.docs.forEach(docSnap=>{
       const bill = docSnap.data();
-      if(bill.status === "provider_marked_paid"){
-        const card = document.createElement("div");
-        card.className = "bill-card";
-        card.innerHTML = `
-          <div><strong>Provider:</strong> ${bill.providerName}</div>
-          <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
-          <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
-          <div><strong>Status:</strong> ${bill.status}</div>
-        `;
-        const btn = document.createElement("button");
-        btn.className = "btn";
-        btn.textContent = "Verify Payment";
-        btn.onclick = ()=>verifyPayment(bill.billId, bill.deals, bill.providerId, btn, card, bill.offerTitle, bill.total, bill.currency);
-        card.appendChild(btn);
-        billsContainer.appendChild(card);
-        billCards.push({ billId: bill.billId, deals: bill.deals, providerId: bill.providerId, btn, card, offerTitle: bill.offerTitle, total: bill.total, currency: bill.currency });
-      }
+      
+      const card = document.createElement("div");
+      card.className = "bill-card";
+      card.innerHTML = `
+        <div><strong>Provider:</strong> ${bill.providerName}</div>
+        <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
+        <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
+        <div><strong>Status:</strong> ${bill.status}</div>
+      `;
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = "Verify Payment";
+      
+      // Pass all necessary data to the verification function
+      btn.onclick = ()=>verifyPayment(docSnap.id, bill.deals, bill.providerId, btn, card, bill.offerTitle, bill.total, bill.currency);
+      
+      card.appendChild(btn);
+      billsContainer.appendChild(card);
+      
+      // Store necessary data for the Verify All button
+      billCards.push({ 
+        billId: docSnap.id, 
+        deals: bill.deals, 
+        providerId: bill.providerId, 
+        btn, 
+        card, 
+        offerTitle: bill.offerTitle, 
+        total: bill.total, 
+        currency: bill.currency 
+      });
     });
   });
 }
 
-// --- Verify single bill ---
-async function verifyPayment(billId, dealObjs, providerId, btn, card, offerTitle, total, currency){
+// --- Verify single bill (CRITICALLY UPGRADED to use writeBatch) ---
+async function verifyPayment(billId, dealIds, providerId, btn, card, offerTitle, total, currency){
   btn.disabled = true;
   const originalText = btn.textContent;
   btn.textContent = "Verifying...";
-  const timestamp = new Date().toISOString();
-  const dealIds = dealObjs.map(d => typeof d === "string" ? d : d.dealId);
-
+  
   try {
-    // Update deals
-    await Promise.all(dealIds.map(async dealId=>{
-      const snap = await getDoc(doc(db,"completed-deals",dealId));
-      if(!snap.exists()) return;
-      await updateDoc(doc(db,"completed-deals",dealId),{
-        providerPaid:true,
-        providerPaidAt:timestamp,
-        linkedBillId:billId
+    const batch = writeBatch(db);
+    
+    // 1. Update all related deals atomically
+    // NOTE: dealIds should already be an array of strings from the Layer 1 bill creation
+    dealIds.forEach(dealId => {
+      // Mark the deal as fully paid by the provider
+      batch.update(doc(db, "completed-deals", dealId), {
+        providerPaid: true,
+        providerPaidAt: serverTimestamp(), // Use serverTimestamp
+        linkedBillId: billId
       });
-    }));
+    });
+    
+    // 2. Update the bill status in two locations atomically
+    const updateBillData = { 
+      status: "verified_paid", 
+      adminVerifiedAt: serverTimestamp(), // Use serverTimestamp
+      adminVerifiedBy: userSession.uid
+    };
+    batch.update(doc(db, "bills", billId), updateBillData);
+    batch.update(doc(db, `providers/${providerId}/bills/${billId}`), updateBillData);
 
-    // Update bills
-    await updateDoc(doc(db,"bills",billId), { status:"verified_paid", adminVerifiedAt:timestamp });
-    await updateDoc(doc(db, `providers/${providerId}/bills/${billId}`), { status:"verified_paid", adminVerifiedAt:timestamp });
+    // Commit the entire atomic operation
+    await batch.commit(); 
 
-    // ✅ Send notification to provider
-    await sendNotification(providerId, "Payment Verified ✅", `Your payment for ${offerTitle} (${total.toFixed(2)} ${currency}) has been verified by admin.`);
+    // 3. Send notification to provider
+    await sendNotification(providerId, "Payment Verified ✅", `Your payment for ${offerTitle} (${total.toFixed(2)} ${currency}) has been verified by admin. Thank you!`);
 
     card.classList.add("verified");
     btn.textContent = "Verified ✅";
   } catch(err){
     console.error("Verification failed:", err);
-    showNotif("Error verifying payment","error");
+    showNotif("Error verifying payment: " + err.message, "error");
     btn.disabled = false;
     btn.textContent = originalText;
   }
 }
 
-// --- Verify all concurrently ---
+// --- Verify all concurrently (Now calls the batch-safe verifyPayment) ---
 verifyAllBtn.onclick = async () => {
   if(billCards.length === 0) return showNotif("No bills to verify","error");
   verifyAllBtn.disabled = true;
   verifyAllBtn.textContent = "Verifying All...";
+  showNotif(`Attempting to verify ${billCards.length} payments...`, "info");
 
-  // Run all verifications concurrently
-  await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card, b.offerTitle, b.total, b.currency)));
+  // Run all verifications concurrently, calling the batch-safe function
+  const results = await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card, b.offerTitle, b.total, b.currency)));
 
   verifyAllBtn.textContent = "Verify All ✅";
   setTimeout(() => {
