@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Admin Send Bills</title>
+<title>EarnLibr — Admin Send Bills (Final)</title>
 <style>
+/* Basic Styles for Admin Panel */
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
 .notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; }
@@ -18,9 +19,6 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 .btn:disabled { opacity:0.6; cursor:not-allowed; }
 .offer-breakdown { background:#1a2235; border-radius:8px; padding:10px; margin-top:10px; display:none; font-size:13px; }
 .toggle-offers { margin-top:10px; background:#4a90e2; color:#041018; }
-.card-notif { position:absolute; top:10px; right:10px; background:#1a2235; padding:6px 12px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.45); }
-.card-notif button { background:transparent; border:none; color:#a3ff6e; font-weight:700; cursor:pointer; }
-.card-notif button:hover { color:#4ade80; }
 </style>
 </head>
 <body>
@@ -32,55 +30,50 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
   <button id="sendAll" class="btn">📤 Send All Eligible Bills</button>
 </div>
 
-<div id="providersContainer">Loading unpaid deals...</div>
+<div id="providersContainer">Loading unbilled deals...</div>
 
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { auth, db } from "./firebase.js";
-import { collection, doc, setDoc, addDoc, query, where, onSnapshot, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { 
+  collection, doc, query, where, onSnapshot, getDoc, serverTimestamp,
+  runTransaction, writeBatch
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const notif = document.getElementById("notif");
 const providersContainer = document.getElementById("providersContainer");
 const sendAllBtn = document.getElementById("sendAll");
-const THRESHOLDS = { USD: 1, LRD: 300 };
-let grouped = {};
+const THRESHOLDS = { USD: 1, LRD: 300 }; // Minimum amount to send a bill
+let grouped = {}; // Deals grouped by ProviderId -> OfferId
+let dealsCache = {}; // Cache to hold deal data for batch updates
 
-// --- Auth Check ---
+// --- Auth Check (Standard Admin Setup) ---
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== userSession.uid){ 
+  if(!user || user.uid !== userSession.uid || !user.emailVerified){ 
+    localStorage.removeItem("userSession"); 
+    window.location.href="login.html"; 
+    return;
+  }
+  const adminDoc = await getDoc(doc(db, "admins", user.uid));
+  const data = adminDoc.exists() ? adminDoc.data() : null;
+  const role = data?.role || "admin";
+
+  if (!["admin","super_admin"].includes(role)) { 
     localStorage.removeItem("userSession"); 
     window.location.href="login.html"; 
     return;
   }
 
-  if(!user.emailVerified){
-    localStorage.removeItem("userSession");
-    window.location.href="login.html";
-    return;
-  }
-
-  const userDoc = await getDoc(doc(db, "users", user.uid));
-  const adminDoc = await getDoc(doc(db, "admins", user.uid));
-  let data = null;
-  let role = null;
-
-  if (userDoc.exists()) { data = userDoc.data(); role = data.role; }
-  else if (adminDoc.exists()) { data = adminDoc.data(); role = data.role || "admin"; }
-  else { localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
-
-  if (!["admin","super_admin"].includes(role)) { localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
-
-  userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
+  userSession = { uid: user.uid, name: data.name || user.email, email: user.email, role: role };
   localStorage.setItem("userSession", JSON.stringify(userSession));
-
   loadDeals();
 });
 
-// --- Notifications ---
+// --- Utility Functions ---
 const showNotif = (msg,type="success")=>{
   notif.textContent = msg;
   notif.className = `notif ${type}`;
@@ -88,49 +81,62 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// --- Model A Notification Helper ---
-async function sendNotification(uid, title, message) {
+// UPGRADE: Use writeBatch for atomic notification sending
+async function sendNotifications(uid, title, message) {
   try {
-    await addDoc(collection(db, `notifications/${uid}/items`), {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
       title,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
+    await batch.commit();
   } catch(err) {
-    console.error("Notification error:", err);
+    console.error("Batch notification error:", err);
   }
 }
 
-// --- Load unpaid completed deals ---
+// --- Load unbilled completed deals (UPGRADE: New Query Logic) ---
 function loadDeals(){
-  const dealsQuery = query(collection(db,"completed-deals"), where("providerPaid","==",false));
+  // UPGRADE: Only query deals that have been completed but are NOT YET BILLED (billedBy == null)
+  const dealsQuery = query(collection(db,"completed-deals"), where("billedBy","==",null));
+  
   onSnapshot(dealsQuery, snapshot=>{
     providersContainer.innerHTML="";
     grouped={};
+    dealsCache={}; 
 
-    if(snapshot.empty){ providersContainer.innerHTML="<p>No unpaid deals.</p>"; return; }
+    if(snapshot.empty){ providersContainer.innerHTML="<p>No unbilled deals found.</p>"; return; }
 
     snapshot.forEach(docSnap=>{
       const d = docSnap.data();
       const providerId = d.providerId;
       const offerId = d.offerId;
+      
+      dealsCache[docSnap.id] = { ref: doc(db, "completed-deals", docSnap.id), data: d };
+
       if(!grouped[providerId]) grouped[providerId] = { name:d.providerName, offers:{} };
 
       if(!grouped[providerId].offers[offerId]){
-        grouped[providerId].offers[offerId] = { offerTitle:d.offerTitle, currency:d.currency||"USD", total:0, deals:[] };
+        grouped[providerId].offers[offerId] = { 
+          offerTitle:d.offerTitle, 
+          currency:d.currency||"USD", 
+          total:0, 
+          deals:[] 
+        };
       }
 
       const offer = grouped[providerId].offers[offerId];
-      offer.total += Number(d.commissionEarned);
-      offer.deals.push({ dealId: docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned, providerPaid: d.providerPaid });
+      offer.total += parseFloat(d.commissionEarned);
+      offer.deals.push({ dealId: docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned });
     });
 
     renderProviders();
   });
 }
 
-// --- Render provider cards ---
+// --- Render provider cards (minor changes for new status) ---
 function renderProviders(){
   providersContainer.innerHTML="";
   Object.keys(grouped).forEach(providerId=>{
@@ -167,7 +173,7 @@ function renderProviders(){
       const sendBtn = document.createElement("button");
       sendBtn.className="btn";
       sendBtn.textContent="Send Bill";
-      sendBtn.onclick=()=>sendBill(providerId, offerId, offer);
+      sendBtn.onclick=()=>sendBill(providerId, offerId, offer, card); 
       offerBox.appendChild(sendBtn);
 
       breakdown.appendChild(offerBox);
@@ -181,51 +187,103 @@ function renderProviders(){
   });
 }
 
-// --- Send Single Offer Bill ---
-async function sendBill(providerId, offerId, offer){
-  if(offer.total < (THRESHOLDS[offer.currency]||0)) return showNotif("Below threshold","error");
+// --- Send Single Offer Bill (FINAL, ATOMIC IMPLEMENTATION) ---
+async function sendBill(providerId, offerId, offer, card = null){
+  if(offer.total < (THRESHOLDS[offer.currency]||0)) {
+    if(card) showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
+    return;
+  }
 
-  const unpaidDeals = offer.deals.filter(d => d.providerPaid !== true);
-  if(unpaidDeals.length === 0) return showNotif("All deals already paid","error");
-
+  // Generate new Bill ID reference
   const billRef = doc(collection(db,"bills"));
   const billId = billRef.id;
-  const dealIds = unpaidDeals.map(d=>d.dealId);
+  const dealIds = offer.deals.map(d=>d.dealId); // All deals in the grouped offer are unbilled
 
-  const billData = {
-    billId,
-    providerId,
-    providerName: grouped[providerId].name,
-    offerId,
-    offerTitle: offer.offerTitle,
-    currency: offer.currency,
-    total: offer.total,
-    deals: dealIds,
-    createdAt: new Date().toISOString(),
-    status:"sent"
-  };
+  try {
+    // 1. TRANSACTION: Create Bill Documents and update Offer's financial ledger
+    await runTransaction(db, async (t) => {
+      
+      const offerRef = doc(db, "offers_all", offerId);
+      const offerSnap = await t.get(offerRef);
+      if(!offerSnap.exists()) throw new Error("Offer not found.");
 
-  await setDoc(billRef,billData);
-  await setDoc(doc(db,`providers/${providerId}/bills/${billId}`),billData);
-  
-  // Model A notification
-  await sendNotification(providerId, `Bill Ready 🧾`, `A bill for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} is ready.`);
+      // Safety check: Bill amount must be covered by outstanding balance
+      if(parseFloat((offerSnap.data().outstandingBalance || 0).toFixed(2)) < parseFloat(offer.total.toFixed(2))) {
+        throw new Error("Outstanding balance mismatch. Bill amount exceeds remaining outstanding balance.");
+      }
+      
+      const billData = {
+        billId,
+        providerId,
+        providerName: grouped[providerId].name,
+        offerId,
+        offerTitle: offer.offerTitle,
+        currency: offer.currency,
+        total: offer.total,
+        deals: dealIds, 
+        billedBy: userSession.uid, 
+        createdAt: serverTimestamp(), 
+        status:"sent",
+        adminRole: userSession.role,
+        paymentDate: null, 
+        paymentTxnId: null, 
+      };
 
-  showNotif(`Bill sent for ${offer.offerTitle}`);
+      // Create bill records atomically
+      t.set(billRef, billData);
+      t.set(doc(db,`providers/${providerId}/bills/${billId}`), billData);
+      
+      // Update offer balance: decrease outstanding (invoiced), increase amountBilled
+      t.update(offerRef, {
+        amountBilled: (offerSnap.data().amountBilled || 0) + offer.total,
+        outstandingBalance: (offerSnap.data().outstandingBalance || 0) - offer.total
+      });
+
+    }); // End Transaction
+
+    // 2. BATCH: Link Deals to the Bill ID (This removes them from the loadDeals query)
+    const batch = writeBatch(db);
+    dealIds.forEach(dealId => {
+      // Update the completed-deals document to link it to the bill
+      batch.update(doc(db, "completed-deals", dealId), {
+        billedBy: billId, 
+        billedAt: serverTimestamp(),
+      });
+    });
+    await batch.commit();
+
+    // 3. Notification
+    await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated and is ready for payment.`);
+
+    if(card) card.remove(); // Remove card from UI
+    showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
+
+  } catch(err) {
+    console.error("Billing Error:", err);
+    // Note: No need for status rollback here as the transaction failed before any permanent writes.
+    if(card) showNotif(`Billing Failed: ${err.message}`, "error");
+    else showNotif(`Billing Failed for ${offer.offerTitle}: ${err.message}`, "error");
+  }
 }
 
-// --- Send All Eligible Bills ---
+// --- Send All Eligible Bills (UPGRADE: Calls the atomic sendBill) ---
 sendAllBtn.onclick = async ()=>{
   sendAllBtn.disabled=true;
+  showNotif("Processing all eligible bills...", "info");
+  let sentCount = 0;
+  
   for(const [providerId,p] of Object.entries(grouped)){
     for(const [offerId,offer] of Object.entries(p.offers)){
       if(offer.total >= (THRESHOLDS[offer.currency]||0)){
-        await sendBill(providerId, offerId, offer);
+        // Calling the atomic function
+        await sendBill(providerId, offerId, offer, null); 
+        sentCount++;
       }
     }
   }
+
   sendAllBtn.disabled=false;
-  showNotif("All eligible bills sent!");
+  showNotif(`${sentCount} eligible bills sent successfully!`);
 };
 </script>
 
