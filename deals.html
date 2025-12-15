@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Admin Deals Management (DEBUG)</title>
+<style>
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: opacity .5s ease, transform .3s; position: relative; }
+.deal-card:hover { transform: translateY(-4px); }
+.deal-card.completed { border-left: 4px solid #4ade80; }
+.deal-card.cancelled { border-left: 4px solid #ef4444; }
+.deal-info { margin-bottom: 10px; font-size: 14px; }
+.deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; position: relative; }
+.complete { background: #4ade80; color: #041018; }
+.cancel { background: #ef4ade80; color: #fff; }
+button.loading { pointer-events: none; opacity: 0.7; }
+button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
+.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
+.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+.card-notif { position: absolute; top: 10px; right: 10px; background: #1a2235; padding: 6px 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.card-notif button { background: transparent; border: none; color: #a3ff6e; font-weight: 700; cursor: pointer; }
+.card-notif button:hover { color: #4ade80; }
+.load-more { text-align: center; margin-top: 20px; }
+.load-more button { padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+
+/* DEBUG CONSOLE STYLES */
+.debug-console { 
+  background: #1a2235; 
+  border: 2px solid #4a90e2; 
+  border-radius: 8px; 
+  padding: 15px; 
+  margin-bottom: 20px; 
+  max-height: 400px; 
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+.debug-console h3 { 
+  margin: 0 0 10px 0; 
+  color: #4a90e2; 
+  font-size: 16px;
+}
+.debug-line { 
+  padding: 4px 0; 
+  border-bottom: 1px solid #2a3345;
+}
+.debug-line.info { color: #60a5fa; }
+.debug-line.success { color: #4ade80; }
+.debug-line.error { color: #ef4444; }
+.debug-line.warning { color: #fbbf24; }
+.debug-timestamp { 
+  color: #6b7280; 
+  margin-right: 8px;
+}
+.debug-controls {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+}
+.debug-controls button {
+  padding: 8px 16px;
+  background: #374151;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.debug-controls button:hover {
+  background: #4b5563;
+}
+</style>
+</head>
+<body>
+
+<h1>Admin Deals Management (DEBUG MODE)</h1>
+
+<!-- DEBUG CONSOLE -->
+<div class="debug-console" id="debugConsole">
+  <h3>🔍 Debug Console</h3>
+  <div class="debug-controls">
+    <button onclick="clearDebugLog()">Clear Log</button>
+    <button onclick="testFirebaseConnection()">Test Firebase Connection</button>
+    <button onclick="testDealsCollection()">Test Deals Collection</button>
+    <button onclick="downloadDebugLog()">Download Log</button>
+  </div>
+  <div id="debugLog"></div>
+</div>
+
+<div id="notif" class="notif"></div>
+<div id="dealsContainer">Loading deals...</div>
+<div id="loadMoreContainer" class="load-more" style="display: none;">
+    <button id="loadMoreBtn">Load More Deals</button>
+</div>
+
+<script type="module">
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, query, orderBy, onSnapshot, serverTimestamp,
+  writeBatch, limit, startAfter, where
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const dealsContainer = document.getElementById("dealsContainer");
+const notif = document.getElementById("notif");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+const loadMoreContainer = document.getElementById("loadMoreContainer");
+const debugLog = document.getElementById("debugLog");
+
+// ===== DEBUG LOGGING SYSTEM =====
+const debugLogs = [];
+
+function logDebug(message, type = 'info') {
+  const timestamp = new Date().toLocaleTimeString();
+  const logEntry = { timestamp, message, type };
+  debugLogs.push(logEntry);
+  
+  const line = document.createElement('div');
+  line.className = `debug-line ${type}`;
+  line.innerHTML = `<span class="debug-timestamp">[${timestamp}]</span><span>${message}</span>`;
+  debugLog.appendChild(line);
+  debugLog.scrollTop = debugLog.scrollHeight;
+  
+  // Also log to browser console with appropriate method
+  const consoleMethod = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log';
+  console[consoleMethod](`[${timestamp}] ${message}`);
+}
+
+window.clearDebugLog = function() {
+  debugLog.innerHTML = '';
+  debugLogs.length = 0;
+  logDebug('Debug log cleared', 'info');
+};
+
+window.downloadDebugLog = function() {
+  const logText = debugLogs.map(log => `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`).join('\n');
+  const blob = new Blob([logText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `debug-log-${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  logDebug('Debug log downloaded', 'success');
+};
+
+window.testFirebaseConnection = async function() {
+  logDebug('Testing Firebase connection...', 'info');
+  try {
+    logDebug(`Auth object exists: ${!!auth}`, 'info');
+    logDebug(`DB object exists: ${!!db}`, 'info');
+    logDebug(`Current user: ${auth.currentUser ? auth.currentUser.email : 'None'}`, 'info');
+    
+    // Try to read a document
+    const testRef = doc(db, "platform-settings", "commission");
+    const testSnap = await getDoc(testRef);
+    logDebug(`Test read successful: ${testSnap.exists()}`, 'success');
+    if (testSnap.exists()) {
+      logDebug(`Test data: ${JSON.stringify(testSnap.data())}`, 'info');
+    }
+  } catch (err) {
+    logDebug(`Firebase connection error: ${err.message}`, 'error');
+    logDebug(`Error stack: ${err.stack}`, 'error');
+  }
+};
+
+window.testDealsCollection = async function() {
+  logDebug('Testing deals collection access...', 'info');
+  try {
+    const dealsRef = collection(db, "deals");
+    logDebug(`Deals collection reference created`, 'info');
+    
+    // Try simple query
+    const simpleQuery = query(dealsRef, limit(5));
+    logDebug(`Simple query created (limit 5)`, 'info');
+    
+    const snapshot = await getDocs(simpleQuery);
+    logDebug(`Query executed. Documents found: ${snapshot.size}`, 'success');
+    
+    snapshot.forEach((doc, index) => {
+      const data = doc.data();
+      logDebug(`Deal ${index + 1}: ID=${doc.id}, Status=${data.status}, CreatedAt=${data.createdAt}`, 'info');
+    });
+    
+    if (snapshot.empty) {
+      logDebug('No deals found in collection', 'warning');
+    }
+  } catch (err) {
+    logDebug(`Deals collection error: ${err.message}`, 'error');
+    logDebug(`Error code: ${err.code}`, 'error');
+    logDebug(`Error stack: ${err.stack}`, 'error');
+  }
+};
+
+logDebug('🚀 Application starting...', 'info');
+
+const showNotif = (msg, type="success") => {
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(() => { notif.style.display = "none"; }, 3000);
+  logDebug(`Notification: ${msg}`, type);
+};
+
+/* --- Session & Admin Auth --- */
+logDebug('Checking user session...', 'info');
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ 
+  logDebug('No user session found, redirecting to login', 'error');
+  window.location.href = "login.html"; 
+  throw new Error("No session"); 
+}
+userSession = JSON.parse(userSession);
+logDebug(`User session found: ${userSession.email} (${userSession.uid})`, 'success');
+
+onAuthStateChanged(auth, async (user) => {
+  logDebug('Auth state changed', 'info');
+  
+  if(!user || user.uid !== userSession.uid || !user.emailVerified){
+    logDebug(`Auth failed - User: ${!!user}, UID match: ${user?.uid === userSession.uid}, Verified: ${user?.emailVerified}`, 'error');
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  logDebug(`User authenticated: ${user.email}`, 'success');
+
+  try {
+    logDebug('Fetching user document...', 'info');
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const adminDoc = await getDoc(doc(db, "admins", user.uid));
+    let data = null;
+    let role = null;
+
+    if (userDoc.exists()) {
+      data = userDoc.data();
+      role = data.role;
+      logDebug(`User document found. Role: ${role}`, 'info');
+    } else if (adminDoc.exists()) {
+      data = adminDoc.data();
+      role = data.role || "admin";
+      logDebug(`Admin document found. Role: ${role}`, 'info');
+    } else {
+      logDebug('No user or admin document found', 'error');
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    if (!["admin", "super_admin"].includes(role)) {
+      logDebug(`Insufficient permissions. Role: ${role}`, 'error');
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
+    localStorage.setItem("userSession", JSON.stringify(userSession));
+    logDebug(`User authorized as ${role}`, 'success');
+    
+    loadDeals();
+  } catch (err) {
+    logDebug(`Auth error: ${err.message}`, 'error');
+    logDebug(`Error stack: ${err.stack}`, 'error');
+  }
+});
+
+/* --- Helper --- */
+const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+/* --- Notification Batching --- */
+async function sendNotifications(deal, title, message) {
+  logDebug(`Sending notifications for deal: ${title}`, 'info');
+  const batch = writeBatch(db);
+  const data = { title, message, read:false, createdAt:serverTimestamp() };
+
+  if (deal.providerId) {
+    batch.set(doc(collection(db,`notifications/${deal.providerId}/items`)), data);
+    logDebug(`Added notification for provider: ${deal.providerId}`, 'info');
+  }
+
+  if (deal.promoterId && deal.promoterId !== "direct") {
+    batch.set(doc(collection(db,`notifications/${deal.promoterId}/items`)), data);
+    logDebug(`Added notification for promoter: ${deal.promoterId}`, 'info');
+  }
+
+  await batch.commit();
+  logDebug('Notifications sent successfully', 'success');
+}
+
+/* --- Complete Deal --- */
+async function processCompleteDeal(dealId, deal, card){
+  logDebug(`Starting complete deal process: ${dealId}`, 'info');
+  const dealRef = doc(db, "deals", dealId);
+
+  // Soft Lock Transaction
+  try {
+    logDebug('Attempting to lock deal...', 'info');
+    await runTransaction(db, async (t) => {
+      const snap = await t.get(dealRef);
+      if (!snap.exists()) throw new Error("Deal not found or already processed.");
+      if (snap.data().status === "processing") throw new Error("Deal is currently being processed.");
+      
+      t.update(dealRef, { status: "processing" }); 
+      logDebug('Deal locked with processing status', 'success');
+    });
+  } catch (err) {
+    logDebug(`Lock error: ${err.message}`, 'error');
+    if (err.message.includes("being processed")) {
+      showNotif("⚠️ Deal is already processing. Please wait.", "error");
+      return;
+    }
+    showNotif(`Error during lock: ${err.message}`, "error");
+    return; 
+  }
+
+  // Main financial transaction
+  try {
+    logDebug('Starting financial transaction...', 'info');
+    const currency = deal.offerCurrency || "USD";
+    const offerRef = doc(db, "offers_all", deal.offerId);
+
+    await runTransaction(db, async (t) => {
+      const offerSnap = await t.get(offerRef);
+      if(!offerSnap.exists()) throw new Error("Offer not found");
+      const offer = offerSnap.data();
+      logDebug(`Offer loaded: ${offer.title}`, 'info');
+
+      const platformSnap = await t.get(doc(db, "platform-settings", "commission"));
+      const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
+      logDebug(`Platform percentage: ${platformPercentage}%`, 'info');
+
+      // Calculate Earnings
+      let commissionEarned = 0;
+      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
+      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
+      else commissionEarned = deal.commissionValue || 0;
+      commissionEarned = round(commissionEarned);
+
+      const platformShare = round(commissionEarned*platformPercentage/100);
+      const promoterNet = round(commissionEarned-platformShare);
+      logDebug(`Commission: ${commissionEarned} ${currency}, Platform: ${platformShare}, Promoter: ${promoterNet}`, 'info');
+
+      // Update offer totals
+      t.update(offerRef, {
+        promoSpent: round((offer.promoSpent||0)+commissionEarned),
+        amountOwed: round((offer.amountOwed||0)+commissionEarned),
+        outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
+      });
+      logDebug('Offer updated', 'success');
+
+      // Update promoter earnings
+      if(deal.promoterId && deal.promoterId !== "direct") {
+        const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
+        t.set(promoterDealRef, {
+          ...deal,
+          commissionAmount: promoterNet,
+          fullCommission: commissionEarned,
+          platformTax: platformShare,
+          completedAt: serverTimestamp(),
+          withdrawn: false
+        });
+        logDebug('Promoter earnings updated', 'success');
+
+        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
+        const metaSnap = await t.get(metaRef);
+        let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
+        
+        meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
+        meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
+        meta.lastUpdated = serverTimestamp();
+        t.set(metaRef, meta, { merge:true });
+        logDebug('Promoter metadata updated', 'success');
+      }
+
+      // Update platform earnings
+      const platformRef = doc(db, `platform-earnings/${currency}`);
+      const platformSnap2 = await t.get(platformRef);
+      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+      
+      const todayUTC = new Date().toISOString().split("T")[0]; 
+      
+      platformData.totalRevenue += platformShare;
+      platformData.dealsCount += 1;
+      platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
+      t.set(platformRef, platformData, { merge:true });
+      logDebug('Platform earnings updated', 'success');
+
+      // Move deal to completed-deals
+      const completedRef = doc(db, "completed-deals", dealId);
+      t.set(completedRef, {
+        ...deal,
+        status: "completed",
+        completedAt: serverTimestamp(),
+        completedBy: "admin",
+        commissionEarned,
+        platformShare,
+        promoterNet,
+        providerPaid:false
+      });
+      logDebug('Deal moved to completed-deals', 'success');
+
+      // Delete pending deal
+      t.delete(dealRef);
+      logDebug('Pending deal deleted', 'success');
+    });
+
+    await sendNotifications(deal, "Deal Completed ✅", `Deal ${dealId} marked complete by admin.`);
+    card.remove();
+    showNotif("Deal completed successfully");
+    logDebug(`Deal ${dealId} completed successfully`, 'success');
+
+  } catch(err){ 
+    logDebug(`Financial transaction error: ${err.message}`, 'error');
+    logDebug(`Error stack: ${err.stack}`, 'error');
+    console.error(err); 
+    setDoc(dealRef, { status: "pending" }, { merge: true }).catch(e => {
+      logDebug(`Failed to reset status: ${e.message}`, 'error');
+    }); 
+    showNotif("Financial Error: "+ (err.message || err.toString()),"error"); 
+  }
+}
+
+/* --- Cancel Deal --- */
+async function processCancelDeal(dealId, deal, card){
+  logDebug(`Starting cancel deal process: ${dealId}`, 'info');
+  try {
+    await deleteDoc(doc(db, "deals", dealId));
+    logDebug('Deal document deleted', 'success');
+    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} cancelled by admin.`);
+    card.remove();
+    showNotif("Deal cancelled","error");
+    logDebug(`Deal ${dealId} cancelled successfully`, 'success');
+  } catch(err){ 
+    logDebug(`Cancel error: ${err.message}`, 'error');
+    console.error(err); 
+    showNotif("Error: "+ (err.message || err.toString()),"error"); 
+  }
+}
+
+/* --- Schedule Actions --- */
+function scheduleAction(type, dealId, deal, card){
+  logDebug(`Scheduling ${type} action for deal ${dealId} (5s delay)`, 'info');
+  const box = document.createElement("div");
+  box.className="card-notif";
+  box.innerHTML = `${type==="complete"?"Completing":"Cancelling"} in 5s <button>Undo</button>`;
+  card.appendChild(box);
+
+  const buttons = card.querySelectorAll("button");
+  buttons.forEach(btn=>{ btn.disabled=true; btn.classList.add("loading"); });
+
+  let cancelled=false;
+  box.querySelector("button").onclick=()=>{
+    cancelled=true;
+    box.remove();
+    buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
+    showNotif("Action cancelled","error");
+    logDebug(`Scheduled ${type} action cancelled by user`, 'warning');
+  };
+
+  setTimeout(async ()=>{
+    box.remove();
+    if(!cancelled){
+      if(type==="complete") await processCompleteDeal(dealId, deal, card);
+      else await processCancelDeal(dealId, deal, card);
+    }
+    buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
+  },5000);
+}
+
+/* --- Load Deals with Pagination --- */
+let lastDeal = null; 
+
+function loadDeals(isInitialLoad = true) {
+    logDebug(`Loading deals (initial: ${isInitialLoad})...`, 'info');
+    
+    if (isInitialLoad) {
+        dealsContainer.innerHTML = "";
+        lastDeal = null;
+        logDebug('Reset pagination state', 'info');
+    }
+
+    try {
+        logDebug('Building Firestore query...', 'info');
+        let dealsQuery = query(
+            collection(db, "deals"),
+            where("status", "!=", "processing"),
+            orderBy("status"),
+            orderBy("createdAt", "desc"),
+            limit(25)
+        );
+
+        if (lastDeal) {
+            logDebug(`Using pagination, starting after doc: ${lastDeal.id}`, 'info');
+            dealsQuery = query(dealsQuery, startAfter(lastDeal));
+        }
+
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = "Loading...";
+
+        logDebug('Executing getDocs()...', 'info');
+        getDocs(dealsQuery).then(snapshot => { 
+            logDebug(`Query completed. Documents received: ${snapshot.size}`, 'success');
+            
+            if (snapshot.empty && isInitialLoad) {
+                dealsContainer.innerHTML = "<p>No active deals found.</p>";
+                loadMoreContainer.style.display = 'none';
+                logDebug('No deals found in collection', 'warning');
+                return;
+            }
+            if (snapshot.empty) {
+                loadMoreBtn.textContent = "No More Deals";
+                loadMoreBtn.disabled = true;
+                logDebug('No more deals to load', 'info');
+                return;
+            }
+
+            snapshot.docs.forEach((docSnap, index) => {
+                logDebug(`Rendering deal ${index + 1}: ${docSnap.id}`, 'info');
+                renderDealCard(docSnap.id, docSnap.data());
+            });
+
+            lastDeal = snapshot.docs[snapshot.docs.length - 1];
+            loadMoreContainer.style.display = 'block';
+
+            if (snapshot.docs.length < 25) {
+                loadMoreBtn.textContent = "No More Deals";
+                loadMoreBtn.disabled = true;
+                logDebug('All deals loaded (less than limit)', 'info');
+            } else {
+                loadMoreBtn.textContent = "Load More Deals";
+                loadMoreBtn.disabled = false;
+                logDebug('More deals available', 'info');
+            }
+        }).catch(err => {
+            logDebug(`getDocs() error: ${err.message}`, 'error');
+            logDebug(`Error code: ${err.code}`, 'error');
+            logDebug(`Error details: ${JSON.stringify(err)}`, 'error');
+            console.error("Error loading deals:", err);
+            showNotif("Failed to load deals.","error");
+            loadMoreBtn.textContent = "Failed to Load";
+            
+            if (err.message.includes('index')) {
+                logDebug('INDEX ERROR DETECTED - This query requires a composite index', 'error');
+                dealsContainer.innerHTML = `
+                    <p style="color: #ef4444;">⚠️ Firebase Index Required</p>
+                    <p style="font-size: 13px;">This query requires a composite index. Check the console for the index creation link.</p>
+                `;
+            }
+        });
+    } catch (err) {
+        logDebug(`Query setup error: ${err.message}`, 'error');
+        logDebug(`Error stack: ${err.stack}`, 'error');
+        showNotif(`Query error: ${err.message}`, 'error');
+    }
+}
+
+loadMoreBtn.onclick = () => loadDeals(false); 
+
+/* --- Render Deal Card --- */
+function renderDealCard(dealId, deal){
+  const card = document.createElement("div");
+  card.className="deal-card "+(deal.status||"");
+
+  let createdDate = 'N/A';
+  try {
+    createdDate = deal.createdAt?.toDate()?.toLocaleString() || 'N/A';
+  } catch(e) {
+    logDebug(`Date parsing error for deal ${dealId}: ${e.message}`, 'warning');
+  }
+  
+  card.innerHTML = `
+    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
+    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
+    <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || deal.providerId}</div>
+    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
+    <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
+    <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
+
+    <div class="deal-actions">
+      <button class="complete">Mark Completed</button>
+      <button class="cancel">Mark Cancelled</button>
+    </div>
+
+    <div class="timestamp">Created: ${createdDate} | Status: ${deal.status || "Pending"}</div>
+  `;
+
+  card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
+  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
+
+  dealsContainer.appendChild(card);
+}
+
+logDebug('Script initialization complete', 'success');
+</script>
+</body>
+</html>
