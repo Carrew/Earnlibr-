@@ -74,7 +74,8 @@ a.whatsapp { display: block; text-align: center; background: #25d366; color: #04
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+// CRITICAL FIX: Imported serverTimestamp for correct Firestore Timestamp objects
+import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -157,7 +158,8 @@ requestForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const dealData = {
+    // 1. Prepare base deal data (excluding time)
+    const baseDealData = {
       offerId,
       offerTitle: offerData.title,
       offerPrice: offerData.price,
@@ -168,7 +170,7 @@ requestForm.addEventListener("submit", async (e) => {
       clientContact,
       note,
       status: "pending",
-      createdAt: new Date().toISOString(),
+      // REMOVED: createdAt: new Date().toISOString(), 
       providerName: providerInfo?.name || "",
       providerEmail: providerInfo?.email || "",
       providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
@@ -176,49 +178,60 @@ requestForm.addEventListener("submit", async (e) => {
       commissionValue: offerData.commissionValue || 0
     };
 
-    const dealRef = await addDoc(collection(db, "deals"), dealData);
+    // 2. Add the server timestamp for deal creation
+    const dealDataForFirestore = {
+        ...baseDealData,
+        createdAt: serverTimestamp() // <-- FIXED: Use serverTimestamp for proper Firestore Timestamp object
+    };
+
+    const dealRef = await addDoc(collection(db, "deals"), dealDataForFirestore);
     const dealId = dealRef.id;
+
+    // 3. Prepare Notification Data (using serverTimestamp for consistent sorting)
+    const notificationData = {
+        type: "deal",
+        title: "New Deal Request",
+        dealId,
+        ...baseDealData,
+        createdAt: serverTimestamp() 
+    };
 
     // --- Admin Notification ---
     await addDoc(collection(db, "admin_notifications"), {
-      type: "deal",
-      title: "New Deal Request",
-      message: `${clientName} requested offer "${dealData.offerTitle}"`,
-      dealId,
-      ...dealData
+      message: `${clientName} requested offer "${baseDealData.offerTitle}"`,
+      ...notificationData
     });
 
     // --- Provider Notification ---
     if (providerId !== "unknown") {
       await addDoc(collection(db, "notifications", providerId, "items"), {
-        type: "deal",
         title: "You Have a New Deal Request",
-        message: `A client requested your offer "${dealData.offerTitle}".`,
-        dealId,
-        ...dealData
+        message: `A client requested your offer "${baseDealData.offerTitle}".`,
+        ...notificationData
       });
     }
 
     // --- Promoter Notification ---
     if (promoterId !== "direct") {
       await addDoc(collection(db, "notifications", promoterId, "items"), {
-        type: "deal",
         title: "You Generated a Deal!",
-        message: `Your shared link converted into a deal for "${dealData.offerTitle}".`,
-        dealId,
-        ...dealData
+        message: `Your shared link converted into a deal for "${baseDealData.offerTitle}".`,
+        ...notificationData
       });
     }
+
+    // Use baseDealData for local display since serverTimestamp is pending
+    const displayPhone = baseDealData.providerPhone; 
 
     requestForm.style.display = "none";
     successMsg.style.display = "block";
     successMsg.innerHTML = `
       ✅ Your request was received!<br>
       The provider will contact you shortly or you may reach them directly at:<br>
-      <strong>${dealData.providerPhone}</strong>`;
+      <strong>${displayPhone}</strong>`;
 
     whatsappBtn.style.display = "block";
-    whatsappBtn.href = `https://wa.me/${dealData.providerPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
 
   } catch (err) {
     console.error(err);
