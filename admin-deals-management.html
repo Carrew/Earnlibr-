@@ -146,6 +146,7 @@ async function processCompleteDeal(dealId, deal, card){
     const offerRef = doc(db, "offers_all", deal.offerId);
 
     await runTransaction(db, async (t) => {
+      // ===== PHASE 1: ALL READS FIRST =====
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
@@ -153,7 +154,17 @@ async function processCompleteDeal(dealId, deal, card){
       const platformSnap = await t.get(doc(db, "platform-settings", "commission"));
       const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
 
-      // 1. Calculate Earnings
+      let metaSnap = null;
+      if(deal.promoterId && deal.promoterId !== "direct") {
+        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
+        metaSnap = await t.get(metaRef);
+      }
+
+      const platformRef = doc(db, `platform-earnings/${currency}`);
+      const platformSnap2 = await t.get(platformRef);
+      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
+
+      // ===== PHASE 2: CALCULATIONS =====
       let commissionEarned = 0;
       if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
       else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
@@ -163,14 +174,13 @@ async function processCompleteDeal(dealId, deal, card){
       const platformShare = round(commissionEarned*platformPercentage/100);
       const promoterNet = round(commissionEarned-platformShare);
 
-      // 2. Update offer totals
+      // ===== PHASE 3: ALL WRITES =====
       t.update(offerRef, {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
         outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
       });
 
-      // 3. Update promoter earnings (if applicable)
       if(deal.promoterId && deal.promoterId !== "direct") {
         const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
         t.set(promoterDealRef, {
@@ -183,7 +193,6 @@ async function processCompleteDeal(dealId, deal, card){
         });
 
         const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        const metaSnap = await t.get(metaRef);
         let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
         
         meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
@@ -192,19 +201,12 @@ async function processCompleteDeal(dealId, deal, card){
         t.set(metaRef, meta, { merge:true });
       }
 
-      // 4. Update platform earnings
-      const platformRef = doc(db, `platform-earnings/${currency}`);
-      const platformSnap2 = await t.get(platformRef);
-      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
-      
       const todayUTC = new Date().toISOString().split("T")[0]; 
-      
       platformData.totalRevenue += platformShare;
       platformData.dealsCount += 1;
       platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
       t.set(platformRef, platformData, { merge:true });
 
-      // 5. Move deal to completed-deals
       const completedRef = doc(db, "completed-deals", dealId);
       t.set(completedRef, {
         ...deal,
@@ -217,7 +219,6 @@ async function processCompleteDeal(dealId, deal, card){
         providerPaid:false
       });
 
-      // 6. Delete pending deal
       t.delete(dealRef);
     });
 
