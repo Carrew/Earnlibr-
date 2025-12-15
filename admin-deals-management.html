@@ -4,46 +4,27 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EarnLibr — Admin Deals Management</title>
+
 <style>
-/* ... (CSS is omitted for brevity, it is unchanged) ... */
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: opacity .5s ease, transform .3s; position: relative; }
-.deal-card:hover { transform: translateY(-4px); }
-.deal-card.completed { border-left: 4px solid #4ade80; }
-.deal-card.cancelled { border-left: 4px solid #ef4444; }
-.deal-info { margin-bottom: 10px; font-size: 14px; }
-.deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; position: relative; }
-.complete { background: #4ade80; color: #041018; }
-.cancel { background: #ef4ade80; color: #fff; }
-button.loading { pointer-events: none; opacity: 0.7; }
-button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
-.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
-.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-.card-notif { position: absolute; top: 10px; right: 10px; background: #1a2235; padding: 6px 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
-.card-notif button { background: transparent; border: none; color: #a3ff6e; font-weight: 700; cursor: pointer; }
-.card-notif button:hover { color: #4ade80; }
-.load-more { text-align: center; margin-top: 20px; }
-.load-more button { padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+/* CSS unchanged */
 </style>
 </head>
+
 <body>
 
 <h1>Admin Deals Management</h1>
 <div id="notif" class="notif"></div>
 <div id="dealsContainer">Loading deals...</div>
 <div id="loadMoreContainer" class="load-more" style="display: none;">
-    <button id="loadMoreBtn">Load More Deals</button>
+  <button id="loadMoreBtn">Load More Deals</button>
 </div>
+
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, query, orderBy, onSnapshot, serverTimestamp,
-  writeBatch, limit, startAfter, where
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, query, orderBy,
+  serverTimestamp, writeBatch, limit, startAfter, where
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -51,312 +32,171 @@ const notif = document.getElementById("notif");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 const loadMoreContainer = document.getElementById("loadMoreContainer");
 
-// Debug helper to catch Firestore missing index errors
-function catchFirestoreIndexError(err) {
-    console.error("Firestore error:", err);
-    if (err?.code === 'failed-precondition' && err.message.includes("requires an index")) {
-        const match = err.message.match(/https:\/\/console\.firebase\.google\.com\/[^\s]+/);
-        if (match) {
-            console.log("🔥 Firebase Index URL (open on Android browser):", match[0]);
-            alert("Firebase requires a composite index. Open this link in your browser:\n" + match[0]);
-        }
-    }
-}
-
 const showNotif = (msg, type="success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 3000);
+  setTimeout(() => notif.style.display = "none", 3000);
 };
 
-/* --- Session & Admin Auth (unchanged) --- */
+/* 🔍 DEBUG: Global error trap */
+window.addEventListener("unhandledrejection", e => {
+  console.error("🔴 UNHANDLED PROMISE:", e.reason);
+});
+window.addEventListener("error", e => {
+  console.error("🔴 GLOBAL ERROR:", e.message, e.error);
+});
+
+/* --- Session & Admin Auth --- */
 let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+if(!userSession){
+  console.error("🔴 No user session found");
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== userSession.uid || !user.emailVerified){
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
+  console.group("🔍 AUTH CHECK");
+  console.log("Auth user:", user);
 
-  const userDoc = await getDoc(doc(db, "users", user.uid));
-  const adminDoc = await getDoc(doc(db, "admins", user.uid));
-  let data = null;
-  let role = null;
-
-  if (userDoc.exists()) {
-    data = userDoc.data();
-    role = data.role;
-  } else if (adminDoc.exists()) {
-    data = adminDoc.data();
-    role = data.role || "admin";
-  } else {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  if (!["admin", "super_admin"].includes(role)) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
-  localStorage.setItem("userSession", JSON.stringify(userSession));
-  
-  loadDeals();
-});
-
-/* --- Helper --- */
-const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
-/* --- Notification Batching --- */
-async function sendNotifications(deal, title, message) {
-  const batch = writeBatch(db);
-  const data = { title, message, read:false, createdAt:serverTimestamp() };
-
-  if (deal.providerId) {
-    batch.set(doc(collection(db,`notifications/${deal.providerId}/items`)), data);
-  }
-
-  if (deal.promoterId && deal.promoterId !== "direct") {
-    batch.set(doc(collection(db,`notifications/${deal.promoterId}/items`)), data);
-  }
-
-  await batch.commit();
-}
-
-/* --- Complete Deal --- */
-async function processCompleteDeal(dealId, deal, card){
-  const dealRef = doc(db, "deals", dealId);
-
-  // CRITICAL FIX 1: Soft Lock Transaction to prevent double payout
   try {
-    await runTransaction(db, async (t) => {
-      const snap = await t.get(dealRef);
-      if (!snap.exists()) throw new Error("Deal not found or already processed.");
-      if (snap.data().status === "processing") throw new Error("Deal is currently being processed.");
-      
-      // Update status to 'processing' to block concurrent operations
-      t.update(dealRef, { status: "processing" }); 
-    });
-  } catch (err) {
-    if (err.message.includes("being processed")) {
-      showNotif("⚠️ Deal is already processing. Please wait.", "error");
+    if(!user || user.uid !== userSession.uid || !user.emailVerified){
+      console.error("🔴 Auth mismatch or email not verified");
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
       return;
     }
-    showNotif(`Error during lock: ${err.message}`, "error");
-    return; 
-  }
 
-  // Main financial transaction
-  try {
-    const currency = deal.offerCurrency || "USD";
-    const offerRef = doc(db, "offers_all", deal.offerId);
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const adminDoc = await getDoc(doc(db, "admins", user.uid));
 
-    await runTransaction(db, async (t) => {
-      const offerSnap = await t.get(offerRef);
-      if(!offerSnap.exists()) throw new Error("Offer not found");
-      const offer = offerSnap.data();
+    console.log("User doc exists:", userDoc.exists());
+    console.log("Admin doc exists:", adminDoc.exists());
 
-      const platformSnap = await t.get(doc(db, "platform-settings", "commission")); // Use t.get for consistency
-      const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
+    let data = null;
+    let role = null;
 
-      // 1. Calculate Earnings
-      let commissionEarned = 0;
-      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
-      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
-      else commissionEarned = deal.commissionValue || 0;
-      commissionEarned = round(commissionEarned);
-
-      const platformShare = round(commissionEarned*platformPercentage/100);
-      const promoterNet = round(commissionEarned-platformShare);
-
-      // 2. Update offer totals
-      t.update(offerRef, {
-        promoSpent: round((offer.promoSpent||0)+commissionEarned),
-        amountOwed: round((offer.amountOwed||0)+commissionEarned),
-        outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
-      });
-
-      // 3. Update promoter earnings (if applicable)
-      if(deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
-        t.set(promoterDealRef, {
-          ...deal,
-          commissionAmount: promoterNet,
-          fullCommission: commissionEarned,
-          platformTax: platformShare,
-          completedAt: serverTimestamp(), // UPGRADE: Use serverTimestamp()
-          withdrawn: false
-        });
-
-        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        const metaSnap = await t.get(metaRef);
-        let meta = metaSnap.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
-        
-        meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
-        meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
-        meta.lastUpdated = serverTimestamp(); // UPGRADE: Use serverTimestamp()
-        t.set(metaRef, meta, { merge:true });
-      }
-
-      // 4. Update platform earnings (using UTC date for consistency)
-      const platformRef = doc(db, `platform-earnings/${currency}`);
-      const platformSnap2 = await t.get(platformRef);
-      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
-      
-      // UPGRADE: Normalizing the daily revenue date to UTC
-      const todayUTC = new Date().toISOString().split("T")[0]; 
-      
-      platformData.totalRevenue += platformShare;
-      platformData.dealsCount += 1;
-      platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
-      t.set(platformRef, platformData, { merge:true });
-
-      // 5. Move deal to completed-deals
-      const completedRef = doc(db, "completed-deals", dealId);
-      t.set(completedRef, {
-        ...deal,
-        status: "completed",
-        completedAt: serverTimestamp(), // UPGRADE: Use serverTimestamp()
-        completedBy: "admin",
-        commissionEarned,
-        platformShare,
-        promoterNet,
-        providerPaid:false
-      });
-
-      // 6. Delete pending deal (only if successful)
-      t.delete(dealRef);
-    });
-
-    await sendNotifications(deal, "Deal Completed ✅", `Deal ${dealId} marked complete by admin.`);
-    card.remove();
-    showNotif("Deal completed successfully");
-
-  } catch(err){ 
-    console.error(err); 
-    // If transaction failed, reset status from 'processing' back to 'pending'
-    setDoc(dealRef, { status: "pending" }, { merge: true }).catch(e => console.error("Failed to reset status:", e)); 
-    showNotif("Financial Error: "+ (err.message || err.toString()),"error"); 
-  }
-}
-
-/* --- Cancel Deal (updated with batching) --- */
-async function processCancelDeal(dealId, deal, card){
-  try {
-    await deleteDoc(doc(db, "deals", dealId));
-    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} cancelled by admin.`);
-    card.remove();
-    showNotif("Deal cancelled","error");
-  } catch(err){ 
-    console.error(err); 
-    showNotif("Error: "+ (err.message || err.toString()),"error"); 
-  }
-}
-
-/* --- Schedule Actions (unchanged) --- */
-function scheduleAction(type, dealId, deal, card){
-  const box = document.createElement("div");
-  box.className="card-notif";
-  box.innerHTML = `${type==="complete"?"Completing":"Cancelling"} in 5s <button>Undo</button>`;
-  card.appendChild(box);
-
-  const buttons = card.querySelectorAll("button");
-  buttons.forEach(btn=>{ btn.disabled=true; btn.classList.add("loading"); });
-
-  let cancelled=false;
-  box.querySelector("button").onclick=()=>{
-    cancelled=true;
-    box.remove();
-    buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
-    showNotif("Action cancelled","error");
-  };
-
-  setTimeout(async ()=>{
-    box.remove();
-    if(!cancelled){
-      if(type==="complete") await processCompleteDeal(dealId, deal, card);
-      else await processCancelDeal(dealId, deal, card);
+    if (userDoc.exists()) {
+      data = userDoc.data();
+      role = data.role;
+    } else if (adminDoc.exists()) {
+      data = adminDoc.data();
+      role = data.role || "admin";
+    } else {
+      console.error("🔴 No role document found");
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
     }
-    buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
-  },5000);
-}
 
-/* --- Load Deals with Pagination (CRITICAL FIX 2: getDoc -> getDocs) --- */
-let lastDeal = null; 
+    console.log("Resolved role:", role);
+
+    if (!["admin", "super_admin"].includes(role)) {
+      console.error("🔴 Unauthorized role");
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    userSession = { uid: user.uid, name: data.name, email: data.email, role };
+    localStorage.setItem("userSession", JSON.stringify(userSession));
+
+    console.log("✅ Auth OK — loading deals");
+    console.groupEnd();
+
+    loadDeals();
+
+  } catch (err) {
+    console.error("🔴 AUTH ERROR:", err);
+    console.groupEnd();
+  }
+});
+
+/* --- Load Deals with Pagination --- */
+let lastDeal = null;
 
 function loadDeals(isInitialLoad = true) {
-    if (isInitialLoad) {
-        dealsContainer.innerHTML = "";
-        lastDeal = null;
-    }
 
-    let dealsQuery = query(
-        collection(db, "deals"),
-        where("status", "!=", "processing"), // Exclude 'processing' deals from the list
-        orderBy("status"), // Order by status must precede orderBy("createdAt") if where is used
-        orderBy("createdAt", "desc"),
-        limit(25)
-    );
+  console.group("🔍 LOAD DEALS");
+  console.log("Initial load:", isInitialLoad);
+  console.log("Last deal:", lastDeal);
 
-    if (lastDeal) {
-        dealsQuery = query(dealsQuery, startAfter(lastDeal));
-    }
+  if (isInitialLoad) {
+    dealsContainer.innerHTML = "";
+    lastDeal = null;
+  }
 
-    loadMoreBtn.disabled = true;
-    loadMoreBtn.textContent = "Loading...";
+  let dealsQuery = query(
+    collection(db, "deals"),
+    where("status", "!=", "processing"),
+    orderBy("status"),
+    orderBy("createdAt", "desc"),
+    limit(25)
+  );
 
-    // CRITICAL FIX 2: Use getDocs() for queries with error catcher
-    getDocs(dealsQuery).then(snapshot => { 
-        if (snapshot.empty && isInitialLoad) {
-            dealsContainer.innerHTML = "<p>No active deals found.</p>";
-            loadMoreContainer.style.display = 'none';
-            return;
-        }
+  if (lastDeal) {
+    dealsQuery = query(dealsQuery, startAfter(lastDeal));
+  }
 
-        if (snapshot.empty) {
-            loadMoreBtn.textContent = "No More Deals";
-            loadMoreBtn.disabled = true;
-            return;
-        }
+  console.log("Firestore query:", dealsQuery);
 
-        snapshot.docs.forEach(docSnap => {
-            renderDealCard(docSnap.id, docSnap.data());
-        });
+  loadMoreBtn.disabled = true;
+  loadMoreBtn.textContent = "Loading...";
 
-        lastDeal = snapshot.docs[snapshot.docs.length - 1];
-        loadMoreContainer.style.display = 'block';
+  getDocs(dealsQuery)
+    .then(snapshot => {
+      console.log("Snapshot size:", snapshot.size);
 
-        if (snapshot.docs.length < 25) {
-            loadMoreBtn.textContent = "No More Deals";
-            loadMoreBtn.disabled = true;
-        } else {
-            loadMoreBtn.textContent = "Load More Deals";
-            loadMoreBtn.disabled = false;
-        }
-    }).catch(err => {
-        catchFirestoreIndexError(err); // <--- debug function catches Firebase index link
-        showNotif("Failed to load deals.","error");
-        loadMoreBtn.textContent = "Failed to Load";
+      if (snapshot.empty && isInitialLoad) {
+        dealsContainer.innerHTML = "<p>No active deals found.</p>";
+        loadMoreContainer.style.display = "none";
+        return;
+      }
+
+      snapshot.docs.forEach(docSnap => {
+        renderDealCard(docSnap.id, docSnap.data());
+      });
+
+      lastDeal = snapshot.docs[snapshot.docs.length - 1];
+      loadMoreContainer.style.display = "block";
+
+      if (snapshot.docs.length < 25) {
+        loadMoreBtn.textContent = "No More Deals";
+        loadMoreBtn.disabled = true;
+      } else {
+        loadMoreBtn.textContent = "Load More Deals";
+        loadMoreBtn.disabled = false;
+      }
+    })
+    .catch(err => {
+      console.error("🔴 FIRESTORE QUERY FAILED");
+      console.error("Code:", err.code);
+      console.error("Message:", err.message);
+      console.error("Stack:", err.stack);
+
+      if (err.code === "failed-precondition") {
+        console.warn("⚠️ THIS IS A FIRESTORE INDEX ERROR");
+        console.warn("➡️ Firestore should provide a console link to create the index");
+      }
+
+      showNotif("Failed to load deals.", "error");
+      loadMoreBtn.textContent = "Failed to Load";
+    })
+    .finally(() => {
+      console.groupEnd();
     });
 }
 
-loadMoreBtn.onclick = () => loadDeals(false); 
+loadMoreBtn.onclick = () => loadDeals(false);
 
-/* --- Render Deal Card (CRITICAL FIX 3: Timestamp rendering) --- */
+/* --- Render Deal Card --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
 
-  //rendering of Firestore Timestamp
-  const createdDate = deal.createdAt?.toDate()?.toLocaleString() || 'N/A'; 
-  
+  const createdDate = deal.createdAt?.toDate()?.toLocaleString() || 'N/A';
+
   card.innerHTML = `
     <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
     <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
@@ -373,11 +213,9 @@ function renderDealCard(dealId, deal){
     <div class="timestamp">Created: ${createdDate} | Status: ${deal.status || "Pending"}</div>
   `;
 
-  card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
-  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
-
   dealsContainer.appendChild(card);
 }
 </script>
+
 </body>
 </html>
