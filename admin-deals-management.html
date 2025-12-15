@@ -65,50 +65,39 @@ if(!userSession){ window.location.href = "login.html"; throw new Error("No sessi
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async (user) => {
-  console.log("Auth state changed:", user);
   if(!user || user.uid !== userSession.uid || !user.emailVerified){
-    console.log("User invalid or email not verified.");
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
 
-  try {
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    const adminDoc = await getDoc(doc(db, "admins", user.uid));
-    let data = null;
-    let role = null;
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  const adminDoc = await getDoc(doc(db, "admins", user.uid));
+  let data = null;
+  let role = null;
 
-    if (userDoc.exists()) {
-      data = userDoc.data();
-      role = data.role;
-      console.log("User doc found:", data);
-    } else if (adminDoc.exists()) {
-      data = adminDoc.data();
-      role = data.role || "admin";
-      console.log("Admin doc found:", data);
-    } else {
-      console.log("No user/admin doc found.");
-      localStorage.removeItem("userSession");
-      window.location.href = "login.html";
-      return;
-    }
-
-    if (!["admin", "super_admin"].includes(role)) {
-      console.log("User role not authorized:", role);
-      localStorage.removeItem("userSession");
-      window.location.href = "login.html";
-      return;
-    }
-
-    userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
-    localStorage.setItem("userSession", JSON.stringify(userSession));
-    
-    loadDeals();
-  } catch(e) {
-    console.error("Error fetching user/admin doc:", e);
-    showNotif("Failed to verify admin session","error");
+  if (userDoc.exists()) {
+    data = userDoc.data();
+    role = data.role;
+  } else if (adminDoc.exists()) {
+    data = adminDoc.data();
+    role = data.role || "admin";
+  } else {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
   }
+
+  if (!["admin", "super_admin"].includes(role)) {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  userSession = { uid: user.uid, name: data.name, email: data.email, role: role };
+  localStorage.setItem("userSession", JSON.stringify(userSession));
+  
+  loadDeals();
 });
 
 /* --- Helper --- */
@@ -116,7 +105,6 @@ const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
 /* --- Notification Batching --- */
 async function sendNotifications(deal, title, message) {
-  console.log("Sending notifications for deal:", deal.id || deal);
   const batch = writeBatch(db);
   const data = { title, message, read:false, createdAt:serverTimestamp() };
 
@@ -128,29 +116,24 @@ async function sendNotifications(deal, title, message) {
     batch.set(doc(collection(db,`notifications/${deal.promoterId}/items`)), data);
   }
 
-  try {
-    await batch.commit();
-    console.log("Notifications sent successfully.");
-  } catch(e) {
-    console.error("Error sending notifications:", e);
-  }
+  await batch.commit();
 }
 
 /* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card){
   const dealRef = doc(db, "deals", dealId);
-  console.log("Processing completion for deal:", dealId);
 
+  // CRITICAL FIX 1: Soft Lock Transaction to prevent double payout
   try {
     await runTransaction(db, async (t) => {
       const snap = await t.get(dealRef);
       if (!snap.exists()) throw new Error("Deal not found or already processed.");
       if (snap.data().status === "processing") throw new Error("Deal is currently being processed.");
-      console.log("Lock acquired for deal:", dealId);
+      
+      // Update status to 'processing' to block concurrent operations
       t.update(dealRef, { status: "processing" }); 
     });
   } catch (err) {
-    console.error("Transaction lock error:", err);
     if (err.message.includes("being processed")) {
       showNotif("⚠️ Deal is already processing. Please wait.", "error");
       return;
@@ -159,8 +142,8 @@ async function processCompleteDeal(dealId, deal, card){
     return; 
   }
 
+  // Main financial transaction
   try {
-    console.log("Executing financial transaction for deal:", dealId);
     const currency = deal.offerCurrency || "USD";
     const offerRef = doc(db, "offers_all", deal.offerId);
 
@@ -169,9 +152,10 @@ async function processCompleteDeal(dealId, deal, card){
       if(!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
 
-      const platformSnap = await t.get(doc(db, "platform-settings", "commission")); 
+      const platformSnap = await t.get(doc(db, "platform-settings", "commission")); // Use t.get for consistency
       const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
 
+      // 1. Calculate Earnings
       let commissionEarned = 0;
       if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
       else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
@@ -181,12 +165,14 @@ async function processCompleteDeal(dealId, deal, card){
       const platformShare = round(commissionEarned*platformPercentage/100);
       const promoterNet = round(commissionEarned-platformShare);
 
+      // 2. Update offer totals
       t.update(offerRef, {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
         outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
       });
 
+      // 3. Update promoter earnings (if applicable)
       if(deal.promoterId && deal.promoterId !== "direct") {
         const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
         t.set(promoterDealRef, {
@@ -194,7 +180,7 @@ async function processCompleteDeal(dealId, deal, card){
           commissionAmount: promoterNet,
           fullCommission: commissionEarned,
           platformTax: platformShare,
-          completedAt: serverTimestamp(),
+          completedAt: serverTimestamp(), // UPGRADE: Use serverTimestamp()
           withdrawn: false
         });
 
@@ -204,14 +190,16 @@ async function processCompleteDeal(dealId, deal, card){
         
         meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
         meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
-        meta.lastUpdated = serverTimestamp(); 
+        meta.lastUpdated = serverTimestamp(); // UPGRADE: Use serverTimestamp()
         t.set(metaRef, meta, { merge:true });
       }
 
+      // 4. Update platform earnings (using UTC date for consistency)
       const platformRef = doc(db, `platform-earnings/${currency}`);
       const platformSnap2 = await t.get(platformRef);
       const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
       
+      // UPGRADE: Normalizing the daily revenue date to UTC
       const todayUTC = new Date().toISOString().split("T")[0]; 
       
       platformData.totalRevenue += platformShare;
@@ -219,11 +207,12 @@ async function processCompleteDeal(dealId, deal, card){
       platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
       t.set(platformRef, platformData, { merge:true });
 
+      // 5. Move deal to completed-deals
       const completedRef = doc(db, "completed-deals", dealId);
       t.set(completedRef, {
         ...deal,
         status: "completed",
-        completedAt: serverTimestamp(),
+        completedAt: serverTimestamp(), // UPGRADE: Use serverTimestamp()
         completedBy: "admin",
         commissionEarned,
         platformShare,
@@ -231,6 +220,7 @@ async function processCompleteDeal(dealId, deal, card){
         providerPaid:false
       });
 
+      // 6. Delete pending deal (only if successful)
       t.delete(dealRef);
     });
 
@@ -239,7 +229,8 @@ async function processCompleteDeal(dealId, deal, card){
     showNotif("Deal completed successfully");
 
   } catch(err){ 
-    console.error("Financial transaction error:", err); 
+    console.error(err); 
+    // If transaction failed, reset status from 'processing' back to 'pending'
     setDoc(dealRef, { status: "pending" }, { merge: true }).catch(e => console.error("Failed to reset status:", e)); 
     showNotif("Financial Error: "+ (err.message || err.toString()),"error"); 
   }
@@ -247,14 +238,13 @@ async function processCompleteDeal(dealId, deal, card){
 
 /* --- Cancel Deal (updated with batching) --- */
 async function processCancelDeal(dealId, deal, card){
-  console.log("Cancelling deal:", dealId);
   try {
     await deleteDoc(doc(db, "deals", dealId));
     await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} cancelled by admin.`);
     card.remove();
     showNotif("Deal cancelled","error");
   } catch(err){ 
-    console.error("Error cancelling deal:", err); 
+    console.error(err); 
     showNotif("Error: "+ (err.message || err.toString()),"error"); 
   }
 }
@@ -287,7 +277,7 @@ function scheduleAction(type, dealId, deal, card){
   },5000);
 }
 
-/* --- Load Deals with Pagination (debugging added) --- */
+/* --- Load Deals with Pagination (CRITICAL FIX 2: getDoc -> getDocs) --- */
 let lastDeal = null; 
 
 function loadDeals(isInitialLoad = true) {
@@ -296,34 +286,23 @@ function loadDeals(isInitialLoad = true) {
         lastDeal = null;
     }
 
-    console.log("Loading deals, lastDeal:", lastDeal);
-
     let dealsQuery = query(
         collection(db, "deals"),
-        where("status", "!=", "processing"),
-        orderBy("status"),
+        where("status", "!=", "processing"), // Exclude 'processing' deals from the list
+        orderBy("status"), // Order by status must precede orderBy("createdAt") if where is used
         orderBy("createdAt", "desc"),
         limit(25)
     );
 
     if (lastDeal) {
-        console.log("Using startAfter for pagination:", lastDeal.data());
-        dealsQuery = query(
-            collection(db, "deals"),
-            where("status", "!=", "processing"),
-            orderBy("status"),
-            orderBy("createdAt", "desc"),
-            startAfter(lastDeal.data().status, lastDeal.data().createdAt),
-            limit(25)
-        );
+        dealsQuery = query(dealsQuery, startAfter(lastDeal));
     }
 
     loadMoreBtn.disabled = true;
     loadMoreBtn.textContent = "Loading...";
 
-    getDocs(dealsQuery)
-    .then(snapshot => { 
-        console.log("Deals snapshot received:", snapshot.docs.length);
+    // CRITICAL FIX 2: Use getDocs() for queries
+    getDocs(dealsQuery).then(snapshot => { 
         if (snapshot.empty && isInitialLoad) {
             dealsContainer.innerHTML = "<p>No active deals found.</p>";
             loadMoreContainer.style.display = 'none';
@@ -337,7 +316,6 @@ function loadDeals(isInitialLoad = true) {
         }
 
         snapshot.docs.forEach(docSnap => {
-            console.log("Rendering deal:", docSnap.id, docSnap.data());
             renderDealCard(docSnap.id, docSnap.data());
         });
 
@@ -351,25 +329,23 @@ function loadDeals(isInitialLoad = true) {
             loadMoreBtn.textContent = "Load More Deals";
             loadMoreBtn.disabled = false;
         }
-    })
-    .catch(err => {
+    }).catch(err => {
         console.error("Error loading deals:", err);
         showNotif("Failed to load deals.","error");
         loadMoreBtn.textContent = "Failed to Load";
-        loadMoreBtn.disabled = true;
     });
 }
 
 loadMoreBtn.onclick = () => loadDeals(false); 
 
-/* --- Render Deal Card (with debug for timestamp) --- */
+/* --- Render Deal Card (CRITICAL FIX 3: Timestamp rendering) --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
 
-  const createdDate = deal.createdAt?.toDate?.()?.toLocaleString() || 'N/A'; 
-  console.log("Rendering deal date for:", dealId, "createdAt:", createdDate);
-
+  //rendering of Firestore Timestamp
+  const createdDate = deal.createdAt?.toDate()?.toLocaleString() || 'N/A'; 
+  
   card.innerHTML = `
     <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
     <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
@@ -388,6 +364,9 @@ function renderDealCard(dealId, deal){
 
   card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
   card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
-    </script>
+
+  dealsContainer.appendChild(card);
+}
+</script>
 </body>
 </html>
