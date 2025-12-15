@@ -1,244 +1,438 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Approve Withdrawals</title>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Admin Approve Promoter Payouts</title>
 <style>
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.request-box { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.request-box button { margin-top: 10px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
-.approve { background: #4ade80; color: #041018; }
-.reject { background: #ef4444; color: #fff; }
-.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
-.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+:root{
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#bfc7d6;
+  --danger:#e74c3c;
+}
+
+body{
+  margin:0;
+  font-family:Inter,system-ui,Arial;
+  background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+  color:#eef2f7;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  padding:25px;
+}
+
+.card{
+  width:100%;
+  max-width:960px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+  border-radius:16px;
+  padding:22px;
+  box-shadow:0 8px 30px rgba(2,6,23,0.6);
+  border:1px solid rgba(255,255,255,0.03);
+}
+
+.image-header{
+  width:100%;
+  height:160px;
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:18px;
+}
+.image-header img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  filter:brightness(0.75);
+}
+
+h1{
+  font-size:24px;
+  margin-bottom:8px;
+  background:linear-gradient(90deg,var(--accent1),var(--accent2));
+  -webkit-background-clip:text;
+  color:transparent;
+}
+
+.lead{
+  font-size:14px;
+  color:var(--muted);
+  margin-bottom:16px;
+}
+
+.controls{
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:16px;
+}
+
+.btn{
+  background:linear-gradient(90deg,var(--accent1),var(--accent2));
+  border:none;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:700;
+  color:#041018;
+  transition:opacity 0.2s;
+}
+.btn:hover:not(:disabled){opacity:0.9;}
+.btn:disabled{opacity:0.6; cursor:not-allowed;}
+
+.btn.danger{
+  background:var(--danger);
+  color:#fff;
+}
+
+.requests{
+  margin-top:10px;
+}
+
+.request-card{
+  background:#071427;
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:14px;
+  border:1px solid rgba(255,255,255,0.04);
+}
+
+.request-card.completed,
+.request-card.rejected{
+  opacity:0.55;
+  pointer-events:none;
+}
+
+.request-card div{
+  font-size:13px;
+  margin-bottom:4px;
+  color:var(--muted);
+}
+
+.request-actions{
+  margin-top:10px;
+  display:flex;
+  gap: 8px; 
+}
+.request-actions .btn {
+  padding: 8px 12px; 
+  font-size: 13px;
+}
+
+.notif{
+  background:#071427;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:15px;
+  display:none;
+  font-size:13px;
+}
+.notif.success{border-left:4px solid var(--accent2);}
+.notif.error{border-left:4px solid var(--danger);}
 </style>
 </head>
+
 <body>
 
-<h1>Withdrawal Requests</h1>
-<div id="notif" class="notif"></div>
-<div id="requestsContainer">Loading requests...</div>
+<div class="card">
+
+  <div class="image-header">
+    <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">
+  </div>
+
+  <h1>Approve Promoter Payouts</h1>
+  <p class="lead">Review, approve, or reject promoter withdrawal requests.</p>
+
+  <div class="controls">
+    <button id="approveAllBtn" class="btn">Approve All</button>
+  </div>
+
+  <div id="notif" class="notif"></div>
+  <div id="requestsContainer" class="requests">
+    Loading withdrawal requests...
+  </div>
+
+</div>
 
 <script type="module">
-import { auth, db } from "./firebase.js";
+import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  collection, doc, getDoc, getDocs, updateDoc,
-  query, where, runTransaction, addDoc, serverTimestamp
+    collection, doc, onSnapshot, serverTimestamp, writeBatch, query, where, runTransaction, getDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const notif = document.getElementById("notif");
 const requestsContainer = document.getElementById("requestsContainer");
+const notif = document.getElementById("notif");
+const approveAllBtn = document.getElementById("approveAllBtn");
 
-const showNotif = (msg, type="success") => {
+// --- UTILITY FUNCTIONS ---
+const showNotif = (msg,type="success")=>{
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => notif.style.display = "none", 3000);
+  setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-/* -------------------------------------------
-   AUTHENTICATION — MATCHES YOUR LOGIN SYSTEM
--------------------------------------------- */
-let userSession = localStorage.getItem("userSession");
-
-if (!userSession) {
-  window.location.href = "login.html";
-  throw new Error("No session");
-}
-userSession = JSON.parse(userSession);
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user || user.uid !== userSession.uid) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  if (!user.emailVerified) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  const adminRef = doc(db, "admins", user.uid);
-  const adminSnap = await getDoc(adminRef);
-
-  if (!adminSnap.exists() || !["admin", "super_admin"].includes(adminSnap.data().role)) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  const data = adminSnap.data();
-  userSession = {
-    uid: user.uid,
-    name: data.name,
-    email: data.email,
-    role: data.role,
-    referralCode: data.referralCode || "",
-    phone: data.phone || "",
-    country: data.country || "",
-    createdAt: data.createdAt || ""
-  };
-
-  localStorage.setItem("userSession", JSON.stringify(userSession));
-
-  loadRequests();
-});
-
-/* -------------------------------------------
-   SEND NOTIFICATION — MODEL A
--------------------------------------------- */
+// --- Notification Helper (Secure Batch) ---
 async function sendNotification(uid, title, message) {
   try {
-    await addDoc(collection(db, `notifications/${uid}/items`), {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
       title,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
-  } catch (err) {
-    console.error("Notification error:", err);
+    await batch.commit();
+  } catch(err) {
+    console.error("Batch notification error:", err);
   }
 }
 
-/* -------------------------------------------
-   LOAD WITHDRAWAL REQUESTS
--------------------------------------------- */
-async function loadRequests() {
-  const reqQuery = query(
-    collection(db, "withdrawal-requests"),
-    where("status", "==", "pending")
-  );
+// --- AUTH CHECK & ROLE ENFORCEMENT ---
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
 
-  const reqSnap = await getDocs(reqQuery);
-  requestsContainer.innerHTML = "";
+onAuthStateChanged(auth, async user=>{
+  if(!user || user.uid !== userSession.uid || !user.emailVerified){ 
+    localStorage.removeItem("userSession"); 
+    window.location.href="login.html"; 
+    return; 
+  }
+  
+  // CRITICAL SECURITY CHECK: Verify Admin Role
+  const adminDoc = await getDoc(doc(db, "admins", user.uid));
+  const data = adminDoc.exists() ? adminDoc.data() : null;
+  const role = data?.role || "guest";
 
-  if (reqSnap.empty) {
-    requestsContainer.innerHTML = "<p>No pending withdrawal requests.</p>";
+  if (!["admin","super_admin"].includes(role)) { 
+    localStorage.removeItem("userSession"); 
+    window.location.href="login.html"; 
     return;
   }
+  
+  // Rebuild session with verified role for use in transactions
+  userSession = { uid: user.uid, name: data.name || user.email, email: user.email, role: role };
+  localStorage.setItem("userSession", JSON.stringify(userSession));
+  
+  loadWithdrawalRequests();
+});
 
-  reqSnap.forEach(docSnap => {
-    renderRequestBox(docSnap.id, docSnap.data());
+let requestsList = [];
+
+// --- LOAD PENDING REQUESTS ---
+function loadWithdrawalRequests(){
+  const requestsQuery = query(collection(db, "withdrawal-requests"), where("status", "==", "pending"));
+  
+  onSnapshot(requestsQuery, snapshot=>{
+    requestsContainer.innerHTML = "";
+    requestsList = [];
+    if(snapshot.empty) {
+        requestsContainer.innerHTML = "<p style='color:var(--accent2);'>No pending withdrawal requests.</p>";
+        return;
+    }
+
+    snapshot.docs.forEach(docSnap=>{
+      const request = docSnap.data();
+      const card = document.createElement("div");
+      card.className = "request-card";
+      
+      const requestedDate = request.requestedAt ? new Date(request.requestedAt.seconds * 1000).toLocaleString() : 'N/A';
+
+      card.innerHTML = `
+        <div style="color:#fff;"><strong>Request ID:</strong> ${request.withdrawalRequestId}</div>
+        <div><strong>Promoter ID:</strong> ${request.promoterId}</div>
+        <div><strong>Amount:</strong> <span style="color:var(--accent2);">${request.amount.toFixed(2)} ${request.currency}</span></div>
+        <div><strong>Requested:</strong> ${requestedDate}</div>
+        <div><strong>Deals Count:</strong> ${request.dealIds ? request.dealIds.length : '0'}</div>
+        <div class="request-actions">
+          <button class="btn approve-btn">Approve Payout</button>
+          <button class="btn danger reject-btn">Reject Payout</button>
+        </div>
+      `;
+      
+      const approveBtn = card.querySelector('.approve-btn');
+      const rejectBtn = card.querySelector('.reject-btn');
+
+      approveBtn.onclick = ()=>approvePayout(docSnap.id, request.promoterId, request.amount, request.currency, request.dealIds, approveBtn, card);
+      rejectBtn.onclick = ()=>handleReject(docSnap.id, request.promoterId, request.amount, request.currency, request.dealIds, rejectBtn, card);
+
+      requestsContainer.appendChild(card);
+      
+      requestsList.push({ 
+        id: docSnap.id, 
+        promoterId: request.promoterId, 
+        amount: request.amount, 
+        currency: request.currency, 
+        dealIds: request.dealIds,
+        btn: approveBtn,
+        card: card
+      });
+    });
   });
 }
 
-/* -------------------------------------------
-   DISPLAY REQUEST BOX
--------------------------------------------- */
-function renderRequestBox(reqId, req) {
-  const box = document.createElement("div");
-  box.className = "request-box";
-
-  box.innerHTML = `
-    <p><strong>Promoter ID:</strong> ${req.promoterId}</p>
-    <p><strong>Currency:</strong> ${req.currency}</p>
-    <p><strong>Amount:</strong> ${req.amount}</p>
-    <p><strong>Deals:</strong> ${req.dealIds.join(", ")}</p>
-    <button class="approve">Approve</button>
-    <button class="reject">Reject</button>
-  `;
-
-  requestsContainer.appendChild(box);
-
-  box.querySelector(".approve").onclick = () => processApproval(reqId, req, true, box);
-  box.querySelector(".reject").onclick = () => processApproval(reqId, req, false, box);
+// --- Helper to get reason for rejection ---
+function handleReject(requestId, promoterId, amount, currency, dealIds, btn, card) {
+    const reason = prompt("Please provide a reason for rejecting this payout request:");
+    if (reason) {
+        rejectPayout(requestId, promoterId, amount, currency, dealIds, btn, card, reason);
+    } else {
+        showNotif("Rejection cancelled. Reason is required.", "error");
+    }
 }
 
-/* -------------------------------------------
-   PROCESS APPROVE/REJECT (FIXED TRANSACTION)
--------------------------------------------- */
-async function processApproval(reqId, req, approve = true, box) {
+
+// --- REJECT Payout (ATOMIC FUNCTION) ---
+async function rejectPayout(requestId, promoterId, amount, currency, dealIds, btn, card, rejectionReason){
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = "Reversing...";
+    
+    const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
+    const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
+    const requestRef = doc(db, "withdrawal-requests", requestId);
+
+    try {
+        await runTransaction(db, async (t) => {
+            // 1. READ: Get metadata to perform reversal
+            const metaSnap = await t.get(metaRef);
+            if (!metaSnap.exists()) throw new Error("Promoter metadata not found. Cannot reverse funds.");
+            
+            const meta = metaSnap.data();
+            const currentBalance = meta.currentBalance?.[currency] || 0;
+            
+            // 2. WRITE: Update the request status
+            const requestUpdateData = { 
+                status: "rejected",
+                adminProcessedAt: serverTimestamp(),
+                adminProcessedBy: userSession.uid, // Record admin user
+                rejectionReason: rejectionReason
+            };
+            t.update(requestRef, requestUpdateData);
+
+            // 3. WRITE: Clear the withdrawalRequestId flag from all deals
+            dealIds.forEach(dealId => {
+                t.update(doc(dealsCollectionRef, dealId), {
+                    withdrawalRequestId: null,
+                    withdrawalRequestedAt: null 
+                });
+            });
+
+            // 4. WRITE: Update the promoter wallet metadata (ADD back to currentBalance)
+            const newBalance = currentBalance + amount;
+            
+            t.update(metaRef, {
+                [`currentBalance.${currency}`]: newBalance, // Funds reversed
+            });
+        });
+
+        // 5. Notification
+        await sendNotification(promoterId, "Payout Request Rejected ❌", `Your withdrawal request for ${amount.toFixed(2)} ${currency} was rejected by admin due to: ${rejectionReason}. The funds have been returned to your available balance.`);
+
+        card.classList.add("rejected");
+        btn.textContent = "Rejected ❌";
+        showNotif(`Request ${requestId} rejected and funds reversed.`);
+
+    } catch(err){
+        console.error("Payout rejection failed:", err);
+        showNotif(`Rejection Failed: ${err.message}`, "error");
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+
+// --- APPROVE Payout (ATOMIC FUNCTION) ---
+async function approvePayout(requestId, promoterId, amount, currency, dealIds, btn, card){
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Processing Payment...";
+  
+  if (!dealIds || dealIds.length === 0) {
+      showNotif("Error: Request has no linked deals.", "error");
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+  }
+
+  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
+  const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
+  const requestRef = doc(db, "withdrawal-requests", requestId);
+
   try {
+    // This transaction must set status to 'completed', mark deals as 'withdrawn: true', and update 'totalWithdrawn'
     await runTransaction(db, async (t) => {
+      
+      const metaSnap = await t.get(metaRef);
+      if (!metaSnap.exists()) throw new Error("Promoter metadata not found. Cannot finalize payout.");
+      
+      const meta = metaSnap.data();
+      const currentTotalWithdrawn = meta.totalWithdrawn?.[currency] || 0;
+      
+      const requestSnap = await t.get(requestRef);
+      if (!requestSnap.exists()) throw new Error("Withdrawal request not found.");
+      if (requestSnap.data().status !== "pending") throw new Error("Request already processed.");
 
-      const reqRef = doc(db, "withdrawal-requests", reqId);
+      // 1. Update the request status
+      const requestUpdateData = { 
+        status: "completed",
+        adminProcessedAt: serverTimestamp(),
+        adminProcessedBy: userSession.uid // Record admin user
+      };
+      t.update(requestRef, requestUpdateData);
 
-      // 1️⃣ READ REQUEST
-      const reqSnap = await t.get(reqRef);
-      if (!reqSnap.exists()) throw new Error("Request already processed");
-
-      let metaRef, metaSnap;
-      const dealRefs = [];
-      const dealSnaps = [];
-
-      if (approve) {
-        // 2️⃣ READ ALL DEAL DOCS FIRST — NO WRITES YET
-        for (const dealId of req.dealIds) {
-          const dealRef = doc(db, "promoter-earnings", req.promoterId, "deals", dealId);
-          dealRefs.push(dealRef);
-          dealSnaps.push(await t.get(dealRef));
-        }
-
-        // 3️⃣ READ METADATA DOC
-        metaRef = doc(db, "promoter-earnings", req.promoterId, "metadata", "summary");
-        metaSnap = await t.get(metaRef);
-        if (!metaSnap.exists()) throw new Error("Metadata missing");
-      }
-
-      // ------- ALL READS DONE — WRITES BEGIN BELOW -------
-      if (approve) {
-        // 4️⃣ WRITE: Mark deal docs withdrawn
-        for (const ref of dealRefs) {
-          t.update(ref, { withdrawn: true });
-        }
-
-        // 5️⃣ WRITE: Update metadata
-        const meta = metaSnap.data();
-        meta.totalWithdrawn[req.currency] =
-          (meta.totalWithdrawn[req.currency] || 0) + req.amount;
-
-        meta.currentBalance[req.currency] =
-          (meta.totalLifetimeEarnings[req.currency] || 0) -
-          meta.totalWithdrawn[req.currency];
-
-        meta.lastUpdated = new Date().toISOString();
-
-        t.set(metaRef, meta, { merge: true });
-
-        // 6️⃣ WRITE: Mark request approved
-        t.update(reqRef, {
-          status: "approved",
-          processedAt: new Date().toISOString()
+      // 2. Update all deals to finally mark them as withdrawn
+      dealIds.forEach(dealId => {
+        t.update(doc(dealsCollectionRef, dealId), {
+          withdrawn: true,
+          withdrawalCompletedAt: serverTimestamp() 
         });
+      });
 
-        // 7️⃣ SEND STANDARDIZED NOTIFICATION — APPROVAL
-        await sendNotification(
-          req.promoterId,
-          "Withdrawal Approved ✅",
-          `Your withdrawal request of ${req.amount} ${req.currency} has been approved and processed successfully.`
-        );
+      // 3. Update the promoter wallet metadata (add to totalWithdrawn)
+      const newTotalWithdrawn = currentTotalWithdrawn + amount;
 
-      } else {
-        // Reject only updates the request
-        t.update(reqRef, {
-          status: "rejected",
-          processedAt: new Date().toISOString()
-        });
-
-        // 7️⃣ SEND STANDARDIZED NOTIFICATION — REJECTION
-        await sendNotification(
-          req.promoterId,
-          "Withdrawal Rejected ❌",
-          `Your withdrawal request of ${req.amount} ${req.currency} has been rejected. Please contact support for more information.`
-        );
-      }
+      t.update(metaRef, {
+        [`totalWithdrawn.${currency}`]: newTotalWithdrawn,
+      });
     });
 
-    showNotif(`Request ${approve ? "approved" : "rejected"} successfully`);
-    box.remove();
+    // 4. Notification (Outside of transaction)
+    await sendNotification(promoterId, "Payout Complete! 💸", `Your withdrawal request for ${amount.toFixed(2)} ${currency} has been approved and processed.`);
 
-  } catch (err) {
-    console.error(err);
-    showNotif(err.message, "error");
+    card.classList.add("completed");
+    btn.textContent = "Completed ✅";
+    showNotif(`Payout completed successfully for Request ID: ${requestId}`);
+
+  } catch(err){
+    console.error("Payout approval failed:", err);
+    showNotif(`Payout Failed: ${err.message}`, "error");
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
+
+// --- Approve all concurrently (Calls the batch-safe approvePayout) ---
+approveAllBtn.onclick = async () => {
+  if(requestsList.length === 0) return showNotif("No pending requests to approve","error");
+  approveAllBtn.disabled = true;
+  approveAllBtn.textContent = "Approving All...";
+  showNotif(`Attempting to process ${requestsList.length} payouts...`, "info");
+
+  // Run all approvals concurrently, calling the transaction-safe function
+  await Promise.all(requestsList.map(r => approvePayout(r.id, r.promoterId, r.amount, r.currency, r.dealIds, r.btn, r.card)));
+
+  approveAllBtn.textContent = "Approve All ✅";
+  setTimeout(() => {
+    approveAllBtn.disabled = false;
+    approveAllBtn.textContent = "Approve All";
+  }, 2000);
+};
 </script>
+
 </body>
 </html>
