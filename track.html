@@ -89,6 +89,10 @@ form input, form textarea {
   font-size: 15px; 
   transition: border-color 0.2s;
 }
+form input[type="number"] {
+    width: 100px; /* Smaller width for quantity */
+    text-align: center;
+}
 form input:focus, form textarea:focus {
   border-color: var(--accent1);
   outline: none;
@@ -149,17 +153,6 @@ a.whatsapp:hover {
   font-weight: 600; 
   display: none; 
 }
-.loading-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: var(--radius);
-  z-index: 10;
-  display: none;
-}
 </style>
 </head>
 <body>
@@ -175,6 +168,10 @@ a.whatsapp:hover {
   <div class="desc" id="offerDescription"></div>
 
   <form id="requestForm">
+    
+    <label>Quantity Desired <span style="color:#ef4444;">*</span></label>
+    <input type="number" id="quantity" required value="1" min="1" />
+
     <label>Your Full Name <span style="color:#ef4444;">*</span></label>
     <input type="text" id="clientName" required />
 
@@ -214,7 +211,7 @@ const whatsappBtn = document.getElementById("whatsappBtn");
 let offerData = null;
 let providerId = null;
 let providerInfo = null;
-let promoterNameInfo = null; // NEW: Global variable to hold promoter's name/data
+let promoterNameInfo = null; // Global variable to hold promoter's name/data
 
 async function loadOffer() {
   if (!offerId) {
@@ -255,8 +252,6 @@ async function loadOffer() {
             promoterNameInfo = promoterSnap.data();
         } else {
             console.warn(`Promoter ID ${promoterId} not found in 'users' collection.`);
-            // Fallback: Treat as a 'direct' lead if promoter user doesn't exist
-            // This prevents adding an empty name to the deal record.
             promoterNameInfo = { name: "Promoter Not Found" };
         }
     }
@@ -289,12 +284,13 @@ requestForm.addEventListener("submit", async (e) => {
   submitBtn.textContent = "Processing Request...";
 
 
+  const quantity = parseInt(document.getElementById("quantity").value) || 1;
   const clientName = document.getElementById("clientName").value.trim();
   const clientContact = document.getElementById("clientContact").value.trim();
   const note = document.getElementById("note").value.trim();
 
-  if (!clientName || !clientContact) {
-    errorMsg.textContent = "Please enter your name and phone number.";
+  if (!clientName || !clientContact || quantity < 1) {
+    errorMsg.textContent = "Please ensure your name, phone number, and a valid quantity (min 1) are entered.";
     errorMsg.style.display = "block";
     submitBtn.textContent = originalButtonText;
     submitBtn.disabled = false;
@@ -306,7 +302,6 @@ requestForm.addEventListener("submit", async (e) => {
   if (promoterId === "direct") {
       promoterNameToSave = "Direct Lead";
   } else {
-      // Use the name fetched during load, or a default if fetching failed
       promoterNameToSave = promoterNameInfo?.name || "Referral Promoter";
   }
 
@@ -324,6 +319,7 @@ requestForm.addEventListener("submit", async (e) => {
       clientName,
       clientContact,
       note,
+      quantity: quantity, // <-- NEW FIELD IN DEAL RECORD
       status: "pending",
       // Provider/Commission Info (Snapshot at time of deal creation)
       providerName: providerInfo?.name || "",
@@ -331,7 +327,7 @@ requestForm.addEventListener("submit", async (e) => {
       providerPhone: window.providerPhone,
       commissionType: offerData.commissionType || "",
       commissionValue: offerData.commissionValue || 0,
-      promoterName: promoterNameToSave // <-- FIXED: Use the real name
+      promoterName: promoterNameToSave
     };
     
     // 2. Add the server timestamp for deal creation
@@ -343,7 +339,7 @@ requestForm.addEventListener("submit", async (e) => {
     const dealRef = await addDoc(collection(db, "deals"), dealDataForFirestore);
     const dealId = dealRef.id;
 
-    // 3. Prepare Notification Data (using serverTimestamp for consistent sorting)
+    // 3. Prepare Notification Data
     const notificationData = {
         type: "deal",
         title: "New Deal Request",
@@ -354,7 +350,7 @@ requestForm.addEventListener("submit", async (e) => {
 
     // --- Admin Notification ---
     await addDoc(collection(db, "admin_notifications"), {
-      message: `${clientName} requested offer "${baseDealData.offerTitle}" (Referred by ${promoterNameToSave})`, // Added promoter name to admin message
+      message: `${clientName} requested ${quantity} unit(s) of "${baseDealData.offerTitle}" (Referred by ${promoterNameToSave})`,
       ...notificationData
     });
 
@@ -362,7 +358,7 @@ requestForm.addEventListener("submit", async (e) => {
     if (providerId !== "unknown") {
       await addDoc(collection(db, "notifications", providerId, "items"), {
         title: "You Have a New Deal Request",
-        message: `A client requested your offer "${baseDealData.offerTitle}". Source: ${promoterNameToSave}.`, // Added promoter name to provider message
+        message: `A client requested ${quantity} unit(s) of your offer "${baseDealData.offerTitle}". Source: ${promoterNameToSave}.`,
         ...notificationData
       });
     }
@@ -371,7 +367,7 @@ requestForm.addEventListener("submit", async (e) => {
     if (promoterId !== "direct") {
       await addDoc(collection(db, "notifications", promoterId, "items"), {
         title: "You Generated a Deal!",
-        message: `Your shared link converted into a deal for "${baseDealData.offerTitle}".`,
+        message: `Your shared link converted into a deal for ${quantity} unit(s) of "${baseDealData.offerTitle}".`,
         ...notificationData
       });
     }
@@ -387,7 +383,7 @@ requestForm.addEventListener("submit", async (e) => {
       <strong style="font-size:18px; display:block; margin-top:5px;">${displayPhone}</strong>`;
 
     whatsappBtn.style.display = "block";
-    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20(Deal%20ID:%20${dealId})%20on%20EarnLibr.`;
+    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20${quantity}%20unit(s)%20of%20your%20offer%20(Deal%20ID:%20${dealId})%20on%20EarnLibr.`;
 
   } catch (err) {
     console.error(err);
