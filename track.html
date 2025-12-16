@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Client Side Offer Details | EarnLibr</title>
+<title>Request Offer | EarnLibr</title>
 <style>
 :root {
-  --bg: #0b0d17;
+  --bg: #071028; /* Darker background top */
   --card: #0f1724;
-  --accent1: #4a90e2;
-  --accent2: #a3ff6e;
+  --accent1: #4a90e2; /* Blue */
+  --accent2: #a3ff6e; /* Green */
   --muted: #cbd5e1;
   --radius: 14px;
 }
 body {
   margin: 0;
-  font-family: "Inter", sans-serif;
-  background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+  font-family: sans-serif;
+  background: linear-gradient(180deg, var(--bg) 0%, #0b0d17 100%);
   color: #fff;
   min-height: 100vh;
   display: flex;
@@ -30,51 +30,170 @@ body {
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
   max-width: 700px;
   width: 100%;
-  padding: 25px;
+  padding: 30px; /* Increased padding */
 }
-img { width: 100%; border-radius: 12px; margin-bottom: 15px; object-fit: cover; height: 250px; }
-h1 { background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; font-size: 22px; margin-bottom: 10px; }
-.desc { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 15px; }
-.price { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-.category { font-size: 13px; background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 18px; }
-form label { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
-form input, form textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; margin-top: 4px; background: #071427; color: #fff; font-size: 14px; }
-button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight: 700; color: #041018; cursor: pointer; transition: transform 0.2s; }
-button:hover { transform: scale(1.02); }
-.success { margin-top: 18px; background: rgba(74,144,226,0.1); padding: 12px; border-radius: 8px; color: #a3ff6e; text-align: center; font-weight: 600; display: none; }
-a.whatsapp { display: block; text-align: center; background: #25d366; color: #041018; padding: 10px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 10px; display: none; }
-.error { margin-top: 18px; background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; color: #ef4444; text-align: center; font-weight: 600; display: none; }
+img { 
+  width: 100%; 
+  border-radius: var(--radius); 
+  margin-bottom: 20px; 
+  object-fit: cover; 
+  height: 250px; 
+  background: #1a2235; /* Placeholder color */
+}
+h1 { 
+  background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
+  -webkit-background-clip: text; 
+  color: transparent; 
+  font-size: 26px; /* Larger title */
+  margin-bottom: 5px; 
+}
+.price-section {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 15px;
+}
+.price { 
+  font-size: 24px; /* Larger price */
+  font-weight: 700; 
+  color: var(--accent2);
+  margin-right: 15px;
+}
+.category { 
+  font-size: 13px; 
+  background: rgba(163,255,110,0.1); /* Greenish background */
+  color: var(--accent2);
+  padding: 4px 10px; 
+  border-radius: 20px; 
+}
+.desc { 
+  color: var(--muted); 
+  font-size: 16px; 
+  line-height: 1.6; 
+  margin-bottom: 25px; 
+}
+form label { 
+  display: block; 
+  margin-top: 15px; /* Increased spacing */
+  font-size: 14px; 
+  color: var(--muted); 
+  font-weight: 500;
+}
+form input, form textarea { 
+  width: calc(100% - 20px); 
+  padding: 10px; 
+  border-radius: 8px; 
+  border: 1px solid #1a2235; /* Slight border */
+  margin-top: 6px; 
+  background: #141f33; /* Darker input background */
+  color: #fff; 
+  font-size: 15px; 
+  transition: border-color 0.2s;
+}
+form input:focus, form textarea:focus {
+  border-color: var(--accent1);
+  outline: none;
+}
+button { 
+  margin-top: 25px; 
+  width: 100%; 
+  padding: 14px; /* Larger hit area */
+  border: none; 
+  border-radius: 10px; 
+  background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
+  font-weight: 700; 
+  color: #041018; 
+  cursor: pointer; 
+  transition: opacity 0.2s, transform 0.2s; 
+}
+button:hover:not(:disabled) { 
+  transform: scale(1.005); 
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.success { 
+  margin-top: 25px; 
+  background: rgba(163,255,110,0.1); 
+  padding: 20px; 
+  border-radius: var(--radius); 
+  color: var(--accent2); 
+  text-align: center; 
+  font-weight: 600; 
+  display: none; 
+  border: 1px solid var(--accent2);
+}
+a.whatsapp { 
+  display: block; 
+  text-align: center; 
+  background: #25d366; 
+  color: #fff; /* White text for contrast */
+  padding: 12px; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  text-decoration: none; 
+  margin-top: 15px; 
+  display: none; 
+  transition: background 0.2s;
+}
+a.whatsapp:hover {
+  background: #128c7e;
+}
+.error { 
+  margin-top: 18px; 
+  background: rgba(239,68,68,0.1); 
+  padding: 12px; 
+  border-radius: 8px; 
+  color: #ef4444; 
+  text-align: center; 
+  font-weight: 600; 
+  display: none; 
+}
+.loading-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: var(--radius);
+  z-index: 10;
+  display: none;
+}
 </style>
 </head>
 <body>
 <div class="container">
   <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." alt="Offer" />
   <h1 id="offerTitle">Loading offer...</h1>
-  <div class="price" id="offerPrice"></div>
-  <div class="category" id="offerCategory"></div>
+  
+  <div class="price-section">
+    <div class="price" id="offerPrice"></div>
+    <div class="category" id="offerCategory"></div>
+  </div>
+  
   <div class="desc" id="offerDescription"></div>
 
   <form id="requestForm">
-    <label>Your Full Name</label>
+    <label>Your Full Name <span style="color:#ef4444;">*</span></label>
     <input type="text" id="clientName" required />
 
-    <label>Your Phone Number</label>
+    <label>Your Phone Number <span style="color:#ef4444;">*</span></label>
     <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx" />
 
     <label>Message (optional)</label>
     <textarea id="note" placeholder="Any additional info..."></textarea>
 
-    <button type="submit">Request This Offer</button>
+    <button type="submit" id="submitBtn">Request This Offer</button>
   </form>
 
   <div class="success" id="successMsg"></div>
   <div class="error" id="errorMsg"></div>
-  <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Chat on WhatsApp</a>
+  <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Contact Provider Directly</a>
 </div>
 
 <script type="module">
 import { db } from "./firebase.js";
-// CRITICAL FIX: Imported serverTimestamp for correct Firestore Timestamp objects
 import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -87,6 +206,7 @@ const offerPrice = document.getElementById("offerPrice");
 const offerDescription = document.getElementById("offerDescription");
 const offerCategory = document.getElementById("offerCategory");
 const requestForm = document.getElementById("requestForm");
+const submitBtn = document.getElementById("submitBtn");
 const successMsg = document.getElementById("successMsg");
 const errorMsg = document.getElementById("errorMsg");
 const whatsappBtn = document.getElementById("whatsappBtn");
@@ -122,10 +242,12 @@ async function loadOffer() {
     }
 
     if (providerId !== "unknown") {
+      // Fetch user data for promoter/provider name/contact
       const providerSnap = await getDoc(doc(db, "users", providerId));
       providerInfo = providerSnap.exists() ? providerSnap.data() : null;
     }
 
+    // --- Render Data ---
     offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
     offerTitle.textContent = offerData.title || "Untitled Offer";
     offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
@@ -133,9 +255,10 @@ async function loadOffer() {
     offerCategory.textContent = offerData.category || "Uncategorized";
 
     window.providerPhone = providerInfo?.phone || offerData.providerPhone || "+231000000000";
+
   } catch (err) {
     console.error(err);
-    offerTitle.textContent = "Error loading offer.";
+    offerTitle.textContent = "Error loading offer. Check console.";
     requestForm.style.display = "none";
   }
 }
@@ -146,6 +269,10 @@ loadOffer();
 requestForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.style.display = "none";
+  submitBtn.disabled = true;
+  const originalButtonText = submitBtn.textContent;
+  submitBtn.textContent = "Processing Request...";
+
 
   const clientName = document.getElementById("clientName").value.trim();
   const clientContact = document.getElementById("clientContact").value.trim();
@@ -154,11 +281,13 @@ requestForm.addEventListener("submit", async (e) => {
   if (!clientName || !clientContact) {
     errorMsg.textContent = "Please enter your name and phone number.";
     errorMsg.style.display = "block";
+    submitBtn.textContent = originalButtonText;
+    submitBtn.disabled = false;
     return;
   }
 
   try {
-    // 1. Prepare base deal data (excluding time)
+    // 1. Prepare base deal data
     const baseDealData = {
       offerId,
       offerTitle: offerData.title,
@@ -166,22 +295,24 @@ requestForm.addEventListener("submit", async (e) => {
       offerCurrency: offerData.currency || "$",
       providerId,
       promoterId,
+      // Client Info
       clientName,
       clientContact,
       note,
       status: "pending",
-      // REMOVED: createdAt: new Date().toISOString(), 
+      // Provider/Commission Info (Snapshot at time of deal creation)
       providerName: providerInfo?.name || "",
       providerEmail: providerInfo?.email || "",
-      providerPhone: providerInfo?.phone || offerData.providerPhone || "+231000000000",
+      providerPhone: window.providerPhone,
       commissionType: offerData.commissionType || "",
-      commissionValue: offerData.commissionValue || 0
+      commissionValue: offerData.commissionValue || 0,
+      promoterName: (promoterId !== "direct" ? "Referral Promoter" : "Direct Lead")
     };
-
+    
     // 2. Add the server timestamp for deal creation
     const dealDataForFirestore = {
         ...baseDealData,
-        createdAt: serverTimestamp() // <-- FIXED: Use serverTimestamp for proper Firestore Timestamp object
+        createdAt: serverTimestamp() 
     };
 
     const dealRef = await addDoc(collection(db, "deals"), dealDataForFirestore);
@@ -220,23 +351,25 @@ requestForm.addEventListener("submit", async (e) => {
       });
     }
 
-    // Use baseDealData for local display since serverTimestamp is pending
+    // 4. Update UI
     const displayPhone = baseDealData.providerPhone; 
 
     requestForm.style.display = "none";
     successMsg.style.display = "block";
     successMsg.innerHTML = `
-      ✅ Your request was received!<br>
-      The provider will contact you shortly or you may reach them directly at:<br>
-      <strong>${displayPhone}</strong>`;
+      ✅ **Success! Deal Request Submitted.**<br><br>
+      The provider will contact you shortly to confirm the details. You may reach them directly at: 
+      <strong style="font-size:18px; display:block; margin-top:5px;">${displayPhone}</strong>`;
 
     whatsappBtn.style.display = "block";
-    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20on%20EarnLibr.`;
+    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20your%20offer%20(Deal%20ID:%20${dealId})%20on%20EarnLibr.`;
 
   } catch (err) {
     console.error(err);
-    errorMsg.textContent = "Error submitting request: " + err.message;
+    errorMsg.textContent = "Error submitting request: Please try again later.";
     errorMsg.style.display = "block";
+    submitBtn.textContent = originalButtonText;
+    submitBtn.disabled = false;
   }
 });
 </script>
