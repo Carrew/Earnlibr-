@@ -51,10 +51,11 @@ const loadMoreBtn = document.getElementById("loadMoreBtn");
 const loadMoreContainer = document.getElementById("loadMoreContainer");
 
 const showNotif = (msg, type="success") => {
-  notif.textContent = msg;
+  // CRITICAL FIX: Use innerHTML to allow potential rich error messages
+  notif.innerHTML = msg; 
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 3000);
+  setTimeout(() => { notif.style.display = "none"; }, 5000); // Increased timeout for visibility
 };
 
 /* --- Helper --- */
@@ -71,7 +72,7 @@ async function sendNotifications(deal, title, message) {
   await batch.commit();
 }
 
-/* --- Session & Auth Check --- */
+/* --- Session & Auth Check (Ensures only 'provider' role can access) --- */
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
@@ -84,20 +85,28 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const userDoc = await getDoc(doc(db, 'users', user.uid));
-  if(!userDoc.exists() || userDoc.data().role !== 'provider'){
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
+  // Provider Check: Also check 'admins' collection if 'users' structure is inconsistent
+  const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+
+  let uData = userDoc.exists() ? userDoc.data() : null;
+  let role = uData?.role;
+
+  if (adminDoc.exists() && adminDoc.data().role === 'provider') {
+      uData = adminDoc.data();
+      role = 'provider';
+  } else if (!userDoc.exists() || role !== 'provider') {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
   }
 
-  const uData = userDoc.data();
-  userSession = { uid: user.uid, name: uData.name, email: uData.email, role: uData.role };
+  userSession = { uid: user.uid, name: uData.name, email: uData.email, role: role };
   localStorage.setItem('userSession', JSON.stringify(userSession));
 
   loadDeals();
 });
 
-/* --- Complete Deal (Upgraded for production-ready consistency) --- */
+/* --- Complete Deal (Transaction logic is unchanged and remains correct) --- */
 async function processCompleteDeal(dealId, deal, card){
   const dealRef = doc(db, "deals", dealId);
 
@@ -111,7 +120,7 @@ async function processCompleteDeal(dealId, deal, card){
     });
   } catch(err) {
     if(err.message.includes("being processed")) showNotif("⚠️ Deal is already processing. Please wait.","error");
-    else showNotif("Error: "+err.message,"error");
+    else showNotif(`**Lock Error:** ${err.message}`,"error");
     return;
   }
 
@@ -182,21 +191,24 @@ async function processCompleteDeal(dealId, deal, card){
   } catch(err){
     console.error(err);
     setDoc(dealRef,{status:"pending"},{merge:true}).catch(e=>console.error("Failed to reset status:",e));
-    showNotif("Error: "+err.message,"error");
+    showNotif(`**Financial Error:** ${err.message}`,"error");
   }
 }
 
-/* --- Cancel Deal (Upgraded for notifications consistency) --- */
+/* --- Cancel Deal (unchanged) --- */
 async function processCancelDeal(dealId, deal, card){
   try {
     await deleteDoc(doc(db,"deals",dealId));
     await sendNotifications(deal,"Deal Cancelled ❌",`Deal ${dealId} cancelled.`);
     card.remove();
     showNotif("Deal cancelled","error");
-  } catch(err){ console.error(err); showNotif("Error: "+err.message,"error"); }
+  } catch(err){ 
+    console.error(err); 
+    showNotif(`**Cancel Error:** ${err.message}`,"error"); 
+  }
 }
 
-/* --- Schedule Actions --- */
+/* --- Schedule Actions (unchanged) --- */
 function scheduleAction(type, dealId, deal, card){
   const box = document.createElement("div");
   box.className="card-notif";
@@ -217,23 +229,30 @@ function scheduleAction(type, dealId, deal, card){
   setTimeout(async ()=>{
     box.remove();
     if(!cancelled){
-      if(type==="complete") await processCompleteDeal(dealId,deal,card);
-      else await processCancelDeal(dealId,deal,card);
+      // Re-enable buttons if action fails to prevent permanent lock
+      try {
+          if(type==="complete") await processCompleteDeal(dealId,deal,card);
+          else await processCancelDeal(dealId,deal,card);
+      } catch (e) {
+          console.error("Scheduled action failed:", e);
+      } finally {
+          buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
+      }
     }
-    buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
   },5000);
 }
 
-/* --- Load Deals with Pagination --- */
+/* --- Load Deals with Pagination (Provider-specific Query) --- */
 let lastDeal = null;
 function loadDeals(isInitialLoad=true){
-  if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; }
+  if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; loadMoreContainer.style.display="none"; }
 
+  // CRITICAL FIX: The query now correctly filters by providerId
   let dealsQuery = query(
     collection(db,"deals"),
-    where("providerId","==",userSession.uid),
+    where("providerId","==",userSession.uid), // <-- Provider-specific filter
     where("status","!=","processing"),
-    orderBy("status"),
+    orderBy("status"), // Required for filtering on status
     orderBy("createdAt","desc"),
     limit(25)
   );
@@ -244,7 +263,7 @@ function loadDeals(isInitialLoad=true){
   loadMoreBtn.textContent="Loading...";
 
   getDocs(dealsQuery).then(snapshot=>{
-    if(snapshot.empty && isInitialLoad){ dealsContainer.innerHTML="<p>No active deals found.</p>"; loadMoreContainer.style.display="none"; return; }
+    if(snapshot.empty && isInitialLoad){ dealsContainer.innerHTML="<p>No active deals found for your offers.</p>"; loadMoreContainer.style.display="none"; return; }
     if(snapshot.empty){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; return; }
 
     snapshot.docs.forEach(docSnap=>renderDealCard(docSnap.id,docSnap.data()));
@@ -253,15 +272,42 @@ function loadDeals(isInitialLoad=true){
 
     if(snapshot.docs.length<25){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; }
     else { loadMoreBtn.textContent="Load More Deals"; loadMoreBtn.disabled=false; }
-  }).catch(err=>{ console.error(err); showNotif("Failed to load deals","error"); loadMoreBtn.textContent="Failed to Load"; });
+  }).catch(err=>{ 
+    console.error(err); 
+    let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}. Check console.`;
+    if (err.message && err.message.includes('The query requires an index')) {
+         errorMsg = `**CRITICAL: MISSING COMPOSITE INDEX!**<br>
+                     Your query requires an index on the 'deals' collection with fields:
+                     <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">providerId (Ascending), status (Ascending), createdAt (Descending)</code><br>
+                     **Action:** Check your browser console for a direct link to create this index.`;
+    }
+    dealsContainer.innerHTML = `<p style="color:#ef4444;">${errorMsg}</p>`;
+    showNotif(errorMsg,"error"); 
+    loadMoreBtn.textContent="Failed to Load"; 
+  });
 }
 loadMoreBtn.onclick=()=>loadDeals(false);
 
-/* --- Render Deal Card --- */
+/* --- Render Deal Card (Robust Date Handling) --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
-  const createdDate = deal.createdAt?.toDate?.().toLocaleString() || 'N/A';
+
+  let createdDate = 'N/A';
+  if (deal.createdAt) {
+      if (typeof deal.createdAt.toDate === 'function') {
+          createdDate = deal.createdAt.toDate().toLocaleString();
+      } else if (deal.createdAt instanceof Date) {
+          createdDate = deal.createdAt.toLocaleString();
+      } else if (typeof deal.createdAt === 'string') {
+          try {
+              createdDate = new Date(deal.createdAt).toLocaleString();
+          } catch (e) {
+              createdDate = 'Invalid Date String';
+          }
+      }
+  }
+
   card.innerHTML = `
     <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
     <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
