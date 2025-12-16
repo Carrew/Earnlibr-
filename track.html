@@ -214,6 +214,7 @@ const whatsappBtn = document.getElementById("whatsappBtn");
 let offerData = null;
 let providerId = null;
 let providerInfo = null;
+let promoterNameInfo = null; // NEW: Global variable to hold promoter's name/data
 
 async function loadOffer() {
   if (!offerId) {
@@ -241,11 +242,25 @@ async function loadOffer() {
       return;
     }
 
+    // --- 1. Fetch Provider Info ---
     if (providerId !== "unknown") {
-      // Fetch user data for promoter/provider name/contact
       const providerSnap = await getDoc(doc(db, "users", providerId));
       providerInfo = providerSnap.exists() ? providerSnap.data() : null;
     }
+
+    // --- 2. Fetch Promoter Info (if not a direct lead) ---
+    if (promoterId !== "direct") {
+        const promoterSnap = await getDoc(doc(db, "users", promoterId));
+        if (promoterSnap.exists()) {
+            promoterNameInfo = promoterSnap.data();
+        } else {
+            console.warn(`Promoter ID ${promoterId} not found in 'users' collection.`);
+            // Fallback: Treat as a 'direct' lead if promoter user doesn't exist
+            // This prevents adding an empty name to the deal record.
+            promoterNameInfo = { name: "Promoter Not Found" };
+        }
+    }
+
 
     // --- Render Data ---
     offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
@@ -286,6 +301,16 @@ requestForm.addEventListener("submit", async (e) => {
     return;
   }
 
+  // Determine the promoter name to save
+  let promoterNameToSave;
+  if (promoterId === "direct") {
+      promoterNameToSave = "Direct Lead";
+  } else {
+      // Use the name fetched during load, or a default if fetching failed
+      promoterNameToSave = promoterNameInfo?.name || "Referral Promoter";
+  }
+
+
   try {
     // 1. Prepare base deal data
     const baseDealData = {
@@ -306,7 +331,7 @@ requestForm.addEventListener("submit", async (e) => {
       providerPhone: window.providerPhone,
       commissionType: offerData.commissionType || "",
       commissionValue: offerData.commissionValue || 0,
-      promoterName: (promoterId !== "direct" ? "Referral Promoter" : "Direct Lead")
+      promoterName: promoterNameToSave // <-- FIXED: Use the real name
     };
     
     // 2. Add the server timestamp for deal creation
@@ -329,7 +354,7 @@ requestForm.addEventListener("submit", async (e) => {
 
     // --- Admin Notification ---
     await addDoc(collection(db, "admin_notifications"), {
-      message: `${clientName} requested offer "${baseDealData.offerTitle}"`,
+      message: `${clientName} requested offer "${baseDealData.offerTitle}" (Referred by ${promoterNameToSave})`, // Added promoter name to admin message
       ...notificationData
     });
 
@@ -337,7 +362,7 @@ requestForm.addEventListener("submit", async (e) => {
     if (providerId !== "unknown") {
       await addDoc(collection(db, "notifications", providerId, "items"), {
         title: "You Have a New Deal Request",
-        message: `A client requested your offer "${baseDealData.offerTitle}".`,
+        message: `A client requested your offer "${baseDealData.offerTitle}". Source: ${promoterNameToSave}.`, // Added promoter name to provider message
         ...notificationData
       });
     }
