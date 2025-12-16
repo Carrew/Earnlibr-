@@ -40,10 +40,10 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 
 <script type="module">
 import { auth, db } from './firebase.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { onAuthStateChanged } => "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
   collection, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, writeBatch, query, orderBy, limit, startAfter, where, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+} => "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
 const notif = document.getElementById("notif");
@@ -104,7 +104,7 @@ onAuthStateChanged(auth, async (user) => {
   loadDeals();
 });
 
-/* --- Complete Deal (FIXED: All Reads Before All Writes) --- */
+/* --- Complete Deal (FIXED: All Reads Before All Writes + Quantity Multiplication) --- */
 async function processCompleteDeal(dealId, deal, card){
   const dealRef = doc(db, "deals", dealId);
 
@@ -150,13 +150,26 @@ async function processCompleteDeal(dealId, deal, card){
       // END READS
       
       // ==========================================================
-      // 2. CALCULATIONS
+      // 2. CALCULATIONS (QUANTITY MULTIPLICATION ADDED HERE)
       // ==========================================================
       
+      // **NEW: Retrieve the quantity, defaulting to 1 for older/misformed deals**
+      const dealQuantity = deal.quantity || 1; 
+
       let commissionEarned = 0;
-      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
-      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
-      else commissionEarned = deal.commissionValue || 0;
+      if(offer.commissionType==="percentage") {
+          // Commission is based on (Offer Price * Quantity) * Percentage
+          commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
+      }
+      else if(offer.commissionType==="fixed") {
+          // Commission is fixed value * Quantity
+          commissionEarned = offer.commissionValue * dealQuantity;
+      }
+      else { 
+          // Fallback: If no type is set, use the value field multiplied by quantity
+          commissionEarned = (deal.commissionValue || 0) * dealQuantity; 
+      }
+      
       commissionEarned = round(commissionEarned);
 
       const platformShare = round(commissionEarned*platformPercentage/100);
@@ -170,6 +183,7 @@ async function processCompleteDeal(dealId, deal, card){
       platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0)+platformShare;
 
       // Update Offer Data Calculation
+      // Note: We use commissionEarned (the total commission for the provider/promoter)
       const updatedOfferData = {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
@@ -348,7 +362,7 @@ function loadDeals(isInitialLoad=true){
 }
 loadMoreBtn.onclick=()=>loadDeals(false);
 
-/* --- Render Deal Card (Robust Date Handling) --- */
+/* --- Render Deal Card (Display Quantity) --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
@@ -367,11 +381,17 @@ function renderDealCard(dealId, deal){
           }
       }
   }
+  
+  // Retrieve and display Quantity
+  const dealQuantity = deal.quantity || 1; 
 
   card.innerHTML = `
     <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
-    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
+    <div class="deal-info">
+      <strong>Offer:</strong> ${deal.offerTitle||'N/A'} 
+      <span style="font-weight:700; color:#a3ff6e;">(QTY: ${dealQuantity})</span> 
+    </div>
+    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct" ? deal.promoterName : "Direct"} (${deal.promoterId})</div>
     <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
     <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
     <div class="deal-actions">
