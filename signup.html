@@ -220,6 +220,23 @@
 
         await sendEmailVerification(userCred.user);
 
+        // --- NEW: Send to Apps Script for sheet logging + welcome email ---
+        fetch("https://script.google.com/macros/s/AKfycbwSzQdVRWoHbJxLwO398Uo0Ajrvfh5NGVplnlAWvills5Xiih2EiytIL53Gb_qPWti1/exec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            phone: fullPhone,
+            location: country,
+            userType: role === "provider" ? "Provider" : "Promoter"
+          })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Apps Script response:", data.message))
+        .catch(err => console.error("Apps Script error:", err));
+        // ---------------------------------------------------------------
+
         showMessage('✅ Account created! Please verify your email.');
         msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Open Gmail</a>`;
 
