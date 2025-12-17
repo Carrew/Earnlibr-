@@ -36,9 +36,7 @@ h1 { background: linear-gradient(90deg, #a3ff6e, #4a90e2); -webkit-background-cl
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { 
-  collection, doc, getDoc, getDocs, runTransaction, query, orderBy, limit, startAfter, where
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, query, orderBy, limit, startAfter, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
 const notif = document.getElementById("notif");
@@ -52,61 +50,65 @@ const showNotif = (msg, type="success") => {
   setTimeout(() => { notif.style.display = "none"; }, 5000);
 };
 
-/* --- Session & Promoter Auth Check --- */
-let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
-userSession = JSON.parse(userSession);
+/* --- Session & Promoter Auth Check (production-ready) --- */
+let userSession = null;
 
 onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== userSession.uid || !user.emailVerified){
+  if (!user || !user.emailVerified) {
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
   }
 
-  const userDoc = await getDoc(doc(db, 'users', user.uid));
-  const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+  try {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
 
-  let uData = userDoc.exists() ? userDoc.data() : null;
-  let role = uData?.role;
+    let uData = null;
+    let role = null;
 
-  if (adminDoc.exists() && adminDoc.data().role === 'promoter') {
-      uData = adminDoc.data();
-      role = 'promoter';
-  } else if (!userDoc.exists() || role !== 'promoter') {
-      // Check if they are a 'direct' promoter (no separate user account, shouldn't reach here)
-      if (user.uid !== "direct") { 
-          localStorage.removeItem("userSession");
-          window.location.href = "login.html";
-          return;
-      }
+    if (userDoc.exists()) {
+        uData = userDoc.data();
+        role = uData.role;
+    } else if (adminDoc.exists()) {
+        uData = adminDoc.data();
+        role = adminDoc.data().role || 'admin';
+        uData = adminDoc.data();
+    }
+
+    if (role !== 'promoter') {
+        localStorage.removeItem("userSession");
+        window.location.href = "login.html";
+        return;
+    }
+
+    userSession = { uid: user.uid, name: uData?.name || "Promoter", email: uData?.email, role };
+    localStorage.setItem('userSession', JSON.stringify(userSession));
+
+    loadDeals();
+
+  } catch (err) {
+    console.error(err);
+    showNotif("Failed to validate session.", "error");
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
   }
-
-  userSession = { uid: user.uid, name: uData?.name || "Promoter", email: uData?.email, role: role };
-  localStorage.setItem('userSession', JSON.stringify(userSession));
-
-  loadDeals();
 });
 
 /* --- Helper --- */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 const formatCurrency = (amount, currency = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency,
-    }).format(amount);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 };
-
 
 /* --- Load Deals with Pagination --- */
 let lastDeal = null;
 function loadDeals(isInitialLoad=true){
   if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; loadMoreContainer.style.display="none"; }
 
-  // Query: Filter by promoterId and order by creation date
   let dealsQuery = query(
     collection(db,"deals"),
-    where("promoterId","==",userSession.uid), 
+    where("promoterId","==",userSession.uid),
     orderBy("createdAt","desc"),
     limit(25)
   );
@@ -127,26 +129,8 @@ function loadDeals(isInitialLoad=true){
     if(snapshot.docs.length<25){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; }
     else { loadMoreBtn.textContent="Load More Deals"; loadMoreBtn.disabled=false; }
   }).catch(err=>{ 
-    console.error(err); 
-    
-    // Index Error Reporting (if needed)
+    console.error(err);
     let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}. Check console.`;
-    const indexRegex = /(https:\/\/[^/]+\/[^/]+\/console\/firestore\/indexes\?create_composite=true&[^>\s]+)/;
-    const match = err.message.match(indexRegex);
-
-    if (match) {
-         const indexUrl = match[1];
-         errorMsg = `
-             **CRITICAL: MISSING COMPOSITE INDEX!**<br>
-             Your query requires a specific index. Click the link below to fix it:<br>
-             <a href="${indexUrl}" target="_blank" style="color:#a3ff6e; font-weight:700;">
-                 Click here to create the required Firebase Index
-             </a>
-             <br>
-             <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">promoterId, createdAt</code>
-         `;
-    } 
-
     dealsContainer.innerHTML = `<p style="color:#ef4444;">${errorMsg}</p>`;
     showNotif(errorMsg,"error"); 
     loadMoreBtn.textContent="Failed to Load"; 
@@ -161,24 +145,15 @@ function renderDealCard(dealId, deal){
 
   let createdDate = 'N/A';
   if (deal.createdAt) {
-      if (typeof deal.createdAt.toDate === 'function') {
-          createdDate = deal.createdAt.toDate().toLocaleString();
-      } else if (deal.createdAt instanceof Date) {
-          createdDate = deal.createdAt.toLocaleString();
-      } else if (typeof deal.createdAt === 'string') {
-          try {
-              createdDate = new Date(deal.createdAt).toLocaleString();
-          } catch (e) {
-              createdDate = 'Invalid Date String';
-          }
-      }
+      if (typeof deal.createdAt.toDate === 'function') createdDate = deal.createdAt.toDate().toLocaleString();
+      else if (deal.createdAt instanceof Date) createdDate = deal.createdAt.toLocaleString();
+      else try { createdDate = new Date(deal.createdAt).toLocaleString(); } catch(e){ createdDate='Invalid Date'; }
   }
 
   const currency = deal.offerCurrency || "USD";
   let commissionHtml = '';
 
   if (deal.status === 'completed') {
-    // Show final, calculated earnings for completed deals
     const gross = formatCurrency(deal.commissionEarned || deal.fullCommission || 0, currency);
     const net = formatCurrency(deal.promoterNet || deal.commissionAmount || 0, currency);
     const platformFee = formatCurrency(deal.platformShare || 0, currency);
@@ -188,9 +163,7 @@ function renderDealCard(dealId, deal){
       <div class="deal-info"><strong>Platform Fee:</strong> ${platformFee}</div>
       <div class="deal-info"><strong>Your Net Payout:</strong> <span style="color:#a3ff6e; font-size:16px;">${net}</span></div>
     `;
-
   } else {
-    // Show estimated potential commission for pending/processing deals
     const estimatedCommission = formatCurrency(deal.commissionValue || 'N/A', currency);
     commissionHtml = `
       <div class="deal-info"><strong>Estimated Gross:</strong> <span style="color:#facc15;">${estimatedCommission}</span></div>
@@ -198,8 +171,6 @@ function renderDealCard(dealId, deal){
     `;
   }
 
-
-  // Redact sensitive contact info for the promoter
   const clientDisplay = deal.clientName ? `${deal.clientName} (Contact Redacted)` : 'Client Name Unavailable';
   const statusClass = `status-${deal.status || 'pending'}`;
 
