@@ -14,7 +14,8 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 .deal-info { margin-bottom: 10px; font-size: 14px; }
 .deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; position: relative; }
 .complete { background: #4ade80; color: #041018; }
-.cancel { background: #ef4ade80; color: #fff; }
+/* Fixed the hex code color here */
+.cancel { background: #ef4444; color: #fff; } 
 button.loading { pointer-events: none; opacity: 0.7; }
 button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -118,7 +119,7 @@ async function sendNotifications(deal, title, message) {
   await batch.commit();
 }
 
-/* --- Complete Deal (FIXED: All Reads Before All Writes) --- */
+/* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card){
   const dealRef = doc(db, "deals", dealId);
 
@@ -147,7 +148,7 @@ async function processCompleteDeal(dealId, deal, card){
     await runTransaction(db, async (t) => {
       
       // ==========================================================
-      // 1. ALL READS MUST HAPPEN FIRST
+      // 1. ALL READS
       // ==========================================================
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found");
@@ -165,51 +166,53 @@ async function processCompleteDeal(dealId, deal, card){
         const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
         metaSnap = await t.get(metaRef);
       }
-      // END READS
-
+      
       // ==========================================================
-      // 2. CALCULATIONS
+      // 2. CALCULATIONS (QUANTITY LOGIC ADDED HERE)
       // ==========================================================
+      const dealQuantity = deal.quantity || 1; // Default to 1 for safety
 
       let commissionEarned = 0;
-      if(offer.commissionType==="percentage") commissionEarned = (offer.price * offer.commissionValue)/100;
-      else if(offer.commissionType==="fixed") commissionEarned = offer.commissionValue;
-      else commissionEarned = deal.commissionValue || 0;
+      if(offer.commissionType === "percentage") {
+          // (Price * Quantity) * Percentage
+          commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
+      } else if(offer.commissionType === "fixed") {
+          // Fixed * Quantity
+          commissionEarned = offer.commissionValue * dealQuantity;
+      } else {
+          // Fallback
+          commissionEarned = (deal.commissionValue || 0) * dealQuantity;
+      }
+      
       commissionEarned = round(commissionEarned);
 
-      const platformShare = round(commissionEarned*platformPercentage/100);
-      const promoterNet = round(commissionEarned-platformShare);
+      const platformShare = round(commissionEarned * platformPercentage / 100);
+      const promoterNet = round(commissionEarned - platformShare);
 
       const todayUTC = new Date().toISOString().split("T")[0];
       
-      // Update Platform Data Calculation
       platformData.totalRevenue += platformShare;
       platformData.dealsCount += 1;
       platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
 
-      // Update Offer Data Calculation
       const updatedOfferData = {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
         outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
       };
       
-      // Promoter Metadata Calculation
       let meta = metaSnap?.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
       if(deal.promoterId && deal.promoterId!=="direct"){
           meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
-          meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
+          meta.currentBalance[currency] = (meta.totalLifetimeEarnings[currency] || 0) - (meta.totalWithdrawn[currency]||0);
           meta.lastUpdated = serverTimestamp();
       }
 
       // ==========================================================
-      // 3. ALL WRITES MUST HAPPEN LAST
+      // 3. ALL WRITES
       // ==========================================================
-
-      // 1. Update offer totals
       t.update(offerRef, updatedOfferData);
 
-      // 2. Update promoter earnings (if applicable)
       if(deal.promoterId && deal.promoterId !== "direct") {
         const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
         const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
@@ -225,10 +228,8 @@ async function processCompleteDeal(dealId, deal, card){
         t.set(metaRef, meta, { merge:true });
       }
 
-      // 3. Update platform earnings
       t.set(platformRef, platformData, { merge:true });
 
-      // 4. Move deal to completed-deals
       const completedRef = doc(db, "completed-deals", dealId);
       t.set(completedRef, {
         ...deal,
@@ -241,7 +242,6 @@ async function processCompleteDeal(dealId, deal, card){
         providerPaid:false
       });
 
-      // 5. Delete pending deal
       t.delete(dealRef);
     });
 
@@ -251,7 +251,6 @@ async function processCompleteDeal(dealId, deal, card){
 
   } catch(err){ 
     console.error(err); 
-    // If transaction failed, reset status from 'processing' back to 'pending'
     setDoc(dealRef, { status: "pending" }, { merge: true }).catch(e => console.error("Failed to reset status:", e)); 
     showNotif(`**Financial Error:** ${err.message || err.toString()}`,"error"); 
   }
@@ -303,7 +302,7 @@ function scheduleAction(type, dealId, deal, card){
   },5000);
 }
 
-/* --- Load Deals with Pagination --- */
+/* --- Load Deals --- */
 let lastDeal = null; 
 
 function loadDeals(isInitialLoad = true) {
@@ -357,64 +356,43 @@ function loadDeals(isInitialLoad = true) {
         }
     }).catch(err => {
         console.error("Error loading deals:", err);
-        let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}. ${err.message || 'Check console for details.'}`;
+        let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}.`;
         
         const indexRegex = /(https:\/\/[^/]+\/[^/]+\/console\/firestore\/indexes\?create_composite=true&[^>\s]+)/;
         const match = err.message.match(indexRegex);
 
         if (match) {
             const indexUrl = match[1];
-            errorMsg = `
-                **CRITICAL: MISSING COMPOSITE INDEX!**<br>
-                Your query requires a specific index. Click the link below to fix it:<br>
-                <a href="${indexUrl}" target="_blank" style="color:#a3ff6e; font-weight:700;">
-                    Click here to create the required Firebase Index
-                </a>
-                <br>
-                <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">status, createdAt</code>
-            `;
-        } else if (err.message && err.message.includes('The query requires an index')) {
-             errorMsg = `**CRITICAL: MISSING COMPOSITE INDEX!**<br>
-                         Your query requires an index on the 'deals' collection with fields:
-                         <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">status (Ascending), createdAt (Descending)</code><br>
-                         **Action:** Please check your browser console for the direct link.`;
+            errorMsg = `**CRITICAL: MISSING COMPOSITE INDEX!**<br><a href="${indexUrl}" target="_blank">Click here to create the required Firebase Index</a>`;
         }
         
         dealsContainer.innerHTML = `<p style="color:#ef4444;">${errorMsg}</p>`;
         showNotif(errorMsg,"error");
-
         loadMoreBtn.textContent = "Failed to Load";
-        loadMoreBtn.disabled = true;
     });
 }
 
 loadMoreBtn.onclick = () => loadDeals(false); 
 
-/* --- Render Deal Card (Robust Date Handling) --- */
+/* --- Render Card (Name and Quantity Added) --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
 
   let createdDate = 'N/A';
-  if (deal.createdAt) {
-      if (typeof deal.createdAt.toDate === 'function') {
-          createdDate = deal.createdAt.toDate().toLocaleString();
-      } else if (deal.createdAt instanceof Date) {
-          createdDate = deal.createdAt.toLocaleString();
-      } else if (typeof deal.createdAt === 'string') {
-          try {
-              createdDate = new Date(deal.createdAt).toLocaleString();
-          } catch (e) {
-              createdDate = 'Invalid Date String';
-          }
-      }
+  if (deal.createdAt && typeof deal.createdAt.toDate === 'function') {
+      createdDate = deal.createdAt.toDate().toLocaleString();
   }
   
+  // Retrieve Quantity and Real Name
+  const dealQty = deal.quantity || 1;
+  const pName = deal.promoterName || (deal.promoterId === "direct" ? "Direct" : "Unknown Promoter");
+
   card.innerHTML = `
     <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'}</div>
+    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'} <span style="color:#a3ff6e; font-weight:bold;">(QTY: ${dealQty})</span></div>
     <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || deal.providerId}</div>
-    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
+    <div class="deal-info"><strong>Promoter:</strong> ${pName}</div>
     <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
     <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
 
@@ -426,8 +404,8 @@ function renderDealCard(dealId, deal){
     <div class="timestamp">Created: ${createdDate} | Status: ${deal.status || "Pending"}</div>
   `;
 
-  card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
-  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
+  card.querySelector(".complete").onclick=()=>scheduleAction("complete", dealId, deal, card);
+  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel", dealId, deal, card);
 
   dealsContainer.appendChild(card);
 }
