@@ -73,7 +73,6 @@ onAuthStateChanged(auth, async (user) => {
     } else if (adminDoc.exists()) {
         uData = adminDoc.data();
         role = adminDoc.data().role || 'admin';
-        uData = adminDoc.data();
     }
 
     if (role !== 'promoter') {
