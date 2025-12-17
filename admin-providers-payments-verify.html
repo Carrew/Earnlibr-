@@ -3,184 +3,205 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Admin Verify Payments</title>
+<title>EarnLibr — Admin Verify Payments (Hybrid)</title>
 <style>
-body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; }
-h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
-.controls { margin-bottom: 15px; }
-.bill-card { background:#0f1724; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); transition: opacity 0.5s; }
-.bill-card.verified { opacity:0.5; pointer-events:none; }
-.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: background 0.3s; margin-right: 8px; }
-.btn:hover:not(:disabled) { background:#3ec16b; }
-.btn:disabled { opacity:0.6; cursor:not-allowed; }
-.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; display:none; transition: opacity 0.3s; }
-.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
-.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
+  body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; margin:0; }
+  h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; font-size: 24px; }
+  .controls { margin-bottom: 20px; padding: 15px; background: #161b2c; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .bill-card { background:#0f1724; padding:18px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); border: 1px solid #232d3f; transition: transform 0.2s, opacity 0.5s; }
+  .bill-card:hover { transform: translateY(-2px); border-color: #3b82f6; }
+  .bill-card.verified { opacity:0.5; pointer-events:none; border-left: 5px solid #4ade80; }
+  .btn { background:#4ade80; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: all 0.3s; }
+  .btn:hover:not(:disabled) { background:#3ec16b; transform: scale(1.02); }
+  .btn:disabled { opacity:0.6; cursor:not-allowed; }
+  .btn-all { background: #3b82f6; color: white; }
+  .notif { background:#1a2235; padding:12px; border-radius:8px; margin-bottom:15px; display:none; position: sticky; top: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+  .notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
+  .notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
+  .bill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+  .detail { margin-bottom: 5px; font-size: 14px; }
+  .detail strong { color: #94a3b8; }
 </style>
 </head>
 <body>
 
 <h1>Verify Provider Payments</h1>
-<div class="controls">
-  <button id="verifyAllBtn" class="btn">Verify All</button>
-</div>
+
 <div id="notif" class="notif"></div>
-<div id="billsContainer">Loading bills...</div>
+
+<div class="controls">
+  <span>Action Center:</span>
+  <button id="verifyAllBtn" class="btn btn-all">Verify All Pending</button>
+</div>
+
+<div id="billsContainer" class="bill-grid">Loading pending bills...</div>
 
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-    collection, doc, onSnapshot, getDoc, addDoc, serverTimestamp, writeBatch, query, where
+    collection, doc, onSnapshot, getDoc, serverTimestamp, writeBatch, query, where 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
 const verifyAllBtn = document.getElementById("verifyAllBtn");
 
-const showNotif = (msg,type="success")=>{
+let userSession = null;
+let billCards = []; // Tracks displayed bills for "Verify All" logic
+
+const showNotif = (msg, type="success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(()=>{ notif.style.display="none"; },3000);
+  setTimeout(() => { notif.style.display = "none"; }, 4000);
 };
 
-// --- Notification Helper (UPGRADED to use writeBatch for consistency) ---
-async function sendNotification(uid, title, message) {
+/* --- 1. SECURE AUTH (The Hybrid Security) --- */
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  // Live Role Verification from Database
   try {
-    const batch = writeBatch(db);
-    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
-      title,
-      message,
-      createdAt: serverTimestamp(),
-      read: false
-    });
-    await batch.commit();
-  } catch(err) {
-    console.error("Batch notification error:", err);
-  }
-}
+    const adminDoc = await getDoc(doc(db, "admins", user.uid));
+    if (!adminDoc.exists()) {
+      alert("Access Denied: Admin privileges required.");
+      await auth.signOut();
+      window.location.href = "login.html";
+      return;
+    }
 
-let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
-userSession = JSON.parse(userSession);
-
-onAuthStateChanged(auth, async user=>{
-  if(!user || user.uid !== userSession.uid){ 
-    localStorage.removeItem("userSession"); 
-    window.location.href="login.html"; 
-    return; 
+    const adminData = adminDoc.data();
+    userSession = { uid: user.uid, name: adminData.name, role: "admin" };
+    localStorage.setItem("userSession", JSON.stringify(userSession));
+    
+    loadBills(); // Only load data if user is a verified admin
+  } catch (err) {
+    console.error("Auth error:", err);
+    window.location.href = "login.html";
   }
-  // NOTE: Add admin role check here if not already done in the main auth block
-  loadBills();
 });
 
-let billCards = [];
-
-function loadBills(){
-  // Query only bills marked by the provider as paid
+/* --- 2. DATA LOADING (Snapshot for real-time) --- */
+function loadBills() {
   const billsQuery = query(collection(db, "bills"), where("status", "==", "provider_marked_paid"));
   
-  onSnapshot(billsQuery, snapshot=>{
+  onSnapshot(billsQuery, (snapshot) => {
     billsContainer.innerHTML = "";
     billCards = [];
-    snapshot.docs.forEach(docSnap=>{
+    
+    if (snapshot.empty) {
+      billsContainer.innerHTML = "<p>No payments currently awaiting verification.</p>";
+      return;
+    }
+
+    snapshot.docs.forEach(docSnap => {
       const bill = docSnap.data();
-      
-      const card = document.createElement("div");
-      card.className = "bill-card";
-      card.innerHTML = `
-        <div><strong>Provider:</strong> ${bill.providerName}</div>
-        <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
-        <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
-        <div><strong>Status:</strong> ${bill.status}</div>
-      `;
-      const btn = document.createElement("button");
-      btn.className = "btn";
-      btn.textContent = "Verify Payment";
-      
-      // Pass all necessary data to the verification function
-      btn.onclick = ()=>verifyPayment(docSnap.id, bill.deals, bill.providerId, btn, card, bill.offerTitle, bill.total, bill.currency);
-      
-      card.appendChild(btn);
-      billsContainer.appendChild(card);
-      
-      // Store necessary data for the Verify All button
-      billCards.push({ 
-        billId: docSnap.id, 
-        deals: bill.deals, 
-        providerId: bill.providerId, 
-        btn, 
-        card, 
-        offerTitle: bill.offerTitle, 
-        total: bill.total, 
-        currency: bill.currency 
-      });
+      renderBillCard(docSnap.id, bill);
     });
   });
 }
 
-// --- Verify single bill (CRITICALLY UPGRADED to use writeBatch) ---
-async function verifyPayment(billId, dealIds, providerId, btn, card, offerTitle, total, currency){
-  btn.disabled = true;
-  const originalText = btn.textContent;
-  btn.textContent = "Verifying...";
+function renderBillCard(id, data) {
+  const card = document.createElement("div");
+  card.className = "bill-card";
+  card.innerHTML = `
+    <div class="detail"><strong>ID:</strong> ${id}</div>
+    <div class="detail"><strong>Provider:</strong> ${data.providerName}</div>
+    <div class="detail"><strong>Offer:</strong> ${data.offerTitle}</div>
+    <div class="detail"><strong>Amount:</strong> ${data.total.toFixed(2)} ${data.currency}</div>
+    <div class="detail"><strong>Deals:</strong> ${data.deals?.length || 0} items</div>
+    <hr style="border:0; border-top:1px solid #232d3f; margin:10px 0;">
+    <button class="btn verify-btn">Verify Payment</button>
+  `;
+
+  const btn = card.querySelector(".verify-btn");
+  btn.onclick = () => verifySinglePayment(id, data, btn, card);
   
+  billsContainer.appendChild(card);
+  
+  // Save for Verify All functionality
+  billCards.push({ id, data, btn, card });
+}
+
+/* --- 3. ATOMIC VERIFICATION (The Hybrid Batch Logic) --- */
+async function verifySinglePayment(billId, billData, btn, card) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = "Processing...";
+
   try {
     const batch = writeBatch(db);
-    
-    // 1. Update all related deals atomically
-    // NOTE: dealIds should already be an array of strings from the Layer 1 bill creation
-    dealIds.forEach(dealId => {
-      // Mark the deal as fully paid by the provider
-      batch.update(doc(db, "completed-deals", dealId), {
-        providerPaid: true,
-        providerPaidAt: serverTimestamp(), // Use serverTimestamp
-        linkedBillId: billId
+
+    // Update individual deals inside the bill
+    if (billData.deals && Array.isArray(billData.deals)) {
+      billData.deals.forEach(dealId => {
+        batch.update(doc(db, "completed-deals", dealId), {
+          providerPaid: true,
+          providerPaidAt: serverTimestamp(),
+          linkedBillId: billId
+        });
       });
-    });
-    
-    // 2. Update the bill status in two locations atomically
-    const updateBillData = { 
-      status: "verified_paid", 
-      adminVerifiedAt: serverTimestamp(), // Use serverTimestamp
+    }
+
+    // Update Bill records in both global and provider collections
+    const updateData = {
+      status: "verified_paid",
+      adminVerifiedAt: serverTimestamp(),
       adminVerifiedBy: userSession.uid
     };
-    batch.update(doc(db, "bills", billId), updateBillData);
-    batch.update(doc(db, `providers/${providerId}/bills/${billId}`), updateBillData);
 
-    // Commit the entire atomic operation
-    await batch.commit(); 
+    batch.update(doc(db, "bills", billId), updateData);
+    batch.update(doc(db, `providers/${billData.providerId}/bills/${billId}`), updateData);
 
-    // 3. Send notification to provider
-    await sendNotification(providerId, "Payment Verified ✅", `Your payment for ${offerTitle} (${total.toFixed(2)} ${currency}) has been verified by admin. Thank you!`);
+    await batch.commit(); // Atomic execution
+
+    // Send Notification
+    await sendNotification(billData.providerId, "Payment Verified ✅", 
+      `Your payment for ${billData.offerTitle} (${billData.total.toFixed(2)} ${billData.currency}) was verified. Thank you!`);
 
     card.classList.add("verified");
     btn.textContent = "Verified ✅";
-  } catch(err){
-    console.error("Verification failed:", err);
-    showNotif("Error verifying payment: " + err.message, "error");
+    showNotif(`Verified bill ${billId}`);
+  } catch (err) {
+    console.error("Verification error:", err);
+    showNotif(`Failed to verify ${billId}: ` + err.message, "error");
     btn.disabled = false;
-    btn.textContent = originalText;
+    btn.textContent = "Retry Verify";
   }
 }
 
-// --- Verify all concurrently (Now calls the batch-safe verifyPayment) ---
+/* --- 4. UTILITIES --- */
+async function sendNotification(uid, title, message) {
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
+      title, message, read: false, createdAt: serverTimestamp()
+    });
+    await batch.commit();
+  } catch (e) { console.error("Notif failed", e); }
+}
+
 verifyAllBtn.onclick = async () => {
-  if(billCards.length === 0) return showNotif("No bills to verify","error");
+  const activeCards = billCards.filter(b => !b.btn.disabled);
+  if (activeCards.length === 0) return showNotif("Nothing to verify", "error");
+
   verifyAllBtn.disabled = true;
-  verifyAllBtn.textContent = "Verifying All...";
-  showNotif(`Attempting to verify ${billCards.length} payments...`, "info");
+  verifyAllBtn.textContent = "Processing All...";
+  
+  // Run all batch verifications concurrently
+  await Promise.all(activeCards.map(b => verifySinglePayment(b.id, b.data, b.btn, b.card)));
 
-  // Run all verifications concurrently, calling the batch-safe function
-  const results = await Promise.all(billCards.map(b => verifyPayment(b.billId, b.deals, b.providerId, b.btn, b.card, b.offerTitle, b.total, b.currency)));
-
-  verifyAllBtn.textContent = "Verify All ✅";
+  verifyAllBtn.textContent = "All Verified ✅";
   setTimeout(() => {
     verifyAllBtn.disabled = false;
-    verifyAllBtn.textContent = "Verify All";
-  }, 2000);
+    verifyAllBtn.textContent = "Verify All Pending";
+  }, 3000);
 };
+
 </script>
 </body>
 </html>
