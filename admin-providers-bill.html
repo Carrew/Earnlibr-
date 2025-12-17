@@ -268,22 +268,38 @@ async function sendBill(providerId, offerId, offer, card = null){
 
 // --- Send All Eligible Bills (UPGRADE: Calls the atomic sendBill) ---
 sendAllBtn.onclick = async ()=>{
-  sendAllBtn.disabled=true;
-  showNotif("Processing all eligible bills...", "info");
-  let sentCount = 0;
-  
-  for(const [providerId,p] of Object.entries(grouped)){
-    for(const [offerId,offer] of Object.entries(p.offers)){
-      if(offer.total >= (THRESHOLDS[offer.currency]||0)){
-        // Calling the atomic function
-        await sendBill(providerId, offerId, offer, null); 
-        sentCount++;
+  // Early checks for professional UX
+  const providers = Object.entries(grouped);
+  if(providers.length === 0){
+    showNotif("No eligible bills to send.", "error");
+    return;
+  }
+
+  const eligibleOffers = [];
+  for(const [providerId, p] of providers){
+    for(const [offerId, offer] of Object.entries(p.offers)){
+      if(offer.total >= (THRESHOLDS[offer.currency] || 0)){
+        eligibleOffers.push({ providerId, offerId, offer });
       }
     }
   }
 
+  if(eligibleOffers.length === 0){
+    showNotif("No offers meet the minimum threshold to send bills.", "error");
+    return;
+  }
+
+  sendAllBtn.disabled=true;
+  showNotif("Processing all eligible bills...", "info");
+
+  let sentCount = 0;
+  for(const { providerId, offerId, offer } of eligibleOffers){
+    await sendBill(providerId, offerId, offer, null);
+    sentCount++;
+  }
+
   sendAllBtn.disabled=false;
-  showNotif(`${sentCount} eligible bills sent successfully!`);
+  showNotif(`${sentCount} eligible bill(s) sent successfully!`);
 };
 </script>
 
