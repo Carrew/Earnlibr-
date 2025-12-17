@@ -6,10 +6,10 @@
 <title>Request Offer | EarnLibr</title>
 <style>
 :root {
-  --bg: #071028; /* Darker background top */
+  --bg: #071028; 
   --card: #0f1724;
-  --accent1: #4a90e2; /* Blue */
-  --accent2: #a3ff6e; /* Green */
+  --accent1: #4a90e2; 
+  --accent2: #a3ff6e; 
   --muted: #cbd5e1;
   --radius: 14px;
 }
@@ -30,7 +30,7 @@ body {
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
   max-width: 700px;
   width: 100%;
-  padding: 30px; /* Increased padding */
+  padding: 30px;
 }
 img { 
   width: 100%; 
@@ -38,13 +38,13 @@ img {
   margin-bottom: 20px; 
   object-fit: cover; 
   height: 250px; 
-  background: #1a2235; /* Placeholder color */
+  background: #1a2235; 
 }
 h1 { 
   background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
   -webkit-background-clip: text; 
   color: transparent; 
-  font-size: 26px; /* Larger title */
+  font-size: 26px; 
   margin-bottom: 5px; 
 }
 .price-section {
@@ -53,14 +53,14 @@ h1 {
   margin-bottom: 15px;
 }
 .price { 
-  font-size: 24px; /* Larger price */
+  font-size: 24px; 
   font-weight: 700; 
   color: var(--accent2);
   margin-right: 15px;
 }
 .category { 
   font-size: 13px; 
-  background: rgba(163,255,110,0.1); /* Greenish background */
+  background: rgba(163,255,110,0.1); 
   color: var(--accent2);
   padding: 4px 10px; 
   border-radius: 20px; 
@@ -73,7 +73,7 @@ h1 {
 }
 form label { 
   display: block; 
-  margin-top: 15px; /* Increased spacing */
+  margin-top: 15px; 
   font-size: 14px; 
   color: var(--muted); 
   font-weight: 500;
@@ -82,15 +82,15 @@ form input, form textarea {
   width: calc(100% - 20px); 
   padding: 10px; 
   border-radius: 8px; 
-  border: 1px solid #1a2235; /* Slight border */
+  border: 1px solid #1a2235; 
   margin-top: 6px; 
-  background: #141f33; /* Darker input background */
+  background: #141f33; 
   color: #fff; 
   font-size: 15px; 
   transition: border-color 0.2s;
 }
 form input[type="number"] {
-    width: 100px; /* Smaller width for quantity */
+    width: 100px; 
     text-align: center;
 }
 form input:focus, form textarea:focus {
@@ -100,7 +100,7 @@ form input:focus, form textarea:focus {
 button { 
   margin-top: 25px; 
   width: 100%; 
-  padding: 14px; /* Larger hit area */
+  padding: 14px; 
   border: none; 
   border-radius: 10px; 
   background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
@@ -127,22 +127,6 @@ button:disabled {
   display: none; 
   border: 1px solid var(--accent2);
 }
-a.whatsapp { 
-  display: block; 
-  text-align: center; 
-  background: #25d366; 
-  color: #fff; /* White text for contrast */
-  padding: 12px; 
-  border-radius: 8px; 
-  font-weight: 600; 
-  text-decoration: none; 
-  margin-top: 15px; 
-  display: none; 
-  transition: background 0.2s;
-}
-a.whatsapp:hover {
-  background: #128c7e;
-}
 .error { 
   margin-top: 18px; 
   background: rgba(239,68,68,0.1); 
@@ -168,7 +152,6 @@ a.whatsapp:hover {
   <div class="desc" id="offerDescription"></div>
 
   <form id="requestForm">
-    
     <label>Quantity Desired <span style="color:#ef4444;">*</span></label>
     <input type="number" id="quantity" required value="1" min="1" />
 
@@ -186,12 +169,11 @@ a.whatsapp:hover {
 
   <div class="success" id="successMsg"></div>
   <div class="error" id="errorMsg"></div>
-  <a id="whatsappBtn" target="_blank" class="whatsapp">💬 Contact Provider Directly</a>
 </div>
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, addDoc, collection, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -206,12 +188,17 @@ const requestForm = document.getElementById("requestForm");
 const submitBtn = document.getElementById("submitBtn");
 const successMsg = document.getElementById("successMsg");
 const errorMsg = document.getElementById("errorMsg");
-const whatsappBtn = document.getElementById("whatsappBtn");
 
 let offerData = null;
 let providerId = null;
 let providerInfo = null;
-let promoterNameInfo = null; // Global variable to hold promoter's name/data
+let promoterNameInfo = null;
+
+let clientId = localStorage.getItem('clientId');
+if (!clientId) {
+    clientId = 'client_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('clientId', clientId);
+}
 
 async function loadOffer() {
   if (!offerId) {
@@ -239,32 +226,25 @@ async function loadOffer() {
       return;
     }
 
-    // --- 1. Fetch Provider Info ---
     if (providerId !== "unknown") {
       const providerSnap = await getDoc(doc(db, "users", providerId));
       providerInfo = providerSnap.exists() ? providerSnap.data() : null;
     }
 
-    // --- 2. Fetch Promoter Info (if not a direct lead) ---
     if (promoterId !== "direct") {
         const promoterSnap = await getDoc(doc(db, "users", promoterId));
         if (promoterSnap.exists()) {
             promoterNameInfo = promoterSnap.data();
         } else {
-            console.warn(`Promoter ID ${promoterId} not found in 'users' collection.`);
             promoterNameInfo = { name: "Promoter Not Found" };
         }
     }
 
-
-    // --- Render Data ---
     offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
     offerTitle.textContent = offerData.title || "Untitled Offer";
     offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
     offerDescription.textContent = offerData.description || "No description available.";
     offerCategory.textContent = offerData.category || "Uncategorized";
-
-    window.providerPhone = providerInfo?.phone || offerData.providerPhone || "+231000000000";
 
   } catch (err) {
     console.error(err);
@@ -275,14 +255,12 @@ async function loadOffer() {
 
 loadOffer();
 
-// --- Form Submission ---
 requestForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.style.display = "none";
   submitBtn.disabled = true;
   const originalButtonText = submitBtn.textContent;
   submitBtn.textContent = "Processing Request...";
-
 
   const quantity = parseInt(document.getElementById("quantity").value) || 1;
   const clientName = document.getElementById("clientName").value.trim();
@@ -297,17 +275,9 @@ requestForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Determine the promoter name to save
-  let promoterNameToSave;
-  if (promoterId === "direct") {
-      promoterNameToSave = "Direct Lead";
-  } else {
-      promoterNameToSave = promoterNameInfo?.name || "Referral Promoter";
-  }
-
+  let promoterNameToSave = promoterId === "direct" ? "Direct Lead" : (promoterNameInfo?.name || "Referral Promoter");
 
   try {
-    // 1. Prepare base deal data
     const baseDealData = {
       offerId,
       offerTitle: offerData.title,
@@ -315,46 +285,31 @@ requestForm.addEventListener("submit", async (e) => {
       offerCurrency: offerData.currency || "$",
       providerId,
       promoterId,
-      // Client Info
       clientName,
       clientContact,
       note,
-      quantity: quantity, // <-- NEW FIELD IN DEAL RECORD
+      quantity,
       status: "pending",
-      // Provider/Commission Info (Snapshot at time of deal creation)
       providerName: providerInfo?.name || "",
       providerEmail: providerInfo?.email || "",
-      providerPhone: window.providerPhone,
+      providerPhone: providerInfo?.phone || "",
       commissionType: offerData.commissionType || "",
       commissionValue: offerData.commissionValue || 0,
       promoterName: promoterNameToSave
     };
     
-    // 2. Add the server timestamp for deal creation
-    const dealDataForFirestore = {
-        ...baseDealData,
-        createdAt: serverTimestamp() 
-    };
-
+    const dealDataForFirestore = { ...baseDealData, createdAt: serverTimestamp() };
     const dealRef = await addDoc(collection(db, "deals"), dealDataForFirestore);
     const dealId = dealRef.id;
 
-    // 3. Prepare Notification Data
-    const notificationData = {
-        type: "deal",
-        title: "New Deal Request",
-        dealId,
-        ...baseDealData,
-        createdAt: serverTimestamp() 
-    };
+    // --- Notifications (keep all old logic) ---
+    const notificationData = { type: "deal", title: "New Deal Request", dealId, ...baseDealData, createdAt: serverTimestamp() };
 
-    // --- Admin Notification ---
     await addDoc(collection(db, "admin_notifications"), {
       message: `${clientName} requested ${quantity} unit(s) of "${baseDealData.offerTitle}" (Referred by ${promoterNameToSave})`,
       ...notificationData
     });
 
-    // --- Provider Notification ---
     if (providerId !== "unknown") {
       await addDoc(collection(db, "notifications", providerId, "items"), {
         title: "You Have a New Deal Request",
@@ -363,7 +318,6 @@ requestForm.addEventListener("submit", async (e) => {
       });
     }
 
-    // --- Promoter Notification ---
     if (promoterId !== "direct") {
       await addDoc(collection(db, "notifications", promoterId, "items"), {
         title: "You Generated a Deal!",
@@ -372,18 +326,17 @@ requestForm.addEventListener("submit", async (e) => {
       });
     }
 
-    // 4. Update UI
-    const displayPhone = baseDealData.providerPhone; 
+    // --- Create chat ---
+    const chatRef = doc(collection(db, "chats"));
+    await setDoc(chatRef, {
+        dealId,
+        participants: { providerId, clientId },
+        lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
+        status: "active"
+    });
 
-    requestForm.style.display = "none";
-    successMsg.style.display = "block";
-    successMsg.innerHTML = `
-      ✅ **Success! Deal Request Submitted.**<br><br>
-      The provider will contact you shortly to confirm the details. You may reach them directly at: 
-      <strong style="font-size:18px; display:block; margin-top:5px;">${displayPhone}</strong>`;
-
-    whatsappBtn.style.display = "block";
-    whatsappBtn.href = `https://wa.me/${displayPhone.replace(/[^0-9]/g,'')}?text=Hi!%20I%20just%20requested%20${quantity}%20unit(s)%20of%20your%20offer%20(Deal%20ID:%20${dealId})%20on%20EarnLibr.`;
+    // --- Redirect client to chat ---
+    window.location.href = `client-chat.html?deal=${dealId}&client=${clientId}`;
 
   } catch (err) {
     console.error(err);
