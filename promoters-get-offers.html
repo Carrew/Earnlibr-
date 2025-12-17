@@ -45,7 +45,6 @@ h1 {
   transition: all 0.2s;
 }
 .profile-btn:hover { background: rgba(255, 255, 255, 0.1); }
-
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -150,20 +149,17 @@ h1 {
   <h1>🎯 Promoter Offers</h1>
   <button class="profile-btn" onclick="window.location.href='promoter-dashboard.html'">My Dashboard</button>
 </header>
-
 <div class="filter-bar">
   <select id="categoryFilter"><option value="">All Categories</option></select>
   <input type="text" id="searchInput" placeholder="Search offers..." />
   <button id="clearFilters">Clear Filters</button>
 </div>
-
 <div id="offerGrid" class="offer-grid"></div>
 <div id="notification" class="notification"></div>
-
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const offerGrid = document.getElementById('offerGrid');
 const notification = document.getElementById('notification');
@@ -178,25 +174,46 @@ function showNotification(message) {
   setTimeout(() => notification.classList.remove('show'), 2500);
 }
 
-// --- Auth check & session ---
 onAuthStateChanged(auth, async (user) => {
   if (!user || !user.emailVerified) return window.location.href='login.html';
-  const sessionRaw = localStorage.getItem('userSession');
-  const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-  if (!session || session.role !== 'freelancer') return window.location.href='login.html';
-  loadOffers();
+  
+  try {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+    let userData = null;
+    let role = null;
+
+    if (userDoc.exists()) { userData = userDoc.data(); role = userData.role; }
+    else if (adminDoc.exists()) { userData = adminDoc.data(); role = adminDoc.data().role || 'admin'; }
+    else { showNotification("User record not found."); auth.signOut(); window.location.href='login.html'; return; }
+
+    if (role !== 'freelancer') { showNotification("Access denied: Not a promoter."); auth.signOut(); window.location.href='login.html'; return; }
+
+    localStorage.setItem('userSession', JSON.stringify({
+      uid: user.uid,
+      name: userData.name,
+      email: userData.email,
+      role: role,
+      referralCode: userData.referralCode || '',
+      phone: userData.phone || '',
+      country: userData.country || '',
+      createdAt: userData.createdAt || ''
+    }));
+
+    loadOffers();
+  } catch(err) {
+    console.error(err);
+    showNotification("Error validating session.");
+  }
 });
 
-// --- Load all verified, active offers globally ---
 async function loadOffers() {
   try {
-    const offersCol = collection(db, "offers_all"); // new global collection
+    const offersCol = collection(db, "offers_all");
     const snapshot = await getDocs(offersCol);
-
     allOffers = snapshot.docs
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
       .filter(o => o.verified && o.status === 'active');
-
     populateCategories();
     displayOffers(allOffers);
   } catch(err) {
@@ -218,10 +235,12 @@ function displayOffers(offers) {
     offerGrid.innerHTML = "<div style='text-align:center;opacity:0.6;padding-top:30px;'>No offers available for this filter.</div>";
     return;
   }
+
   offers.forEach(offer => {
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";
     const desc = offer.description ? offer.description.substring(0,100)+"..." : '';
     const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${session.uid}`;
+
     const card = document.createElement('div');
     card.className='offer-card';
     card.innerHTML = `
@@ -263,7 +282,6 @@ function displayOffers(offers) {
   });
 }
 
-// --- Filters ---
 function applyFilters() {
   const cat = categoryFilter.value;
   const search = searchInput.value.toLowerCase();
@@ -274,9 +292,12 @@ function applyFilters() {
   });
   displayOffers(filtered);
 }
+
 categoryFilter.addEventListener('change', applyFilters);
 searchInput.addEventListener('input', applyFilters);
-clearFiltersBtn.addEventListener('click', ()=>{ categoryFilter.value=''; searchInput.value=''; applyFilters(); });
+clearFiltersBtn.addEventListener('click', ()=>{
+  categoryFilter.value=''; searchInput.value=''; applyFilters();
+});
 </script>
 </body>
 </html>
