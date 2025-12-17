@@ -66,6 +66,7 @@
       <a id="nav-deals">Deals</a>
       <a id="nav-notifs">Notifications</a>
       <a id="nav-bills">Bills & Payments</a>
+      <a id="nav-chat">Chat</a> <!-- NEW -->
     </nav>
     <div class="profile">
       <div class="avatar" id="avatar">P</div>
@@ -99,6 +100,7 @@
       <div class="grid-card" onclick="navigate('providers-deals-management.html')"><i class="fas fa-briefcase"></i><span>Deals</span></div>
       <div class="grid-card" onclick="navigate('provider-notification.html')"><i class="fas fa-bell"></i><span>Notifications</span></div>
       <div class="grid-card" onclick="navigate('providers-bills.html')"><i class="fas fa-file-invoice-dollar"></i><span>Bills & Payments</span></div>
+      <div class="grid-card" onclick="navigate('provider-chat.html')"><i class="fas fa-comments"></i><span>Chat</span></div> <!-- NEW -->
     </div>
   </main>
 </div>
@@ -123,6 +125,7 @@ const navLinks = {
   'nav-deals':'providers-deals-management.html',
   'nav-notifs':'provider-notification.html',
   'nav-bills':'providers-bills.html',
+  'nav-chat':'provider-chat.html', // NEW
   'createOfferBtn':'providers-create-offer.html'
 };
 Object.keys(navLinks).forEach(id=>{
