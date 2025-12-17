@@ -3,94 +3,84 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Chat</title>
+<title>EarnLibr — Client Chat</title>
 <style>
 :root {
-  --bg: #071028;
-  --card: #0f1724;
-  --accent1: #4a90e2;
-  --accent2: #a3ff6e;
-  --muted: #cbd5e1;
-  --radius: 14px;
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#cbd5e1;
+  --radius:14px;
 }
 body {
-  margin: 0;
-  font-family: sans-serif;
-  background: var(--bg);
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:#fff;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
 }
 header {
-  padding: 20px;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 700;
-  background: var(--card);
-  border-bottom: 1px solid #1a2235;
+  background:var(--card);
+  padding:20px;
+  font-size:20px;
+  font-weight:700;
+  text-align:center;
+  border-bottom:1px solid #1a2235;
 }
-#chatContainer {
-  flex: 1;
-  padding: 15px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+#messagesContainer {
+  flex:1;
+  padding:15px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 .message {
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  line-height: 1.4;
+  max-width:80%;
+  padding:10px 14px;
+  border-radius:var(--radius);
+  line-height:1.4;
 }
-.message.client {
-  align-self: flex-end;
-  background: rgba(74,144,226,0.2);
-  color: var(--accent1);
-}
-.message.provider {
-  align-self: flex-start;
-  background: rgba(163,255,110,0.15);
-  color: var(--accent2);
-}
-.message.system {
-  align-self: center;
-  font-size: 12px;
-  color: var(--muted);
-}
+.message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:var(--accent1);}
+.message.provider { align-self:flex-end; background:rgba(163,255,110,0.15); color:var(--accent2);}
+.message.system { align-self:center; font-size:12px; color:var(--muted);}
 #inputContainer {
-  display: flex;
-  padding: 15px;
-  gap: 10px;
-  background: var(--card);
-  border-top: 1px solid #1a2235;
+  display:flex;
+  gap:10px;
+  padding:15px;
+  background:var(--card);
+  border-top:1px solid #1a2235;
 }
 #messageInput {
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #1a2235;
-  background: #141f33;
-  color: #fff;
-  font-size: 14px;
+  flex:1;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #1a2235;
+  background:#141f33;
+  color:#fff;
+  font-size:14px;
 }
 #sendBtn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent1);
-  color: #041018;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.1s;
+  padding:10px 20px;
+  border:none;
+  border-radius:8px;
+  background:var(--accent2);
+  color:#041018;
+  font-weight:600;
+  cursor:pointer;
 }
-#sendBtn:hover { transform: scale(1.05); }
+#sendBtn:hover { transform:scale(1.05); }
+#loading { padding:20px; text-align:center; color:var(--muted); }
 </style>
 </head>
 <body>
 <header>Chat with Provider</header>
-<div id="chatContainer"></div>
+<div id="messagesContainer">
+  <div id="loading">Loading messages...</div>
+</div>
 <div id="inputContainer">
   <input type="text" id="messageInput" placeholder="Type your message..." />
   <button id="sendBtn">Send</button>
@@ -98,42 +88,61 @@ header {
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import {
+  collection, doc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, updateDoc
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// Get dealId and clientId from URL
+// Get dealId and client info from URL (passed after request)
 const params = new URLSearchParams(window.location.search);
 const dealId = params.get("deal");
-const clientId = params.get("client");
+const clientName = params.get("name") || "Client";
+const clientContact = params.get("contact") || "Unknown";
 
-if (!dealId || !clientId) {
+if (!dealId) {
   document.body.innerHTML = "<p style='color:red; padding:20px;'>Invalid chat link.</p>";
-  throw new Error("Missing dealId or clientId in URL");
+  throw new Error("Missing dealId in URL");
 }
 
-const chatContainer = document.getElementById("chatContainer");
+const messagesContainer = document.getElementById("messagesContainer");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-// Reference to the chat document
-const chatsRef = doc(db, "chats", dealId);
-const messagesRef = collection(chatsRef, "messages");
+const chatDocRef = doc(db, "chats", dealId);
+const messagesRef = collection(chatDocRef, "messages");
 
-// Real-time listener for messages
-const q = query(messagesRef, orderBy("timestamp", "asc"));
-onSnapshot(q, (snapshot) => {
-  chatContainer.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    const msg = docSnap.data();
-    const div = document.createElement("div");
-    div.classList.add("message");
-    div.classList.add(msg.sender === "client" ? "client" : msg.sender === "provider" ? "provider" : "system");
-    div.textContent = msg.text;
-    chatContainer.appendChild(div);
+// Create chat document if it doesn't exist
+async function initChat() {
+  const chatSnap = await getDoc(chatDocRef);
+  if (!chatSnap.exists()) {
+    await setDoc(chatDocRef, {
+      dealId,
+      clientInfo: { name: clientName, contact: clientContact },
+      providerId: "", // Filled from offer/deal
+      lastMessage: { text: "Chat started.", timestamp: serverTimestamp(), sender: "system" },
+      createdAt: serverTimestamp()
+    });
+  }
+}
+
+// Listen for messages in real-time
+function listenMessages() {
+  const q = query(messagesRef, orderBy("timestamp", "asc"));
+  onSnapshot(q, snapshot => {
+    messagesContainer.innerHTML = "";
+    snapshot.forEach(docSnap => {
+      const msg = docSnap.data();
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.classList.add(msg.sender === "client" ? "client" :
+                       msg.sender === "provider" ? "provider" : "system");
+      div.textContent = msg.text;
+      messagesContainer.appendChild(div);
+    });
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
   });
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-});
+}
 
-// Send message function
+// Send message
 async function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
@@ -147,17 +156,18 @@ async function sendMessage() {
 
   try {
     await addDoc(messagesRef, msgData);
-    // Update last message in chat document
-    await updateDoc(chatsRef, { lastMessage: msgData });
+    await updateDoc(chatDocRef, { lastMessage: msgData });
   } catch (err) {
     console.error("Error sending message:", err);
   }
 }
 
 sendBtn.addEventListener("click", sendMessage);
-messageInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
-});
+messageInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+// Initialize
+await initChat();
+listenMessages();
 </script>
 </body>
 </html>
