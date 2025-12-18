@@ -4,176 +4,58 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EarnLibr — Provider Chats</title>
-
 <style>
 :root {
-  --bg:#0b0d17;
-  --card:#0f1724;
-  --accent1:#4a90e2;
-  --accent2:#a3ff6e;
-  --muted:#cbd5e1;
-  --radius:14px;
+  --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
 }
 body {
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:var(--bg);
-  color:#fff;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+  margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; min-height:100vh; display:flex; flex-direction:column;
 }
 header {
-  background:var(--card);
-  padding:20px;
-  font-size:20px;
-  font-weight:700;
-  text-align:center;
-  border-bottom:1px solid #1a2235;
+  background:var(--card); padding:20px; font-size:20px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
 }
-#mainContainer {
-  flex:1;
-  display:flex;
-  overflow:hidden;
-}
+#mainContainer { flex:1; display:flex; overflow:hidden; }
 #chatList {
-  width:300px;
-  border-right:1px solid #1a2235;
-  overflow-y:auto;
-  background:var(--card);
-  display:flex;
-  flex-direction:column;
+  width:300px; border-right:1px solid #1a2235; overflow-y:auto; background:var(--card); display:flex; flex-direction:column;
 }
 #searchBar {
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  margin:10px;
-  background:#141f33;
-  color:#fff;
+  padding:10px; border:none; border-radius:8px; margin:10px; background:#141f33; color:#fff;
 }
 .chatItem {
-  padding:12px 15px;
-  border-bottom:1px solid #1a2235;
-  cursor:pointer;
-  transition:background 0.2s;
-  position:relative;
+  padding:12px 15px; border-bottom:1px solid #1a2235; cursor:pointer; transition:background 0.2s; position:relative;
 }
-.chatItem:hover {
-  background:rgba(74,144,226,0.1);
-}
-.chatItem.active {
-  background:rgba(163,255,110,0.15);
-}
-.chatTitle {
-  font-weight:600;
-}
-.chatLastMsg {
-  font-size:13px;
-  color:var(--muted);
-  margin-top:3px;
-}
+.chatItem:hover { background:rgba(74,144,226,0.1); }
+.chatItem.active { background:rgba(163,255,110,0.15); }
+.chatTitle { font-weight:600; }
+.chatLastMsg { font-size:13px; color:var(--muted); margin-top:3px; }
 .unreadBadge {
-  position:absolute;
-  right:12px;
-  top:15px;
-  background:red;
-  color:#fff;
-  font-size:11px;
-  padding:2px 6px;
-  border-radius:12px;
+  position:absolute; right:12px; top:15px; background:red; color:#fff; font-size:11px; padding:2px 6px; border-radius:12px;
 }
-#chatContainer {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  padding:15px;
-}
-#messages {
-  flex:1;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.message {
-  max-width:70%;
-  padding:10px 14px;
-  border-radius:var(--radius);
-}
-.message.client {
-  align-self:flex-start;
-  background:rgba(74,144,226,0.2);
-  color:var(--accent1);
-}
-.message.provider {
-  align-self:flex-end;
-  background:rgba(163,255,110,0.15);
-  color:var(--accent2);
-}
-.message.system {
-  align-self:center;
-  font-size:12px;
-  color:var(--muted);
-}
-.messageTime {
-  font-size:10px;
-  color:var(--muted);
-  margin-top:4px;
-  text-align:right;
-}
-#inputContainer {
-  display:flex;
-  gap:10px;
-  padding-top:10px;
-}
-#messageInput {
-  flex:1;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #1a2235;
-  background:#141f33;
-  color:#fff;
-}
-#sendBtn {
-  padding:10px 20px;
-  border:none;
-  border-radius:8px;
-  background:var(--accent2);
-  color:#041018;
-  font-weight:600;
-  cursor:pointer;
-}
-#sendBtn:hover {
-  transform:scale(1.05);
-}
-#loading {
-  padding:20px;
-  text-align:center;
-  color:var(--muted);
-}
+#chatContainer { flex:1; display:flex; flex-direction:column; padding:15px; background:var(--bg); }
+#messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; }
+.message { max-width:70%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; position:relative; }
+.message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:var(--accent1);}
+.message.provider { align-self:flex-end; background:rgba(163,255,110,0.15); color:var(--accent2);}
+.message.system { align-self:center; font-size:12px; color:var(--muted);}
+.messageTime { font-size:10px; color:var(--muted); margin-top:2px; text-align:right; }
+#inputContainer { display:flex; gap:10px; padding-top:10px; }
+#messageInput { flex:1; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; font-size:14px; }
+#sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
+#sendBtn:hover { transform:scale(1.05); }
+#loading { padding:20px; text-align:center; color:var(--muted); }
 @media(max-width:768px){
   #mainContainer { flex-direction:column; }
-  #chatList {
-    width:100%;
-    max-height:200px;
-    border-right:none;
-    border-bottom:1px solid #1a2235;
-  }
+  #chatList { width:100%; max-height:200px; border-right:none; border-bottom:1px solid #1a2235; }
 }
 </style>
 </head>
-
 <body>
-
 <header>Provider Chats</header>
-
 <div id="mainContainer">
   <div id="chatList">
     <input type="text" id="searchBar" placeholder="Search clients..." />
     <div id="loading">Loading chats...</div>
   </div>
-
   <div id="chatContainer">
     <div id="messages"></div>
     <div id="inputContainer">
@@ -183,24 +65,6 @@ header {
   </div>
 </div>
 
-<!-- 🔴 DEBUG PANEL -->
-<div id="debugPanel" style="
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  max-height:40%;
-  overflow:auto;
-  background:#0f1724;
-  border-top:2px solid red;
-  font-size:12px;
-  padding:10px;
-  z-index:9999;
-">
-  <strong>DEBUG LOG</strong>
-  <div id="debugLogs"></div>
-</div>
-
 <script type="module">
 import { auth, db } from "./firebase.js";
 import {
@@ -208,189 +72,113 @@ import {
   addDoc, doc, serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-/* =========================
-   DEBUG UTILITIES
-========================= */
-const debugLogs = document.getElementById("debugLogs");
-
-function debugLog(msg, data = null) {
-  const div = document.createElement("div");
-  div.innerHTML = `
-    <span style="color:#a3ff6e;">[INFO]</span> ${msg}
-    ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}
-  `;
-  debugLogs.appendChild(div);
-  console.log(msg, data);
-}
-
-function debugError(msg, err) {
-  const div = document.createElement("div");
-  div.innerHTML = `
-    <span style="color:#ff6e6e;">[ERROR]</span> ${msg}
-    <pre>${err?.message || err}</pre>
-  `;
-  debugLogs.appendChild(div);
-  console.error(msg, err);
-}
-
-/* =========================
-   STATE
-========================= */
 let currentChatId = null;
+let messagesRef = null;
 let unsubscribeMessages = null;
 let providerId = null;
+let allChats = [];
 
-/* =========================
-   ELEMENTS
-========================= */
+// Auth check
+auth.onAuthStateChanged(user => {
+  if (!user) { window.location.href = "login.html"; return; }
+  providerId = user.uid;
+  loadChats(providerId);
+});
+
 const chatList = document.getElementById("chatList");
 const searchBar = document.getElementById("searchBar");
 const messagesContainer = document.getElementById("messages");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-/* =========================
-   AUTH
-========================= */
-auth.onAuthStateChanged(user => {
-  if (!user) {
-    debugError("User not authenticated", "Redirecting");
-    window.location.href = "login.html";
-    return;
-  }
-  providerId = user.uid;
-  debugLog("Authenticated", providerId);
-  loadChats(providerId);
-});
+// Load provider chats
+async function loadChats(providerId) {
+  const q = query(collection(db, "chats"), where("providerId","==",providerId), orderBy("lastMessage.timestamp","desc"));
+  onSnapshot(q, snapshot => {
+    allChats = [];
+    chatList.querySelectorAll('.chatItem').forEach(e=>e.remove());
+    if (snapshot.empty) { chatList.innerHTML += "<div id='loading'>No chats yet.</div>"; return; }
 
-/* =========================
-   LOAD CHATS
-========================= */
-function loadChats(providerId) {
-  debugLog("Loading chats", providerId);
+    snapshot.forEach(docSnap => {
+      const chat = docSnap.data();
+      chat.id = docSnap.id;
+      allChats.push(chat);
+      addChatItem(chat);
+    });
 
-  try {
-    const q = query(
-      collection(db, "chats"),
-      where("providerId", "==", providerId),
-      orderBy("lastMessage.timestamp", "desc")
-    );
-
-    onSnapshot(q,
-      snapshot => {
-        debugLog("Chats snapshot", {
-          count: snapshot.size,
-          empty: snapshot.empty
-        });
-
-        chatList.querySelectorAll(".chatItem").forEach(e => e.remove());
-
-        if (snapshot.empty) {
-          document.getElementById("loading").innerText = "No chats found.";
-          return;
-        }
-
-        snapshot.forEach(docSnap => {
-          const chat = docSnap.data();
-          chat.id = docSnap.id;
-          addChatItem(chat);
-        });
-
-        if (!currentChatId && snapshot.docs.length) {
-          openChat(snapshot.docs[0].id);
-        }
-      },
-      err => debugError("Chats listener failed", err)
-    );
-
-  } catch (err) {
-    debugError("loadChats crashed", err);
-  }
+    if (!currentChatId && snapshot.docs.length) openChat(snapshot.docs[0].id);
+  });
 }
 
-/* =========================
-   CHAT LIST ITEM
-========================= */
+// Add a chat item to the list
 function addChatItem(chat) {
   const div = document.createElement("div");
-  div.className = "chatItem";
+  div.classList.add("chatItem");
   div.dataset.chatId = chat.id;
-  div.innerHTML = `
-    <div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
-    <div class="chatLastMsg">${chat.lastMessage?.text || ""}</div>
-  `;
-  div.onclick = () => openChat(chat.id);
+  div.innerHTML = `<div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
+                   <div class="chatLastMsg">${chat.lastMessage?.text || ""}</div>`;
+  div.addEventListener("click", ()=>openChat(chat.id));
+  if(chat.unreadCount>0){
+    const badge = document.createElement("span");
+    badge.classList.add("unreadBadge");
+    badge.textContent = chat.unreadCount;
+    div.appendChild(badge);
+  }
   chatList.appendChild(div);
 }
 
-/* =========================
-   OPEN CHAT
-========================= */
-function openChat(chatId) {
-  debugLog("Opening chat", chatId);
-  currentChatId = chatId;
+// Search functionality
+searchBar.addEventListener("input", e=>{
+  const term = e.target.value.toLowerCase();
+  chatList.querySelectorAll('.chatItem').forEach(item=>{
+    const name = item.querySelector('.chatTitle').textContent.toLowerCase();
+    item.style.display = name.includes(term)?'flex':'none';
+  });
+});
 
-  if (unsubscribeMessages) unsubscribeMessages();
+// Open chat
+function openChat(chatId) {
+  currentChatId = chatId;
+  chatList.querySelectorAll(".chatItem").forEach(item => item.classList.toggle("active", item.dataset.chatId === chatId));
+  if(unsubscribeMessages) unsubscribeMessages();
   messagesContainer.innerHTML = "<div id='loading'>Loading messages...</div>";
 
-  const q = query(
-    collection(db, "chats", chatId, "messages"),
-    orderBy("timestamp", "asc")
-  );
+  const chatDoc = doc(db,"chats",chatId);
+  messagesRef = collection(chatDoc,"messages");
+  const q = query(messagesRef, orderBy("timestamp","asc"));
 
-  unsubscribeMessages = onSnapshot(q,
-    snapshot => {
-      debugLog("Messages snapshot", snapshot.size);
-      messagesContainer.innerHTML = "";
-
-      snapshot.forEach(docSnap => {
-        const msg = docSnap.data();
-        const div = document.createElement("div");
-        div.className = `message ${msg.sender}`;
-        div.innerHTML = `
-          <div>${msg.text}</div>
-          ${msg.timestamp ? `<div class="messageTime">
-            ${new Date(msg.timestamp.seconds * 1000).toLocaleTimeString()}
-          </div>` : ""}
-        `;
-        messagesContainer.appendChild(div);
-      });
-
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    },
-    err => debugError("Message listener failed", err)
-  );
+  unsubscribeMessages = onSnapshot(q,snapshot=>{
+    messagesContainer.innerHTML = "";
+    snapshot.forEach(docSnap=>{
+      const msg = docSnap.data();
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.classList.add(msg.sender==="provider"?"provider":msg.sender==="client"?"client":"system");
+      div.innerHTML = `<div>${msg.text}</div>
+                       ${msg.timestamp ? `<div class="messageTime">${new Date(msg.timestamp.seconds*1000).toLocaleTimeString()}</div>`:""}`;
+      messagesContainer.appendChild(div);
+    });
+    messagesContainer.scrollTo({top:messagesContainer.scrollHeight, behavior:"smooth"});
+  });
 }
 
-/* =========================
-   SEND MESSAGE
-========================= */
-async function sendMessage() {
-  if (!currentChatId) return;
-
+// Send message
+async function sendMessage(){
+  if(!currentChatId) return;
   const text = messageInput.value.trim();
-  if (!text) return;
+  if(!text) return;
   messageInput.value = "";
+  const chatDoc = doc(db,"chats",currentChatId);
+  const msgData = { text, sender:"provider", timestamp: serverTimestamp() };
 
-  const msg = {
-    text,
-    sender: "provider",
-    timestamp: serverTimestamp()
-  };
-
-  try {
-    debugLog("Sending message", msg);
-    const chatRef = doc(db, "chats", currentChatId);
-    await addDoc(collection(chatRef, "messages"), msg);
-    await updateDoc(chatRef, { lastMessage: msg });
-  } catch (err) {
-    debugError("Send failed", err);
-  }
+  try{
+    await addDoc(collection(chatDoc,"messages"), msgData);
+    await updateDoc(chatDoc,{ lastMessage: msgData });
+  }catch(err){ console.error(err); }
 }
 
-sendBtn.onclick = sendMessage;
-messageInput.onkeypress = e => e.key === "Enter" && sendMessage();
+sendBtn.addEventListener("click", sendMessage);
+messageInput.addEventListener("keypress", e=>{if(e.key==="Enter") sendMessage();});
 </script>
-
 </body>
 </html>
