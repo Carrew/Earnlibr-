@@ -26,7 +26,7 @@ header {
 #sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 #sendBtn:hover { transform:scale(1.05); }
 #loading { padding:20px; text-align:center; color:var(--muted); }
-#debug { padding:10px; font-size:12px; background:#222; color:#f66; margin:0; overflow-x:auto; }
+#debug { padding:10px; font-size:12px; background:#222; color:#f66; margin:0; overflow-x:auto; white-space:pre-wrap;}
 </style>
 </head>
 <body>
@@ -46,31 +46,55 @@ import {
   collection, doc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const params = new URLSearchParams(window.location.search);
-const chatId = params.get("deal"); // chat ID is same as deal ID
-const clientId = params.get("client");
-
+// --- Debug helper ---
 const debugEl = document.getElementById("debug");
-
 function debugLog(msg, data=null){
   console.log(msg, data || "");
   debugEl.textContent += `[DEBUG] ${msg} ${data ? JSON.stringify(data) : ""}\n`;
 }
 
-if (!chatId || !clientId) {
-  const errMsg = "Invalid chat link. Missing deal or client ID in URL.";
+// --- Robust URL param parsing ---
+const url = window.location.href;
+let params = new URLSearchParams(window.location.search);
+if(!params.has("deal") || !params.has("client")) {
+  debugLog("Search params missing, checking URL hash fallback");
+  const hashIndex = url.indexOf("#");
+  if(hashIndex !== -1){
+    params = new URLSearchParams(url.slice(hashIndex+1));
+  }
+}
+
+let chatId = params.get("deal");
+let clientId = params.get("client");
+
+// --- fallback for clientId ---
+if(!clientId){
+  clientId = localStorage.getItem("clientId");
+  if(!clientId){
+    clientId = 'client_' + Math.random().toString(36).substr(2,9);
+    localStorage.setItem("clientId", clientId);
+    debugLog("Generated new clientId in localStorage", clientId);
+  } else {
+    debugLog("Using clientId from localStorage", clientId);
+  }
+}
+
+if(!chatId){
+  const errMsg = "Missing deal ID. Cannot load chat.";
   debugLog(errMsg);
   document.body.innerHTML = `<p style='color:red; padding:20px;'>${errMsg}</p>`;
   throw new Error(errMsg);
 }
 
+debugLog("Chat page initialized", {chatId, clientId});
+
+// --- Elements ---
 const messagesContainer = document.getElementById("messagesContainer");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
 const chatDocRef = doc(db, "chats", chatId);
 const messagesRef = collection(chatDocRef, "messages");
-
 let chatData = null;
 
 // --- Initialize chat ---
@@ -92,7 +116,7 @@ async function initChat() {
   }
 }
 
-// --- Listen for messages in real-time ---
+// --- Listen for messages ---
 function listenMessages() {
   try {
     const q = query(messagesRef, orderBy("timestamp", "asc"));
