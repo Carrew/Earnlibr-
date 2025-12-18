@@ -6,105 +6,54 @@
 <title>EarnLibr — Provider Chats</title>
 <style>
 :root {
-  --bg:#0b0d17;
-  --card:#0f1724;
-  --accent1:#4a90e2;
-  --accent2:#a3ff6e;
-  --muted:#cbd5e1;
-  --radius:14px;
+  --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
 }
 body {
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:var(--bg);
-  color:#fff;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+  margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; min-height:100vh; display:flex; flex-direction:column;
 }
 header {
-  background:var(--card);
-  padding:20px;
-  font-size:20px;
-  font-weight:700;
-  text-align:center;
-  border-bottom:1px solid #1a2235;
+  background:var(--card); padding:20px; font-size:20px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
 }
-#mainContainer {
-  flex:1;
-  display:flex;
-  overflow:hidden;
-}
+#mainContainer { flex:1; display:flex; overflow:hidden; }
 #chatList {
-  width:300px;
-  border-right:1px solid #1a2235;
-  overflow-y:auto;
-  background:var(--card);
+  width:300px; border-right:1px solid #1a2235; overflow-y:auto; background:var(--card); display:flex; flex-direction:column;
+}
+#searchBar {
+  padding:10px; border:none; border-radius:8px; margin:10px; background:#141f33; color:#fff;
 }
 .chatItem {
-  padding:12px 15px;
-  border-bottom:1px solid #1a2235;
-  cursor:pointer;
-  transition:background 0.2s;
+  padding:12px 15px; border-bottom:1px solid #1a2235; cursor:pointer; transition:background 0.2s; position:relative;
 }
 .chatItem:hover { background:rgba(74,144,226,0.1); }
 .chatItem.active { background:rgba(163,255,110,0.15); }
 .chatTitle { font-weight:600; }
 .chatLastMsg { font-size:13px; color:var(--muted); margin-top:3px; }
-#chatContainer {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  padding:15px;
-  background:var(--bg);
+.unreadBadge {
+  position:absolute; right:12px; top:15px; background:red; color:#fff; font-size:11px; padding:2px 6px; border-radius:12px;
 }
-#messages {
-  flex:1;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.message {
-  max-width:80%;
-  padding:10px 14px;
-  border-radius:var(--radius);
-  line-height:1.4;
-}
+#chatContainer { flex:1; display:flex; flex-direction:column; padding:15px; background:var(--bg); }
+#messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; }
+.message { max-width:70%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; position:relative; }
 .message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:var(--accent1);}
 .message.provider { align-self:flex-end; background:rgba(163,255,110,0.15); color:var(--accent2);}
 .message.system { align-self:center; font-size:12px; color:var(--muted);}
-#inputContainer {
-  display:flex;
-  gap:10px;
-  padding-top:10px;
-}
-#messageInput {
-  flex:1;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #1a2235;
-  background:#141f33;
-  color:#fff;
-  font-size:14px;
-}
-#sendBtn {
-  padding:10px 20px;
-  border:none;
-  border-radius:8px;
-  background:var(--accent2);
-  color:#041018;
-  font-weight:600;
-  cursor:pointer;
-}
+.messageTime { font-size:10px; color:var(--muted); margin-top:2px; text-align:right; }
+#inputContainer { display:flex; gap:10px; padding-top:10px; }
+#messageInput { flex:1; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; font-size:14px; }
+#sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 #sendBtn:hover { transform:scale(1.05); }
 #loading { padding:20px; text-align:center; color:var(--muted); }
+@media(max-width:768px){
+  #mainContainer { flex-direction:column; }
+  #chatList { width:100%; max-height:200px; border-right:none; border-bottom:1px solid #1a2235; }
+}
 </style>
 </head>
 <body>
 <header>Provider Chats</header>
 <div id="mainContainer">
   <div id="chatList">
+    <input type="text" id="searchBar" placeholder="Search clients..." />
     <div id="loading">Loading chats...</div>
   </div>
   <div id="chatContainer">
@@ -126,106 +75,110 @@ import {
 let currentChatId = null;
 let messagesRef = null;
 let unsubscribeMessages = null;
+let providerId = null;
+let allChats = [];
 
-// Check auth
+// Auth check
 auth.onAuthStateChanged(user => {
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
-  loadChats(user.uid);
+  if (!user) { window.location.href = "login.html"; return; }
+  providerId = user.uid;
+  loadChats(providerId);
 });
 
 const chatList = document.getElementById("chatList");
+const searchBar = document.getElementById("searchBar");
 const messagesContainer = document.getElementById("messages");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-// Load provider's chats
+// Load provider chats
 async function loadChats(providerId) {
-  const q = query(
-    collection(db, "chats"),
-    where("providerId", "==", providerId),
-    orderBy("lastMessage.timestamp", "desc")
-  );
-
+  const q = query(collection(db, "chats"), where("providerId","==",providerId), orderBy("lastMessage.timestamp","desc"));
   onSnapshot(q, snapshot => {
-    chatList.innerHTML = "";
-    if (snapshot.empty) {
-      chatList.innerHTML = "<div id='loading'>No chats yet.</div>";
-      return;
-    }
+    allChats = [];
+    chatList.querySelectorAll('.chatItem').forEach(e=>e.remove());
+    if (snapshot.empty) { chatList.innerHTML += "<div id='loading'>No chats yet.</div>"; return; }
 
     snapshot.forEach(docSnap => {
       const chat = docSnap.data();
-      const div = document.createElement("div");
-      div.classList.add("chatItem");
-      div.dataset.chatId = docSnap.id;
-      div.innerHTML = `<div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
-                       <div class="chatLastMsg">${chat.lastMessage?.text || ""}</div>`;
-      div.addEventListener("click", () => openChat(docSnap.id));
-      chatList.appendChild(div);
+      chat.id = docSnap.id;
+      allChats.push(chat);
+      addChatItem(chat);
     });
 
-    // Open first chat by default
-    if (!currentChatId && !snapshot.empty) {
-      openChat(snapshot.docs[0].id);
-    }
+    if (!currentChatId && snapshot.docs.length) openChat(snapshot.docs[0].id);
   });
 }
 
-// Open a chat
+// Add a chat item to the list
+function addChatItem(chat) {
+  const div = document.createElement("div");
+  div.classList.add("chatItem");
+  div.dataset.chatId = chat.id;
+  div.innerHTML = `<div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
+                   <div class="chatLastMsg">${chat.lastMessage?.text || ""}</div>`;
+  div.addEventListener("click", ()=>openChat(chat.id));
+  if(chat.unreadCount>0){
+    const badge = document.createElement("span");
+    badge.classList.add("unreadBadge");
+    badge.textContent = chat.unreadCount;
+    div.appendChild(badge);
+  }
+  chatList.appendChild(div);
+}
+
+// Search functionality
+searchBar.addEventListener("input", e=>{
+  const term = e.target.value.toLowerCase();
+  chatList.querySelectorAll('.chatItem').forEach(item=>{
+    const name = item.querySelector('.chatTitle').textContent.toLowerCase();
+    item.style.display = name.includes(term)?'flex':'none';
+  });
+});
+
+// Open chat
 function openChat(chatId) {
   currentChatId = chatId;
-
-  // Highlight active chat
-  document.querySelectorAll(".chatItem").forEach(item => {
-    item.classList.toggle("active", item.dataset.chatId === chatId);
-  });
-
-  if (unsubscribeMessages) unsubscribeMessages();
+  chatList.querySelectorAll(".chatItem").forEach(item => item.classList.toggle("active", item.dataset.chatId === chatId));
+  if(unsubscribeMessages) unsubscribeMessages();
   messagesContainer.innerHTML = "<div id='loading'>Loading messages...</div>";
 
-  const chatDoc = doc(db, "chats", chatId);
-  messagesRef = collection(chatDoc, "messages");
-  const q = query(messagesRef, orderBy("timestamp", "asc"));
+  const chatDoc = doc(db,"chats",chatId);
+  messagesRef = collection(chatDoc,"messages");
+  const q = query(messagesRef, orderBy("timestamp","asc"));
 
-  unsubscribeMessages = onSnapshot(q, snapshot => {
+  unsubscribeMessages = onSnapshot(q,snapshot=>{
     messagesContainer.innerHTML = "";
-    snapshot.forEach(docSnap => {
+    snapshot.forEach(docSnap=>{
       const msg = docSnap.data();
       const div = document.createElement("div");
       div.classList.add("message");
-      div.classList.add(msg.sender === "provider" ? "provider" :
-                       msg.sender === "client" ? "client" : "system");
-      div.textContent = msg.text;
+      div.classList.add(msg.sender==="provider"?"provider":msg.sender==="client"?"client":"system");
+      div.innerHTML = `<div>${msg.text}</div>
+                       ${msg.timestamp ? `<div class="messageTime">${new Date(msg.timestamp.seconds*1000).toLocaleTimeString()}</div>`:""}`;
       messagesContainer.appendChild(div);
     });
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesContainer.scrollTo({top:messagesContainer.scrollHeight, behavior:"smooth"});
   });
 }
 
 // Send message
-async function sendMessage() {
-  if (!currentChatId) return;
+async function sendMessage(){
+  if(!currentChatId) return;
   const text = messageInput.value.trim();
-  if (!text) return;
+  if(!text) return;
   messageInput.value = "";
+  const chatDoc = doc(db,"chats",currentChatId);
+  const msgData = { text, sender:"provider", timestamp: serverTimestamp() };
 
-  const chatDoc = doc(db, "chats", currentChatId);
-  const msgData = { text, sender: "provider", timestamp: serverTimestamp() };
-  try {
-    await addDoc(collection(chatDoc, "messages"), msgData);
-    await updateDoc(chatDoc, { lastMessage: msgData });
-  } catch (err) {
-    console.error("Error sending message:", err);
-  }
+  try{
+    await addDoc(collection(chatDoc,"messages"), msgData);
+    await updateDoc(chatDoc,{ lastMessage: msgData });
+  }catch(err){ console.error(err); }
 }
 
 sendBtn.addEventListener("click", sendMessage);
-messageInput.addEventListener("keypress", e => {
-  if (e.key === "Enter") sendMessage();
-});
+messageInput.addEventListener("keypress", e=>{if(e.key==="Enter") sendMessage();});
 </script>
 </body>
 </html>
