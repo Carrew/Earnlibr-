@@ -26,7 +26,7 @@ header {
 #sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 #sendBtn:hover { transform:scale(1.05); }
 #loading { padding:20px; text-align:center; color:var(--muted); }
-#debug { padding:10px; font-size:12px; background:#222; color:#f66; margin:0; overflow-x:auto; white-space:pre-wrap;}
+#debug { padding:10px; font-size:12px; background:#222; color:#f66; margin:0; overflow-x:auto; white-space:pre-wrap; max-height:200px;}
 </style>
 </head>
 <body>
@@ -49,12 +49,15 @@ import {
 // --- Debug helper ---
 const debugEl = document.getElementById("debug");
 function debugLog(msg, data=null){
-  console.log(msg, data || "");
-  debugEl.textContent += `[DEBUG] ${msg} ${data ? JSON.stringify(data) : ""}\n`;
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`[${timestamp}] ${msg}`, data || "");
+  debugEl.textContent += `[${timestamp}] ${msg} ${data ? JSON.stringify(data,null,2) : ""}\n`;
+  debugEl.scrollTop = debugEl.scrollHeight; // auto-scroll debug
 }
 
 // --- Robust URL param parsing ---
 const url = window.location.href;
+debugLog("Full URL", url);
 let params = new URLSearchParams(window.location.search);
 if(!params.has("deal") || !params.has("client")) {
   debugLog("Search params missing, checking URL hash fallback");
@@ -66,6 +69,7 @@ if(!params.has("deal") || !params.has("client")) {
 
 let chatId = params.get("deal");
 let clientId = params.get("client");
+debugLog("Parsed URL params", {chatId, clientId});
 
 // --- fallback for clientId ---
 if(!clientId){
@@ -119,6 +123,7 @@ async function initChat() {
 // --- Listen for messages ---
 function listenMessages() {
   try {
+    debugLog("Setting up real-time message listener");
     const q = query(messagesRef, orderBy("timestamp", "asc"));
     onSnapshot(q, snapshot => {
       messagesContainer.innerHTML = "";
