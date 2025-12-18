@@ -91,7 +91,7 @@ form input, form textarea {
 }
 form input[type="number"] {
     width: 100px; 
-    text-align: center;
+    text-align: center; 
 }
 form input:focus, form textarea:focus {
   border-color: var(--accent1);
@@ -173,7 +173,7 @@ button:disabled {
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, addDoc, collection, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, collection, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -233,11 +233,7 @@ async function loadOffer() {
 
     if (promoterId !== "direct") {
         const promoterSnap = await getDoc(doc(db, "users", promoterId));
-        if (promoterSnap.exists()) {
-            promoterNameInfo = promoterSnap.data();
-        } else {
-            promoterNameInfo = { name: "Promoter Not Found" };
-        }
+        promoterNameInfo = promoterSnap.exists() ? promoterSnap.data() : { name: "Promoter Not Found" };
     }
 
     offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
@@ -278,7 +274,11 @@ requestForm.addEventListener("submit", async (e) => {
   let promoterNameToSave = promoterId === "direct" ? "Direct Lead" : (promoterNameInfo?.name || "Referral Promoter");
 
   try {
-    const baseDealData = {
+    const batch = writeBatch(db);
+
+    // --- Deal document ---
+    const dealRef = doc(collection(db, "deals"));
+    const dealData = {
       offerId,
       offerTitle: offerData.title,
       offerPrice: offerData.price,
@@ -295,48 +295,65 @@ requestForm.addEventListener("submit", async (e) => {
       providerPhone: providerInfo?.phone || "",
       commissionType: offerData.commissionType || "",
       commissionValue: offerData.commissionValue || 0,
-      promoterName: promoterNameToSave
+      promoterName: promoterNameToSave,
+      createdAt: serverTimestamp()
     };
-    
-    const dealDataForFirestore = { ...baseDealData, createdAt: serverTimestamp() };
-    const dealRef = await addDoc(collection(db, "deals"), dealDataForFirestore);
-    const dealId = dealRef.id;
+    batch.set(dealRef, dealData);
 
-    // --- Notifications (keep all old logic) ---
-    const notificationData = { type: "deal", title: "New Deal Request", dealId, ...baseDealData, createdAt: serverTimestamp() };
-
-    await addDoc(collection(db, "admin_notifications"), {
-      message: `${clientName} requested ${quantity} unit(s) of "${baseDealData.offerTitle}" (Referred by ${promoterNameToSave})`,
-      ...notificationData
-    });
-
-    if (providerId !== "unknown") {
-      await addDoc(collection(db, "notifications", providerId, "items"), {
-        title: "You Have a New Deal Request",
-        message: `A client requested ${quantity} unit(s) of your offer "${baseDealData.offerTitle}". Source: ${promoterNameToSave}.`,
-        ...notificationData
-      });
-    }
-
-    if (promoterId !== "direct") {
-      await addDoc(collection(db, "notifications", promoterId, "items"), {
-        title: "You Generated a Deal!",
-        message: `Your shared link converted into a deal for ${quantity} unit(s) of "${baseDealData.offerTitle}".`,
-        ...notificationData
-      });
-    }
-
-    // --- Create chat ---
+    // --- Chat document ---
     const chatRef = doc(collection(db, "chats"));
-    await setDoc(chatRef, {
-        dealId,
-        participants: { providerId, clientId },
-        lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
-        status: "active"
+    batch.set(chatRef, {
+      dealId: dealRef.id,
+      providerId,
+      clientId,
+      participants: { providerId, clientId },
+      clientInfo: { name: clientName, contact: clientContact },
+      lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
+      status: "active"
     });
+
+    // --- Admin notification ---
+    const adminNotifRef = doc(collection(db, "admin_notifications"));
+    batch.set(adminNotifRef, {
+      message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterNameToSave})`,
+      type: "deal",
+      title: "New Deal Request",
+      dealId: dealRef.id,
+      ...dealData,
+      createdAt: serverTimestamp()
+    });
+
+    // --- Provider notification ---
+    if (providerId !== "unknown") {
+      const providerNotifRef = doc(collection(db, "notifications", providerId, "items"));
+      batch.set(providerNotifRef, {
+        title: "You Have a New Deal Request",
+        message: `A client requested ${quantity} unit(s) of your offer "${dealData.offerTitle}". Source: ${promoterNameToSave}.`,
+        type: "deal",
+        dealId: dealRef.id,
+        ...dealData,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    // --- Promoter notification ---
+    if (promoterId !== "direct") {
+      const promoterNotifRef = doc(collection(db, "notifications", promoterId, "items"));
+      batch.set(promoterNotifRef, {
+        title: "You Generated a Deal!",
+        message: `Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
+        type: "deal",
+        dealId: dealRef.id,
+        ...dealData,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    // --- Commit batch ---
+    await batch.commit();
 
     // --- Redirect client to chat ---
-    window.location.href = `client-chat.html?deal=${dealId}&client=${clientId}`;
+    window.location.href = `client-chat.html?deal=${dealRef.id}&client=${clientId}`;
 
   } catch (err) {
     console.error(err);
