@@ -6,72 +6,24 @@
 <title>EarnLibr — Client Chat</title>
 <style>
 :root {
-  --bg:#0b0d17;
-  --card:#0f1724;
-  --accent1:#4a90e2;
-  --accent2:#a3ff6e;
-  --muted:#cbd5e1;
-  --radius:14px;
+  --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
 }
 body {
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:var(--bg);
-  color:#fff;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+  margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; min-height:100vh; display:flex; flex-direction:column;
 }
 header {
-  background:var(--card);
-  padding:20px;
-  font-size:20px;
-  font-weight:700;
-  text-align:center;
-  border-bottom:1px solid #1a2235;
+  background:var(--card); padding:20px; font-size:20px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
 }
 #messagesContainer {
-  flex:1;
-  padding:15px;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+  flex:1; padding:15px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
 }
-.message {
-  max-width:80%;
-  padding:10px 14px;
-  border-radius:var(--radius);
-  line-height:1.4;
-}
+.message { max-width:80%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; }
 .message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:var(--accent1);}
 .message.provider { align-self:flex-end; background:rgba(163,255,110,0.15); color:var(--accent2);}
 .message.system { align-self:center; font-size:12px; color:var(--muted);}
-#inputContainer {
-  display:flex;
-  gap:10px;
-  padding:15px;
-  background:var(--card);
-  border-top:1px solid #1a2235;
-}
-#messageInput {
-  flex:1;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #1a2235;
-  background:#141f33;
-  color:#fff;
-  font-size:14px;
-}
-#sendBtn {
-  padding:10px 20px;
-  border:none;
-  border-radius:8px;
-  background:var(--accent2);
-  color:#041018;
-  font-weight:600;
-  cursor:pointer;
-}
+#inputContainer { display:flex; gap:10px; padding:15px; background:var(--card); border-top:1px solid #1a2235; }
+#messageInput { flex:1; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; font-size:14px; }
+#sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 #sendBtn:hover { transform:scale(1.05); }
 #loading { padding:20px; text-align:center; color:var(--muted); }
 </style>
@@ -89,39 +41,34 @@ header {
 <script type="module">
 import { db } from "./firebase.js";
 import {
-  collection, doc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, updateDoc
+  collection, doc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// Get dealId and client info from URL (passed after request)
 const params = new URLSearchParams(window.location.search);
-const dealId = params.get("deal");
-const clientName = params.get("name") || "Client";
-const clientContact = params.get("contact") || "Unknown";
+const chatId = params.get("deal"); // chat is linked to deal
+const clientId = params.get("client");
 
-if (!dealId) {
+if (!chatId || !clientId) {
   document.body.innerHTML = "<p style='color:red; padding:20px;'>Invalid chat link.</p>";
-  throw new Error("Missing dealId in URL");
+  throw new Error("Missing chatId or clientId in URL");
 }
 
 const messagesContainer = document.getElementById("messagesContainer");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-const chatDocRef = doc(db, "chats", dealId);
+const chatDocRef = doc(db, "chats", chatId);
 const messagesRef = collection(chatDocRef, "messages");
 
-// Create chat document if it doesn't exist
+// Initialize chat info
+let chatData = null;
 async function initChat() {
   const chatSnap = await getDoc(chatDocRef);
   if (!chatSnap.exists()) {
-    await setDoc(chatDocRef, {
-      dealId,
-      clientInfo: { name: clientName, contact: clientContact },
-      providerId: "", // Filled from offer/deal
-      lastMessage: { text: "Chat started.", timestamp: serverTimestamp(), sender: "system" },
-      createdAt: serverTimestamp()
-    });
+    document.body.innerHTML = "<p style='color:red; padding:20px;'>Chat not found.</p>";
+    throw new Error("Chat doc missing");
   }
+  chatData = chatSnap.data();
 }
 
 // Listen for messages in real-time
@@ -142,7 +89,7 @@ function listenMessages() {
   });
 }
 
-// Send message
+// Send a message
 async function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
@@ -165,7 +112,6 @@ async function sendMessage() {
 sendBtn.addEventListener("click", sendMessage);
 messageInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
 
-// Initialize
 await initChat();
 listenMessages();
 </script>
