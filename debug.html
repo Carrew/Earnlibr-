@@ -59,7 +59,7 @@ import {
 // --- Debugging utility ---
 const debugPanel = document.getElementById("debugPanel");
 function debugLog(...args) {
-  console.log(...args); // also log to console
+  console.log(...args); // console
   const div = document.createElement("div");
   div.className = "debugMsg";
   div.textContent = args.map(a => typeof a==="object"?JSON.stringify(a):a).join(" ");
