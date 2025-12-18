@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Provider Deals Management</title>
+<style>
+body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
+h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
+.deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: opacity .5s ease, transform .3s; position: relative; }
+.deal-card:hover { transform: translateY(-4px); }
+.deal-card.completed { border-left: 4px solid #4ade80; }
+.deal-card.cancelled { border-left: 4px solid #ef4444; }
+.deal-info { margin-bottom: 10px; font-size: 14px; }
+.deal-actions button { margin-right: 8px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; position: relative; }
+.complete { background: #4ade80; color: #041018; }
+.cancel { background: #ef4444; color: #fff; }
+button.loading { pointer-events: none; opacity: 0.7; }
+button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
+.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
+.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
+.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+.card-notif { position: absolute; top: 10px; right: 10px; background: #1a2235; padding: 6px 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.card-notif button { background: transparent; border: none; color: #a3ff6e; font-weight: 700; cursor: pointer; }
+.card-notif button:hover { color: #4ade80; }
+.load-more { text-align: center; margin-top: 20px; }
+.load-more button { padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+.debug-box { position: fixed; bottom: 0; left: 0; width: 100%; max-height: 150px; overflow-y: auto; background: #1a1a1a; color: #ff8c8c; font-family: monospace; font-size: 12px; padding: 5px; z-index: 9999; }
+</style>
+</head>
+<body>
+
+<h1>Your Deals</h1>
+<div id="notif" class="notif"></div>
+<div id="dealsContainer">Loading deals...</div>
+<div id="loadMoreContainer" class="load-more" style="display: none;">
+    <button id="loadMoreBtn">Load More Deals</button>
+</div>
+<div id="debugBox" class="debug-box"></div>
+
+<script type="module">
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { 
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, writeBatch, query, orderBy, limit, startAfter, where, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const dealsContainer = document.getElementById("dealsContainer");
+const notif = document.getElementById("notif");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+const loadMoreContainer = document.getElementById("loadMoreContainer");
+const debugBox = document.getElementById("debugBox");
+
+function debugLog(msg, type="info"){ 
+    const p = document.createElement("p");
+    p.textContent = `[${type.toUpperCase()}] ${msg}`;
+    if(type==="error") p.style.color="#ff4d4d";
+    debugBox.appendChild(p);
+    debugBox.scrollTop = debugBox.scrollHeight;
+}
+
+const showNotif = (msg, type="success") => {
+  notif.innerHTML = msg; 
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(() => { notif.style.display = "none"; }, 10000); 
+};
+
+const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+async function sendNotifications(deal, title, message) {
+  const batch = writeBatch(db);
+  const data = { title, message, read:false, createdAt:serverTimestamp() };
+  if (deal.providerId) batch.set(doc(collection(db,`notifications/${deal.providerId}/items`)), data);
+  if (deal.promoterId && deal.promoterId !== "direct") batch.set(doc(collection(db,`notifications/${deal.promoterId}/items`)), data);
+  await batch.commit();
+}
+
+let userSession = localStorage.getItem("userSession");
+if(!userSession){ window.location.href = "login.html"; throw new Error("No session"); }
+userSession = JSON.parse(userSession);
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user || user.uid !== userSession.uid || !user.emailVerified){
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+  try {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+    let uData = userDoc.exists() ? userDoc.data() : null;
+    let role = uData?.role;
+    if (adminDoc.exists() && adminDoc.data().role === 'provider') {
+        uData = adminDoc.data();
+        role = 'provider';
+    } else if (!userDoc.exists() || role !== 'provider') {
+        localStorage.removeItem("userSession");
+        window.location.href = "login.html";
+        return;
+    }
+    userSession = { uid: user.uid, name: uData.name, email: uData.email, role: role };
+    localStorage.setItem('userSession', JSON.stringify(userSession));
+    loadDeals();
+  } catch(e){ debugLog("Auth setup error: "+e.message, "error"); }
+});
+
+async function processCompleteDeal(dealId, deal, card){
+  const dealRef = doc(db, "deals", dealId);
+  try { await runTransaction(db, async (t) => {
+    const snap = await t.get(dealRef); if(!snap.exists()) throw new Error("Deal not found."); if(snap.data().status==="processing") throw new Error("Deal is being processed."); t.update(dealRef, { status: "processing" });
+  }); } catch(err){ showNotif(err.message,"error"); debugLog("Lock error: "+err.message,"error"); return; }
+
+  try {
+    const offerRef = doc(db, "offers_all", deal.offerId);
+    await runTransaction(db, async (t) => {
+      const offerSnap = await t.get(offerRef); if(!offerSnap.exists()) throw new Error("Offer not found"); const offer=offerSnap.data();
+      const dealQuantity = deal.quantity || 1; 
+      let commissionEarned = offer.commissionType==="percentage" ? (offer.price*dealQuantity*offer.commissionValue)/100 : offer.commissionType==="fixed" ? offer.commissionValue*dealQuantity : (deal.commissionValue||0)*dealQuantity;
+      commissionEarned = round(commissionEarned);
+      t.set(doc(db, "completed-deals", dealId), {...deal, status:"completed", completedAt:serverTimestamp(), commissionEarned});
+      t.delete(dealRef);
+    });
+    await sendNotifications(deal,"Deal Completed ✅",`Deal ${dealId} marked complete.`);
+    card.remove(); showNotif("Deal completed successfully"); debugLog("Deal completed: "+dealId,"info");
+  } catch(err){ setDoc(dealRef,{status:"pending"},{merge:true}).catch(e=>debugLog("Reset status failed: "+e.message,"error")); showNotif(err.message,"error"); debugLog("Complete error: "+err.message,"error"); }
+}
+
+async function processCancelDeal(dealId, deal, card){
+  try { await deleteDoc(doc(db,"deals",dealId)); await sendNotifications(deal,"Deal Cancelled ❌",`Deal ${dealId} cancelled.`); card.remove(); showNotif("Deal cancelled","error"); debugLog("Deal cancelled: "+dealId,"info"); } 
+  catch(err){ showNotif(err.message,"error"); debugLog("Cancel error: "+err.message,"error"); }
+}
+
+function scheduleAction(type, dealId, deal, card){
+  const box = document.createElement("div"); box.className="card-notif"; box.innerHTML=`${type==="complete"?"Completing":"Cancelling"} in 5s <button>Undo</button>`; card.appendChild(box);
+  const buttons = card.querySelectorAll("button"); buttons.forEach(btn=>{ btn.disabled=true; btn.classList.add("loading"); });
+  let cancelled=false;
+  box.querySelector("button").onclick=()=>{
+    cancelled=true; box.remove(); buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); }); showNotif("Action cancelled","error"); debugLog("Action undone","warn");
+  };
+  setTimeout(async ()=>{
+    box.remove();
+    if(!cancelled){
+      if(type==="complete") await processCompleteDeal(dealId,deal,card);
+      else await processCancelDeal(dealId,deal,card);
+      buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
+    }
+  },5000);
+}
+
+let lastDeal=null;
+function loadDeals(isInitialLoad=true){
+  if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; loadMoreContainer.style.display="none"; debugLog("Loading deals...","info"); }
+  try {
+    let dealsQuery = query(
+      collection(db,"deals"),
+      where("providerId","==",userSession.uid),
+      where("status","!=","processing"),
+      orderBy("status"),
+      orderBy("createdAt","desc"),
+      limit(25)
+    );
+    if(lastDeal) dealsQuery=query(dealsQuery,startAfter(lastDeal));
+    loadMoreBtn.disabled=true; loadMoreBtn.textContent="Loading...";
+    getDocs(dealsQuery).then(snapshot=>{
+      debugLog(`Fetched ${snapshot.docs.length} deals`,"info");
+      if(snapshot.empty && isInitialLoad){ dealsContainer.innerHTML="<p>No active deals found.</p>"; loadMoreContainer.style.display="none"; return; }
+      if(snapshot.empty){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; return; }
+      snapshot.docs.forEach(docSnap=>renderDealCard(docSnap.id,docSnap.data()));
+      lastDeal=snapshot.docs[snapshot.docs.length-1]; loadMoreContainer.style.display="block";
+      if(snapshot.docs.length<25){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; } else { loadMoreBtn.textContent="Load More Deals"; loadMoreBtn.disabled=false; }
+    }).catch(err=>{ dealsContainer.innerHTML=`<p style="color:#ef4444;">${err.message}</p>`; loadMoreBtn.textContent="Failed"; debugLog("getDocs error: "+err.message,"error"); });
+  } catch(e){ dealsContainer.innerHTML=`<p style="color:#ef4444;">${e.message}</p>`; debugLog("loadDeals outer error: "+e.message,"error"); }
+}
+loadMoreBtn.onclick=()=>loadDeals(false);
+
+function renderDealCard(dealId, deal){
+  const card = document.createElement("div"); card.className="deal-card "+(deal.status||"");
+  let createdDate='N/A'; if(deal.createdAt) try{ createdDate=(deal.createdAt.toDate?deal.createdAt.toDate():new Date(deal.createdAt)).toLocaleString(); } catch{} 
+  const dealQuantity = deal.quantity||1;
+  card.innerHTML=`
+    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
+    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle||'N/A'} <span style="font-weight:700; color:#a3ff6e;">(QTY: ${dealQuantity})</span></div>
+    <div class="deal-info"><strong>Promoter:</strong> ${deal.promoterId!=="direct"?deal.promoterName:"Direct"} (${deal.promoterId})</div>
+    <div class="deal-info"><strong>Client:</strong> ${deal.clientName} | ${deal.clientContact}</div>
+    <div class="deal-info"><strong>Note:</strong> ${deal.note||"None"}</div>
+    <div class="deal-actions"><button class="complete">Mark Completed</button><button class="cancel">Mark Cancelled</button></div>
+    <div class="timestamp">Created: ${createdDate} | Status: ${deal.status||"Pending"}</div>`;
+  card.querySelector(".complete").onclick=()=>scheduleAction("complete",dealId,deal,card);
+  card.querySelector(".cancel").onclick=()=>scheduleAction("cancel",dealId,deal,card);
+  dealsContainer.appendChild(card);
+}
+</script>
+</body>
+</html>
