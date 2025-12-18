@@ -300,8 +300,8 @@ requestForm.addEventListener("submit", async (e) => {
     };
     batch.set(dealRef, dealData);
 
-    // --- Chat document ---
-    const chatRef = doc(collection(db, "chats"));
+    // --- Chat document (FIXED: use deal ID as chat ID) ---
+    const chatRef = doc(db, "chats", dealRef.id); // <-- FIXED
     batch.set(chatRef, {
       dealId: dealRef.id,
       providerId,
@@ -310,6 +310,14 @@ requestForm.addEventListener("submit", async (e) => {
       clientInfo: { name: clientName, contact: clientContact },
       lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
       status: "active"
+    });
+
+    // Optional: add initial system message
+    const firstMessageRef = doc(collection(chatRef, "messages"));
+    batch.set(firstMessageRef, {
+      text: "Chat started. The provider will contact you shortly.",
+      sender: "system",
+      timestamp: serverTimestamp()
     });
 
     // --- Admin notification ---
