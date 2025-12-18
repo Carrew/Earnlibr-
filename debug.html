@@ -26,7 +26,6 @@ header {
 #sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 #sendBtn:hover { transform:scale(1.05); }
 #loading { padding:20px; text-align:center; color:var(--muted); }
-#debug { padding:10px; font-size:12px; background:#222; color:#f66; margin:0; overflow-x:auto; white-space:pre-wrap; max-height:200px;}
 </style>
 </head>
 <body>
@@ -38,7 +37,6 @@ header {
   <input type="text" id="messageInput" placeholder="Type your message..." />
   <button id="sendBtn">Send</button>
 </div>
-<pre id="debug"></pre>
 
 <script type="module">
 import { db } from "./firebase.js";
@@ -46,128 +44,105 @@ import {
   collection, doc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// --- Debug helper ---
-const debugEl = document.getElementById("debug");
-function debugLog(msg, data=null){
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`[${timestamp}] ${msg}`, data || "");
-  debugEl.textContent += `[${timestamp}] ${msg} ${data ? JSON.stringify(data,null,2) : ""}\n`;
-  debugEl.scrollTop = debugEl.scrollHeight; // auto-scroll debug
+const params = new URLSearchParams(window.location.search);
+const chatId = params.get("deal"); // chat is linked to deal
+const clientId = params.get("client");
+
+console.log("URL Params:", { chatId, clientId });
+
+if (!chatId || !clientId) {
+  document.body.innerHTML = "<p style='color:red; padding:20px;'>Invalid chat link. Missing chatId or clientId.</p>";
+  throw new Error("Missing chatId or clientId in URL");
 }
 
-// --- Robust URL param parsing ---
-const url = window.location.href;
-debugLog("Full URL", url);
-let params = new URLSearchParams(window.location.search);
-if(!params.has("deal") || !params.has("client")) {
-  debugLog("Search params missing, checking URL hash fallback");
-  const hashIndex = url.indexOf("#");
-  if(hashIndex !== -1){
-    params = new URLSearchParams(url.slice(hashIndex+1));
-  }
-}
-
-let chatId = params.get("deal");
-let clientId = params.get("client");
-debugLog("Parsed URL params", {chatId, clientId});
-
-// --- fallback for clientId ---
-if(!clientId){
-  clientId = localStorage.getItem("clientId");
-  if(!clientId){
-    clientId = 'client_' + Math.random().toString(36).substr(2,9);
-    localStorage.setItem("clientId", clientId);
-    debugLog("Generated new clientId in localStorage", clientId);
-  } else {
-    debugLog("Using clientId from localStorage", clientId);
-  }
-}
-
-if(!chatId){
-  const errMsg = "Missing deal ID. Cannot load chat.";
-  debugLog(errMsg);
-  document.body.innerHTML = `<p style='color:red; padding:20px;'>${errMsg}</p>`;
-  throw new Error(errMsg);
-}
-
-debugLog("Chat page initialized", {chatId, clientId});
-
-// --- Elements ---
 const messagesContainer = document.getElementById("messagesContainer");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
 const chatDocRef = doc(db, "chats", chatId);
 const messagesRef = collection(chatDocRef, "messages");
+
 let chatData = null;
 
 // --- Initialize chat ---
 async function initChat() {
   try {
-    debugLog("Fetching chat document", {chatId});
+    console.log("Fetching chat doc:", chatDocRef.path);
     const chatSnap = await getDoc(chatDocRef);
     if (!chatSnap.exists()) {
-      const errMsg = "Chat not found in Firestore.";
-      debugLog(errMsg);
-      document.body.innerHTML = `<p style='color:red; padding:20px;'>${errMsg}</p>`;
-      throw new Error(errMsg);
+      console.error("Chat document does not exist in Firestore!");
+      messagesContainer.innerHTML = "<p style='color:red; padding:20px;'>Chat not found in database.</p>";
+      return false;
     }
     chatData = chatSnap.data();
-    debugLog("Chat document loaded", chatData);
+    console.log("Chat data loaded:", chatData);
+    return true;
   } catch (err) {
-    debugLog("Error fetching chat doc", err.message || err);
-    document.body.innerHTML = `<p style='color:red; padding:20px;'>Error loading chat. Check debug below.</p>`;
+    console.error("Error fetching chat doc:", err);
+    messagesContainer.innerHTML = "<p style='color:red; padding:20px;'>Error loading chat.</p>";
+    return false;
   }
 }
 
-// --- Listen for messages ---
+// --- Listen to messages in real-time ---
 function listenMessages() {
-  try {
-    debugLog("Setting up real-time message listener");
-    const q = query(messagesRef, orderBy("timestamp", "asc"));
-    onSnapshot(q, snapshot => {
-      messagesContainer.innerHTML = "";
-      if(snapshot.empty) {
-        messagesContainer.innerHTML = "<div class='message system'>No messages yet.</div>";
-      }
-      snapshot.forEach(docSnap => {
-        const msg = docSnap.data();
-        const div = document.createElement("div");
-        div.classList.add("message");
-        div.classList.add(msg.sender === "client" ? "client" :
-                         msg.sender === "provider" ? "provider" : "system");
-        div.textContent = msg.text;
-        messagesContainer.appendChild(div);
-      });
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }, err => {
-      debugLog("Error listening to messages", err);
+  const q = query(messagesRef, orderBy("timestamp", "asc"));
+  console.log("Listening for messages in:", messagesRef.path);
+
+  onSnapshot(q, snapshot => {
+    if (snapshot.empty) {
+      messagesContainer.innerHTML = "<p class='message system'>No messages yet.</p>";
+      return;
+    }
+
+    messagesContainer.innerHTML = "";
+    snapshot.forEach(docSnap => {
+      const msg = docSnap.data();
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.classList.add(msg.sender === "client" ? "client" :
+                       msg.sender === "provider" ? "provider" : "system");
+      div.textContent = msg.text;
+      messagesContainer.appendChild(div);
     });
-  } catch(err) {
-    debugLog("Error setting up message listener", err);
-  }
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  });
 }
 
 // --- Send a message ---
 async function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
+
+  const msgData = {
+    text,
+    sender: "client",
+    timestamp: serverTimestamp()
+  };
+
   messageInput.value = "";
-  const msgData = { text, sender: "client", timestamp: serverTimestamp() };
+
   try {
-    debugLog("Sending message", msgData);
+    console.log("Sending message:", msgData);
     await addDoc(messagesRef, msgData);
     await updateDoc(chatDocRef, { lastMessage: msgData });
   } catch (err) {
-    debugLog("Error sending message", err);
+    console.error("Error sending message:", err);
   }
 }
 
 sendBtn.addEventListener("click", sendMessage);
 messageInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
 
-await initChat();
-if(chatData) listenMessages();
+// --- Run ---
+(async () => {
+  const chatExists = await initChat();
+  if (chatExists) {
+    listenMessages();
+  } else {
+    console.warn("Chat not initialized, cannot listen for messages.");
+  }
+})();
 </script>
 </body>
 </html>
