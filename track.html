@@ -173,7 +173,7 @@ button:disabled {
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, collection, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, collection, serverTimestamp, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -276,8 +276,11 @@ requestForm.addEventListener("submit", async (e) => {
   try {
     const batch = writeBatch(db);
 
-    // --- Deal document ---
+    // --- Generate deal ID first ---
     const dealRef = doc(collection(db, "deals"));
+    const dealId = dealRef.id;
+
+    // --- Deal document ---
     const dealData = {
       offerId,
       offerTitle: offerData.title,
@@ -285,6 +288,7 @@ requestForm.addEventListener("submit", async (e) => {
       offerCurrency: offerData.currency || "$",
       providerId,
       promoterId,
+      clientId,
       clientName,
       clientContact,
       note,
@@ -300,19 +304,20 @@ requestForm.addEventListener("submit", async (e) => {
     };
     batch.set(dealRef, dealData);
 
-    // --- Chat document (FIXED: use deal ID as chat ID) ---
-    const chatRef = doc(db, "chats", dealRef.id); // <-- FIXED
+    // --- Chat document (use deal ID as chat ID) ---
+    const chatRef = doc(db, "chats", dealId);
     batch.set(chatRef, {
-      dealId: dealRef.id,
+      dealId: dealId,
       providerId,
       clientId,
       participants: { providerId, clientId },
       clientInfo: { name: clientName, contact: clientContact },
       lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
-      status: "active"
+      status: "active",
+      createdAt: serverTimestamp()
     });
 
-    // Optional: add initial system message
+    // Initial system message
     const firstMessageRef = doc(collection(chatRef, "messages"));
     batch.set(firstMessageRef, {
       text: "Chat started. The provider will contact you shortly.",
@@ -326,7 +331,7 @@ requestForm.addEventListener("submit", async (e) => {
       message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterNameToSave})`,
       type: "deal",
       title: "New Deal Request",
-      dealId: dealRef.id,
+      dealId: dealId,
       ...dealData,
       createdAt: serverTimestamp()
     });
@@ -338,7 +343,7 @@ requestForm.addEventListener("submit", async (e) => {
         title: "You Have a New Deal Request",
         message: `A client requested ${quantity} unit(s) of your offer "${dealData.offerTitle}". Source: ${promoterNameToSave}.`,
         type: "deal",
-        dealId: dealRef.id,
+        dealId: dealId,
         ...dealData,
         createdAt: serverTimestamp()
       });
@@ -351,7 +356,7 @@ requestForm.addEventListener("submit", async (e) => {
         title: "You Generated a Deal!",
         message: `Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
         type: "deal",
-        dealId: dealRef.id,
+        dealId: dealId,
         ...dealData,
         createdAt: serverTimestamp()
       });
@@ -360,12 +365,15 @@ requestForm.addEventListener("submit", async (e) => {
     // --- Commit batch ---
     await batch.commit();
 
+    // Small delay to ensure Firestore propagation
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // --- Redirect client to chat ---
-    window.location.href = `client-chat.html?deal=${dealRef.id}&client=${clientId}`;
+    window.location.href = `client-chat.html?deal=${dealId}&client=${clientId}`;
 
   } catch (err) {
     console.error(err);
-    errorMsg.textContent = "Error submitting request: Please try again later.";
+    errorMsg.textContent = "Error submitting request: " + (err.message || "Please try again later.");
     errorMsg.style.display = "block";
     submitBtn.textContent = originalButtonText;
     submitBtn.disabled = false;
