@@ -161,7 +161,7 @@ form.addEventListener("submit", async e => {
   }
 
   try {
-    // DUPLICATE CHECK
+    // DUPLICATE CHECK — redirect to chat if existing deal active/pending
     const q = query(
       collection(db, "deals"),
       where("clientId","==",clientId),
@@ -202,30 +202,31 @@ form.addEventListener("submit", async e => {
     };
     batch.set(dealRef, dealData);
 
-    // CHAT CREATION WITH INITIAL SYSTEM MESSAGE
+    // CHAT CREATION WITH NEW SYSTEM MESSAGE
     const chatRef = doc(db, "chats", dealId);
     batch.set(chatRef, {
       dealId, providerId, clientId,
       participants: { providerId, clientId },
       clientInfo: { name: clientName, contact: clientContact },
-      lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
+      lastMessage: { 
+        text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.", 
+        sender: "system", timestamp: serverTimestamp() 
+      },
       status: "active",
       createdAt: serverTimestamp()
     });
     const firstMsgRef = doc(collection(chatRef, "messages"));
     batch.set(firstMsgRef, {
-      text: "Chat started. The provider will contact you shortly.",
+      text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.",
       sender: "system",
       timestamp: serverTimestamp()
     });
 
     // NOTIFICATIONS
-    // Admin
     batch.set(doc(collection(db, "admin_notifications")), {
       message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterName})`,
       type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
     });
-    // Provider
     if (providerId !== "unknown") {
       batch.set(doc(collection(db, "notifications", providerId, "items")), {
         title:"New Deal Request",
@@ -233,7 +234,6 @@ form.addEventListener("submit", async e => {
         type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
     }
-    // Promoter
     if (promoterId !== "direct") {
       batch.set(doc(collection(db, "notifications", promoterId, "items")), {
         title:"You Generated a Deal!",
@@ -258,4 +258,4 @@ form.addEventListener("submit", async e => {
 });
 </script>
 </body>
-</html>
+  </html>
