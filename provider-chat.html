@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Provider Chats</title>
+<title>EarnLibr — Provider Portal</title>
+
 <style>
 :root {
   --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
@@ -14,52 +15,83 @@ body {
 header {
   background:var(--card); padding:20px; font-size:20px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
 }
-#mainContainer { flex:1; display:flex; overflow:hidden; }
+#mainContainer { flex:1; display:flex; overflow:hidden; position: relative; }
+
+/* Sidebar */
 #chatList {
-  width:300px; border-right:1px solid #1a2235; overflow-y:auto; background:var(--card); display:flex; flex-direction:column;
+  width:350px; border-right:1px solid #1a2235; overflow-y:auto; background:var(--card); display:flex; flex-direction:column;
 }
 #searchBar {
-  padding:10px; border:none; border-radius:8px; margin:10px; background:#141f33; color:#fff;
+  padding:12px; border:none; border-radius:8px; margin:15px; background:#141f33; color:#fff; outline: none; border: 1px solid #1a2235;
 }
 .chatItem {
-  padding:12px 15px; border-bottom:1px solid #1a2235; cursor:pointer; transition:background 0.2s; position:relative;
+  padding:15px; border-bottom:1px solid #0b0d17; cursor:pointer; transition:background 0.2s;
 }
-.chatItem:hover { background:rgba(74,144,226,0.1); }
-.chatItem.active { background:rgba(163,255,110,0.15); }
-.chatTitle { font-weight:600; }
-.chatLastMsg { font-size:13px; color:var(--muted); margin-top:3px; }
-.unreadBadge {
-  position:absolute; right:12px; top:15px; background:red; color:#fff; font-size:11px; padding:2px 6px; border-radius:12px;
+.chatItem:hover { background:rgba(74,144,226,0.05); }
+.chatItem.active { background:rgba(163,255,110,0.1); border-left: 4px solid var(--accent2); }
+.chatTitle { font-weight:600; font-size: 15px; }
+.chatLastMsg { font-size:13px; color:var(--muted); margin-top:4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Chat Window */
+#chatContainer { flex:1; display:flex; flex-direction:column; background:var(--bg); }
+#chatHeader {
+  display:flex; align-items:center; gap:12px; padding:15px; background: var(--card); border-bottom: 1px solid #1a2235;
 }
-#chatContainer { flex:1; display:flex; flex-direction:column; padding:15px; background:var(--bg); }
-#messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; }
-.message { max-width:70%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; position:relative; }
-.message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:var(--accent1);}
-.message.provider { align-self:flex-end; background:rgba(163,255,110,0.15); color:var(--accent2);}
-.message.system { align-self:center; font-size:12px; color:var(--muted);}
-.messageTime { font-size:10px; color:var(--muted); margin-top:2px; text-align:right; }
-#inputContainer { display:flex; gap:10px; padding-top:10px; }
-#messageInput { flex:1; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; font-size:14px; }
-#sendBtn { padding:10px 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
-#sendBtn:hover { transform:scale(1.05); }
-#loading { padding:20px; text-align:center; color:var(--muted); }
+#backBtn { display: none; background:none; border:none; color:#fff; font-size:24px; cursor:pointer; }
+#messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding: 20px; }
+
+/* Messages */
+.message { max-width:75%; padding:12px 16px; border-radius:18px; line-height:1.4; font-size: 14px; position: relative; }
+.message.client { align-self:flex-start; background:rgba(74,144,226,0.15); border-bottom-left-radius:4px; }
+.message.provider { align-self:flex-end; background:var(--accent2); color:#041018; border-bottom-right-radius:4px; font-weight: 500; }
+.message.system { align-self:center; font-size:12px; color:var(--muted); background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 10px; text-align: center; }
+.message.deleted { font-style: italic; opacity: 0.6; }
+
+.messageTime { font-size:10px; opacity: 0.7; margin-top:5px; text-align:right; }
+
+/* Action Buttons */
+.controls { display: flex; gap: 8px; margin-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 5px; }
+.editBtn, .delBtn { 
+    background: rgba(0,0,0,0.1); border: none; font-size: 10px; padding: 3px 8px; 
+    border-radius: 4px; cursor: pointer; font-weight: bold; color: #041018;
+}
+.editBtn:hover { background: rgba(0,0,0,0.2); }
+.delBtn:hover { background: #ef4444; color: #fff; }
+
+/* Input Area */
+#typingIndicator { font-size:12px; color:var(--accent2); padding:5px 20px; display:none; }
+#inputContainer { display:flex; gap:10px; padding:15px; background: var(--card); }
+#messageInput { flex:1; padding:12px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; outline: none; }
+#sendBtn { padding:0 20px; border:none; border-radius:8px; background:var(--accent2); color: #041018; font-weight:700; cursor:pointer; }
+
 @media(max-width:768px){
-  #mainContainer { flex-direction:column; }
-  #chatList { width:100%; max-height:200px; border-right:none; border-bottom:1px solid #1a2235; }
+  #chatContainer { position:fixed; inset:0; transform:translateX(100%); transition:transform .3s ease; z-index: 10; }
+  #mainContainer.chat-open #chatContainer { transform:translateX(0); }
+  #backBtn { display: block; }
 }
 </style>
 </head>
+
 <body>
-<header>Provider Chats</header>
+<header>EarnLibr — Provider Portal</header>
+
 <div id="mainContainer">
   <div id="chatList">
     <input type="text" id="searchBar" placeholder="Search clients..." />
-    <div id="loading">Loading chats...</div>
+    <div id="loading" style="padding:20px; text-align:center; color:var(--muted);">Loading chats...</div>
   </div>
+
   <div id="chatContainer">
+    <div id="chatHeader">
+      <button id="backBtn">←</button>
+      <div>
+        <div id="chatTitle" style="font-weight:700;">Select a chat</div>
+        <div id="typingIndicator">Client is typing...</div>
+      </div>
+    </div>
     <div id="messages"></div>
     <div id="inputContainer">
-      <input type="text" id="messageInput" placeholder="Type your message..." />
+      <input type="text" id="messageInput" placeholder="Type a message..." />
       <button id="sendBtn">Send</button>
     </div>
   </div>
@@ -69,116 +101,140 @@ header {
 import { auth, db } from "./firebase.js";
 import {
   collection, query, where, orderBy, onSnapshot,
-  addDoc, doc, serverTimestamp, updateDoc
+  addDoc, doc, serverTimestamp, updateDoc, getDocs, writeBatch, limit
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 let currentChatId = null;
-let messagesRef = null;
 let unsubscribeMessages = null;
 let providerId = null;
 let allChats = [];
 
-// Auth check
-auth.onAuthStateChanged(user => {
-  if (!user) { window.location.href = "login.html"; return; }
-  providerId = user.uid;
-  loadChats(providerId);
-});
-
+const mainContainer = document.getElementById("mainContainer");
 const chatList = document.getElementById("chatList");
 const searchBar = document.getElementById("searchBar");
 const messagesContainer = document.getElementById("messages");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
+const backBtn = document.getElementById("backBtn");
+const chatTitle = document.getElementById("chatTitle");
+const typingIndicator = document.getElementById("typingIndicator");
 
-// Load provider chats
-async function loadChats(providerId) {
-  const q = query(collection(db, "chats"), where("providerId","==",providerId), orderBy("lastMessage.timestamp","desc"));
-  onSnapshot(q, snapshot => {
+auth.onAuthStateChanged(user => {
+  if (!user) location.href = "login.html";
+  providerId = user.uid;
+  loadChats();
+});
+
+function loadChats() {
+  const q = query(collection(db,"chats"), where("providerId","==",providerId), orderBy("lastMessage.timestamp","desc"));
+  onSnapshot(q, snap => {
+    document.getElementById("loading")?.remove();
     allChats = [];
-    chatList.querySelectorAll('.chatItem').forEach(e=>e.remove());
-    if (snapshot.empty) { chatList.innerHTML += "<div id='loading'>No chats yet.</div>"; return; }
-
-    snapshot.forEach(docSnap => {
-      const chat = docSnap.data();
-      chat.id = docSnap.id;
+    chatList.querySelectorAll(".chatItem").forEach(e => e.remove());
+    snap.forEach(d => {
+      const chat = {id:d.id, ...d.data()};
       allChats.push(chat);
-      addChatItem(chat);
+      const div = document.createElement("div");
+      div.className = `chatItem ${currentChatId === chat.id ? 'active' : ''}`;
+      div.innerHTML = `<div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
+                       <div class="chatLastMsg">${chat.lastMessage?.text || "No messages"}</div>`;
+      div.onclick = () => openChat(chat.id);
+      chatList.appendChild(div);
     });
-
-    if (!currentChatId && snapshot.docs.length) openChat(snapshot.docs[0].id);
   });
 }
 
-// Add a chat item to the list
-function addChatItem(chat) {
-  const div = document.createElement("div");
-  div.classList.add("chatItem");
-  div.dataset.chatId = chat.id;
-  div.innerHTML = `<div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
-                   <div class="chatLastMsg">${chat.lastMessage?.text || ""}</div>`;
-  div.addEventListener("click", ()=>openChat(chat.id));
-  if(chat.unreadCount>0){
-    const badge = document.createElement("span");
-    badge.classList.add("unreadBadge");
-    badge.textContent = chat.unreadCount;
-    div.appendChild(badge);
-  }
-  chatList.appendChild(div);
-}
-
-// Search functionality
-searchBar.addEventListener("input", e=>{
+searchBar.addEventListener("input", e => {
   const term = e.target.value.toLowerCase();
-  chatList.querySelectorAll('.chatItem').forEach(item=>{
+  chatList.querySelectorAll('.chatItem').forEach(item => {
     const name = item.querySelector('.chatTitle').textContent.toLowerCase();
-    item.style.display = name.includes(term)?'flex':'none';
+    item.style.display = name.includes(term) ? 'block' : 'none';
   });
 });
 
-// Open chat
-function openChat(chatId) {
+function openChat(chatId){
   currentChatId = chatId;
-  chatList.querySelectorAll(".chatItem").forEach(item => item.classList.toggle("active", item.dataset.chatId === chatId));
+  mainContainer.classList.add("chat-open");
+  updateDoc(doc(db,"chats",chatId),{ unreadCount: 0 });
+
+  const chat = allChats.find(c => c.id === chatId);
+  chatTitle.textContent = chat?.clientInfo?.name || "Client Chat";
+
   if(unsubscribeMessages) unsubscribeMessages();
-  messagesContainer.innerHTML = "<div id='loading'>Loading messages...</div>";
-
-  const chatDoc = doc(db,"chats",chatId);
-  messagesRef = collection(chatDoc,"messages");
-  const q = query(messagesRef, orderBy("timestamp","asc"));
-
-  unsubscribeMessages = onSnapshot(q,snapshot=>{
+  
+  const q = query(collection(db,"chats",chatId,"messages"), orderBy("timestamp","asc"));
+  unsubscribeMessages = onSnapshot(q, snap => {
     messagesContainer.innerHTML = "";
-    snapshot.forEach(docSnap=>{
-      const msg = docSnap.data();
+    snap.forEach(d => {
+      const msg = d.data();
+      if(msg.sender === "client" && !msg.seen) updateDoc(d.ref, {seen: true});
+
       const div = document.createElement("div");
-      div.classList.add("message");
-      div.classList.add(msg.sender==="provider"?"provider":msg.sender==="client"?"client":"system");
+      div.className = `message ${msg.sender} ${msg.text === "[Message deleted]" ? 'deleted' : ''}`;
+      
+      const time = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
+      
       div.innerHTML = `<div>${msg.text}</div>
-                       ${msg.timestamp ? `<div class="messageTime">${new Date(msg.timestamp.seconds*1000).toLocaleTimeString()}</div>`:""}`;
+                       <div class="messageTime">${time} ${msg.sender === "provider" ? (msg.seen ? "✓✓" : "✓") : ""}</div>`;
+
+      if(msg.sender === "provider" && msg.editable && msg.text !== "[Message deleted]"){
+        const controls = document.createElement("div");
+        controls.className = "controls";
+        controls.innerHTML = `<button class="editBtn">Edit</button><button class="delBtn">Delete</button>`;
+        
+        controls.querySelector(".editBtn").onclick = () => {
+          const newT = prompt("Edit your message:", msg.text);
+          if(newT && newT !== msg.text) updateDoc(d.ref, { text: newT });
+        };
+        
+        controls.querySelector(".delBtn").onclick = async () => {
+          if(confirm("Delete this message?")) await updateDoc(d.ref, { text: "[Message deleted]", editable: false });
+        };
+        div.appendChild(controls);
+      }
       messagesContainer.appendChild(div);
     });
-    messagesContainer.scrollTo({top:messagesContainer.scrollHeight, behavior:"smooth"});
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  });
+
+  onSnapshot(doc(db,"chats",chatId), s => {
+    typingIndicator.style.display = s.data()?.clientTyping ? "block" : "none";
   });
 }
 
-// Send message
 async function sendMessage(){
   if(!currentChatId) return;
   const text = messageInput.value.trim();
   if(!text) return;
   messageInput.value = "";
-  const chatDoc = doc(db,"chats",currentChatId);
-  const msgData = { text, sender:"provider", timestamp: serverTimestamp() };
 
-  try{
-    await addDoc(collection(chatDoc,"messages"), msgData);
-    await updateDoc(chatDoc,{ lastMessage: msgData });
-  }catch(err){ console.error(err); }
+  const msgRef = collection(db, "chats", currentChatId, "messages");
+  const batch = writeBatch(db);
+
+  // Lock the previous message so it's no longer editable
+  const lastQ = query(msgRef, where("sender","==","provider"), orderBy("timestamp","desc"), limit(1));
+  const lastSnap = await getDocs(lastQ);
+  lastSnap.forEach(ld => batch.update(ld.ref, { editable: false }));
+
+  const newMsg = { text, sender: "provider", timestamp: serverTimestamp(), seen: false, editable: true };
+  const newDocRef = doc(msgRef); 
+  batch.set(newDocRef, newMsg);
+  batch.update(doc(db,"chats",currentChatId), { lastMessage: newMsg, providerTyping: false });
+
+  await batch.commit();
 }
 
-sendBtn.addEventListener("click", sendMessage);
-messageInput.addEventListener("keypress", e=>{if(e.key==="Enter") sendMessage();});
+messageInput.oninput = () => {
+  if(!currentChatId) return;
+  updateDoc(doc(db,"chats",currentChatId), { providerTyping: true });
+  clearTimeout(window.t);
+  window.t = setTimeout(() => updateDoc(doc(db,"chats",currentChatId), { providerTyping: false }), 2000);
+};
+
+sendBtn.onclick = sendMessage;
+messageInput.onkeydown = e => { if(e.key === "Enter") sendMessage(); };
+backBtn.onclick = () => mainContainer.classList.remove("chat-open");
+
 </script>
 </body>
 </html>
