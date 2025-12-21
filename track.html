@@ -6,164 +6,56 @@
 <title>Request Offer | EarnLibr</title>
 <style>
 :root {
-  --bg: #071028; 
-  --card: #0f1724;
-  --accent1: #4a90e2; 
-  --accent2: #a3ff6e; 
-  --muted: #cbd5e1;
-  --radius: 14px;
+  --bg:#071028; --card:#0f1724; --accent1:#4a90e2;
+  --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
 }
 body {
-  margin: 0;
-  font-family: sans-serif;
-  background: linear-gradient(180deg, var(--bg) 0%, #0b0d17 100%);
-  color: #fff;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 40px 15px;
+  margin:0; font-family:sans-serif;
+  background:linear-gradient(180deg,var(--bg) 0%,#0b0d17 100%);
+  color:#fff; min-height:100vh; display:flex;
+  justify-content:center; align-items:flex-start; padding:40px 15px;
 }
 .container {
-  background: var(--card);
-  border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-  max-width: 700px;
-  width: 100%;
-  padding: 30px;
+  background:var(--card); border-radius:var(--radius);
+  box-shadow:0 10px 30px rgba(0,0,0,.4); max-width:700px; width:100%; padding:30px;
 }
-img { 
-  width: 100%; 
-  border-radius: var(--radius); 
-  margin-bottom: 20px; 
-  object-fit: cover; 
-  height: 250px; 
-  background: #1a2235; 
-}
-h1 { 
-  background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
-  -webkit-background-clip: text; 
-  color: transparent; 
-  font-size: 26px; 
-  margin-bottom: 5px; 
-}
-.price-section {
-  display: flex;
-  align-items: baseline;
-  margin-bottom: 15px;
-}
-.price { 
-  font-size: 24px; 
-  font-weight: 700; 
-  color: var(--accent2);
-  margin-right: 15px;
-}
-.category { 
-  font-size: 13px; 
-  background: rgba(163,255,110,0.1); 
-  color: var(--accent2);
-  padding: 4px 10px; 
-  border-radius: 20px; 
-}
-.desc { 
-  color: var(--muted); 
-  font-size: 16px; 
-  line-height: 1.6; 
-  margin-bottom: 25px; 
-}
-form label { 
-  display: block; 
-  margin-top: 15px; 
-  font-size: 14px; 
-  color: var(--muted); 
-  font-weight: 500;
-}
-form input, form textarea { 
-  width: calc(100% - 20px); 
-  padding: 10px; 
-  border-radius: 8px; 
-  border: 1px solid #1a2235; 
-  margin-top: 6px; 
-  background: #141f33; 
-  color: #fff; 
-  font-size: 15px; 
-  transition: border-color 0.2s;
-}
-form input[type="number"] {
-    width: 100px; 
-    text-align: center; 
-}
-form input:focus, form textarea:focus {
-  border-color: var(--accent1);
-  outline: none;
-}
-button { 
-  margin-top: 25px; 
-  width: 100%; 
-  padding: 14px; 
-  border: none; 
-  border-radius: 10px; 
-  background: linear-gradient(90deg, var(--accent1), var(--accent2)); 
-  font-weight: 700; 
-  color: #041018; 
-  cursor: pointer; 
-  transition: opacity 0.2s, transform 0.2s; 
-}
-button:hover:not(:disabled) { 
-  transform: scale(1.005); 
-}
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.success { 
-  margin-top: 25px; 
-  background: rgba(163,255,110,0.1); 
-  padding: 20px; 
-  border-radius: var(--radius); 
-  color: var(--accent2); 
-  text-align: center; 
-  font-weight: 600; 
-  display: none; 
-  border: 1px solid var(--accent2);
-}
-.error { 
-  margin-top: 18px; 
-  background: rgba(239,68,68,0.1); 
-  padding: 12px; 
-  border-radius: 8px; 
-  color: #ef4444; 
-  text-align: center; 
-  font-weight: 600; 
-  display: none; 
-}
+img { width:100%; height:250px; object-fit:cover; border-radius:var(--radius); background:#1a2235; margin-bottom:20px; }
+h1 { background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; font-size:26px; }
+.price-section { display:flex; align-items:baseline; gap:15px; }
+.price { font-size:24px; font-weight:700; color:var(--accent2); }
+.category { font-size:13px; padding:4px 10px; border-radius:20px; background:rgba(163,255,110,.1); color:var(--accent2); }
+.desc { margin:20px 0; color:var(--muted); line-height:1.6; }
+form label { margin-top:15px; display:block; font-size:14px; color:var(--muted); }
+form input, form textarea { width:100%; margin-top:6px; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; box-sizing: border-box; }
+button { margin-top:25px; width:100%; padding:14px; border:none; border-radius:10px; font-weight:700; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; transition:opacity 0.2s, transform 0.2s; }
+button:hover:not(:disabled) { transform:scale(1.005); }
+button:disabled { opacity:.6; cursor:not-allowed; }
+.success, .error { margin-top:20px; padding:15px; border-radius:10px; display:none; text-align:center; }
+.success { background:rgba(163,255,110,.1); color:var(--accent2); }
+.error { background:rgba(239,68,68,.1); color:#ef4444; }
+.loading { opacity:.6; pointer-events:none; }
 </style>
 </head>
+
 <body>
-<div class="container">
-  <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." alt="Offer" />
+<div class="container" id="container">
+  <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." />
   <h1 id="offerTitle">Loading offer...</h1>
-  
   <div class="price-section">
     <div class="price" id="offerPrice"></div>
     <div class="category" id="offerCategory"></div>
   </div>
-  
   <div class="desc" id="offerDescription"></div>
 
   <form id="requestForm">
-    <label>Quantity Desired <span style="color:#ef4444;">*</span></label>
-    <input type="number" id="quantity" required value="1" min="1" />
-
-    <label>Your Full Name <span style="color:#ef4444;">*</span></label>
-    <input type="text" id="clientName" required />
-
-    <label>Your Phone Number <span style="color:#ef4444;">*</span></label>
-    <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx" />
-
+    <label>Quantity <span style="color:#ef4444">*</span></label>
+    <input type="number" id="quantity" min="1" value="1" required>
+    <label>Full Name <span style="color:#ef4444">*</span></label>
+    <input type="text" id="clientName" required>
+    <label>Phone Number <span style="color:#ef4444">*</span></label>
+    <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx">
     <label>Message (optional)</label>
     <textarea id="note" placeholder="Any additional info..."></textarea>
-
     <button type="submit" id="submitBtn">Request This Offer</button>
   </form>
 
@@ -173,114 +65,120 @@ button:disabled {
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, collection, serverTimestamp, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, collection, serverTimestamp, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
 const promoterId = params.get("promoter") || "direct";
 
-const offerImage = document.getElementById("offerImage");
-const offerTitle = document.getElementById("offerTitle");
-const offerPrice = document.getElementById("offerPrice");
-const offerDescription = document.getElementById("offerDescription");
-const offerCategory = document.getElementById("offerCategory");
-const requestForm = document.getElementById("requestForm");
-const submitBtn = document.getElementById("submitBtn");
-const successMsg = document.getElementById("successMsg");
-const errorMsg = document.getElementById("errorMsg");
-
-let offerData = null;
-let providerId = null;
-let providerInfo = null;
-let promoterNameInfo = null;
-
-let clientId = localStorage.getItem('clientId');
+let isSubmitting = false;
+let clientId = localStorage.getItem("clientId");
 if (!clientId) {
-    clientId = 'client_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('clientId', clientId);
+  clientId = "client_" + Math.random().toString(36).slice(2,10);
+  localStorage.setItem("clientId", clientId);
 }
+
+const form = document.getElementById("requestForm");
+const submitBtn = document.getElementById("submitBtn");
+const errorMsg = document.getElementById("errorMsg");
+const successMsg = document.getElementById("successMsg");
+const container = document.getElementById("container");
+
+let offerData, providerId, providerInfo, promoterInfo;
 
 async function loadOffer() {
   if (!offerId) {
-    offerTitle.textContent = "Invalid or missing offer link.";
-    requestForm.style.display = "none";
+    document.getElementById("offerTitle").textContent = "Invalid or missing offer link.";
+    form.style.display = "none";
     return;
   }
 
   try {
-    const offerSnap = await getDoc(doc(db, "offers_all", offerId));
-    if (!offerSnap.exists()) {
-      offerTitle.textContent = "Offer not found (404).";
-      offerImage.src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
-      requestForm.style.display = "none";
+    const snap = await getDoc(doc(db, "offers_all", offerId));
+    if (!snap.exists()) {
+      document.getElementById("offerTitle").textContent = "Offer not found (404).";
+      document.getElementById("offerImage").src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
+      form.style.display = "none";
       return;
     }
 
-    offerData = offerSnap.data();
-    providerId = offerData.providerId || "unknown";
-
+    offerData = snap.data();
     if (!offerData.verified || offerData.status !== "active") {
-      offerTitle.textContent = "This offer is currently unavailable.";
-      offerImage.src = "https://via.placeholder.com/600x300?text=Unavailable";
-      requestForm.style.display = "none";
+      document.getElementById("offerTitle").textContent = "This offer is currently unavailable.";
+      document.getElementById("offerImage").src = "https://via.placeholder.com/600x300?text=Unavailable";
+      form.style.display = "none";
       return;
     }
 
+    providerId = offerData.providerId || "unknown";
     if (providerId !== "unknown") {
-      const providerSnap = await getDoc(doc(db, "users", providerId));
-      providerInfo = providerSnap.exists() ? providerSnap.data() : null;
+      const pSnap = await getDoc(doc(db, "users", providerId));
+      providerInfo = pSnap.exists() ? pSnap.data() : null;
     }
 
     if (promoterId !== "direct") {
-        const promoterSnap = await getDoc(doc(db, "users", promoterId));
-        promoterNameInfo = promoterSnap.exists() ? promoterSnap.data() : { name: "Promoter Not Found" };
+      const prSnap = await getDoc(doc(db, "users", promoterId));
+      promoterInfo = prSnap.exists() ? prSnap.data() : null;
     }
 
-    offerImage.src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
-    offerTitle.textContent = offerData.title || "Untitled Offer";
-    offerPrice.textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
-    offerDescription.textContent = offerData.description || "No description available.";
-    offerCategory.textContent = offerData.category || "Uncategorized";
+    document.getElementById("offerImage").src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
+    document.getElementById("offerTitle").textContent = offerData.title || "Untitled Offer";
+    document.getElementById("offerPrice").textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
+    document.getElementById("offerDescription").textContent = offerData.description || "No description available.";
+    document.getElementById("offerCategory").textContent = offerData.category || "Uncategorized";
 
-  } catch (err) {
+  } catch(err) {
     console.error(err);
-    offerTitle.textContent = "Error loading offer. Check console.";
-    requestForm.style.display = "none";
+    document.getElementById("offerTitle").textContent = "Error loading offer. Check console.";
+    form.style.display = "none";
   }
 }
-
 loadOffer();
 
-requestForm.addEventListener("submit", async (e) => {
+form.addEventListener("submit", async e => {
   e.preventDefault();
-  errorMsg.style.display = "none";
-  submitBtn.disabled = true;
-  const originalButtonText = submitBtn.textContent;
-  submitBtn.textContent = "Processing Request...";
+  if (isSubmitting) return;
 
-  const quantity = parseInt(document.getElementById("quantity").value) || 1;
+  isSubmitting = true;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Processing...";
+  container.classList.add("loading");
+  errorMsg.style.display = "none";
+
+  const quantity = Number(document.getElementById("quantity").value) || 1;
   const clientName = document.getElementById("clientName").value.trim();
   const clientContact = document.getElementById("clientContact").value.trim();
   const note = document.getElementById("note").value.trim();
 
   if (!clientName || !clientContact || quantity < 1) {
-    errorMsg.textContent = "Please ensure your name, phone number, and a valid quantity (min 1) are entered.";
+    errorMsg.textContent = "Please fill in all required fields with a valid quantity (min 1).";
     errorMsg.style.display = "block";
-    submitBtn.textContent = originalButtonText;
+    isSubmitting = false;
     submitBtn.disabled = false;
+    submitBtn.textContent = "Request This Offer";
+    container.classList.remove("loading");
     return;
   }
 
-  let promoterNameToSave = promoterId === "direct" ? "Direct Lead" : (promoterNameInfo?.name || "Referral Promoter");
-
   try {
-    const batch = writeBatch(db);
+    // DUPLICATE CHECK
+    const q = query(
+      collection(db, "deals"),
+      where("clientId","==",clientId),
+      where("offerId","==",offerId),
+      where("status","in",["pending","active"])
+    );
+    const existing = await getDocs(q);
+    if (!existing.empty) {
+      window.location.href = `client-chat.html?deal=${existing.docs[0].id}&client=${clientId}`;
+      return;
+    }
 
-    // --- Generate deal ID first ---
+    const batch = writeBatch(db);
     const dealRef = doc(collection(db, "deals"));
     const dealId = dealRef.id;
+    const promoterName = promoterId === "direct" ? "Direct Lead" : (promoterInfo?.name || "Referral Promoter");
 
-    // --- Deal document ---
     const dealData = {
       offerId,
       offerTitle: offerData.title,
@@ -299,84 +197,63 @@ requestForm.addEventListener("submit", async (e) => {
       providerPhone: providerInfo?.phone || "",
       commissionType: offerData.commissionType || "",
       commissionValue: offerData.commissionValue || 0,
-      promoterName: promoterNameToSave,
+      promoterName,
       createdAt: serverTimestamp()
     };
     batch.set(dealRef, dealData);
 
-    // --- Chat document (use deal ID as chat ID) ---
+    // CHAT CREATION WITH INITIAL SYSTEM MESSAGE
     const chatRef = doc(db, "chats", dealId);
     batch.set(chatRef, {
-      dealId: dealId,
-      providerId,
-      clientId,
+      dealId, providerId, clientId,
       participants: { providerId, clientId },
       clientInfo: { name: clientName, contact: clientContact },
       lastMessage: { text: "Deal initiated", sender: "system", timestamp: serverTimestamp() },
       status: "active",
       createdAt: serverTimestamp()
     });
-
-    // Initial system message
-    const firstMessageRef = doc(collection(chatRef, "messages"));
-    batch.set(firstMessageRef, {
+    const firstMsgRef = doc(collection(chatRef, "messages"));
+    batch.set(firstMsgRef, {
       text: "Chat started. The provider will contact you shortly.",
       sender: "system",
       timestamp: serverTimestamp()
     });
 
-    // --- Admin notification ---
-    const adminNotifRef = doc(collection(db, "admin_notifications"));
-    batch.set(adminNotifRef, {
-      message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterNameToSave})`,
-      type: "deal",
-      title: "New Deal Request",
-      dealId: dealId,
-      ...dealData,
-      createdAt: serverTimestamp()
+    // NOTIFICATIONS
+    // Admin
+    batch.set(doc(collection(db, "admin_notifications")), {
+      message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterName})`,
+      type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
     });
-
-    // --- Provider notification ---
+    // Provider
     if (providerId !== "unknown") {
-      const providerNotifRef = doc(collection(db, "notifications", providerId, "items"));
-      batch.set(providerNotifRef, {
-        title: "You Have a New Deal Request",
-        message: `A client requested ${quantity} unit(s) of your offer "${dealData.offerTitle}". Source: ${promoterNameToSave}.`,
-        type: "deal",
-        dealId: dealId,
-        ...dealData,
-        createdAt: serverTimestamp()
+      batch.set(doc(collection(db, "notifications", providerId, "items")), {
+        title:"New Deal Request",
+        message:`Request for ${quantity}x ${dealData.offerTitle}. Source: ${promoterName}`,
+        type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
     }
-
-    // --- Promoter notification ---
+    // Promoter
     if (promoterId !== "direct") {
-      const promoterNotifRef = doc(collection(db, "notifications", promoterId, "items"));
-      batch.set(promoterNotifRef, {
-        title: "You Generated a Deal!",
-        message: `Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
-        type: "deal",
-        dealId: dealId,
-        ...dealData,
-        createdAt: serverTimestamp()
+      batch.set(doc(collection(db, "notifications", promoterId, "items")), {
+        title:"You Generated a Deal!",
+        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
+        type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
     }
 
-    // --- Commit batch ---
     await batch.commit();
-
-    // Small delay to ensure Firestore propagation
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // --- Redirect client to chat ---
     window.location.href = `client-chat.html?deal=${dealId}&client=${clientId}`;
 
-  } catch (err) {
+  } catch(err) {
     console.error(err);
     errorMsg.textContent = "Error submitting request: " + (err.message || "Please try again later.");
     errorMsg.style.display = "block";
-    submitBtn.textContent = originalButtonText;
+    window.scrollTo({top:0, behavior:"smooth"});
+    isSubmitting = false;
     submitBtn.disabled = false;
+    submitBtn.textContent = "Request This Offer";
+    container.classList.remove("loading");
   }
 });
 </script>
