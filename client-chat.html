@@ -7,112 +7,38 @@
 
 <style>
 :root {
-  --bg:#0b0d17;
-  --card:#0f1724;
-  --accent1:#4a90e2;
-  --accent2:#a3ff6e;
-  --muted:#94a3b8;
-  --radius:14px;
+  --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#94a3b8; --radius:14px;
 }
 body {
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:var(--bg);
-  color:#fff;
-  height:100vh;
-  display:flex;
-  flex-direction:column;
+  margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; height:100vh; display:flex; flex-direction:column;
 }
 header {
-  background:var(--card);
-  padding:16px;
-  font-size:18px;
-  font-weight:700;
-  text-align:center;
-  border-bottom:1px solid #1a2235;
+  background:var(--card); padding:16px; font-size:18px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
 }
 #messagesContainer {
-  flex:1;
-  padding:16px;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+  flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
 }
-.message {
-  max-width:80%;
-  padding:10px 14px;
-  border-radius:var(--radius);
-  line-height:1.4;
-  font-size:14px;
-}
-.message.client {
-  align-self:flex-start;
-  background:rgba(74,144,226,0.2);
-  color:#cfe7ff;
-}
-.message.provider {
-  align-self:flex-end;
-  background:rgba(163,255,110,0.15);
-  color:#d6ffd6;
-}
-.message.system {
-  align-self:center;
-  max-width:90%;
-  background:rgba(148,163,184,0.12);
-  color:var(--muted);
-  font-size:12px;
-  text-align:center;
-  border-radius:10px;
-}
-.message.deleted {
-  font-style: italic;
-  opacity:0.6;
-}
+.message { max-width:80%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; font-size:14px; position: relative; }
 
+/* Client is left (Blue), Provider is right (Green) */
+.message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:#cfe7ff; border-bottom-left-radius:4px; }
+.message.provider { align-self:flex-end; background:var(--accent2); color:#041018; border-bottom-right-radius:4px; font-weight: 500; }
+.message.system { align-self:center; max-width:90%; background:rgba(148,163,184,0.12); color:var(--muted); font-size:12px; text-align:center; border-radius:10px; padding: 8px 12px; }
+
+.message.deleted { font-style: italic; opacity:0.6; }
 .messageTime { font-size:10px; opacity:0.7; margin-top:5px; text-align:right; }
 
 /* Action Buttons */
-.controls { display:flex; gap:8px; margin-top:5px; }
+.controls { display:flex; gap:8px; margin-top:8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
 .editBtn, .delBtn {
-  background: rgba(0,0,0,0.1);
-  border:none;
-  font-size:10px;
-  padding:3px 8px;
-  border-radius:4px;
-  cursor:pointer;
-  font-weight:bold;
-  color:#041018;
+  background: rgba(255,255,255,0.1); border:none; font-size:10px; padding:3px 8px; border-radius:4px; cursor:pointer; color:#fff;
 }
-.editBtn:hover { background: rgba(0,0,0,0.2); }
-.delBtn:hover { background:#ef4444; color:#fff; }
+.delBtn:hover { background:#ef4444; }
 
-#inputContainer {
-  display:flex;
-  gap:10px;
-  padding:14px;
-  background:var(--card);
-  border-top:1px solid #1a2235;
-}
-#messageInput {
-  flex:1;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #1a2235;
-  background:#141f33;
-  color:#fff;
-}
-#sendBtn {
-  padding:10px 20px;
-  border:none;
-  border-radius:8px;
-  background:var(--accent2);
-  color:#041018;
-  font-weight:600;
-  cursor:pointer;
-}
-#sendBtn:disabled { opacity:.6; cursor:not-allowed; }
-#loading { padding:20px; text-align:center; color:var(--muted); }
+#typingIndicator { font-size:12px; color:var(--accent2); padding:5px 16px; font-style:italic; display:none; }
+#inputContainer { display:flex; gap:10px; padding:14px; background:var(--card); border-top:1px solid #1a2235; }
+#messageInput { flex:1; padding:12px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; outline:none; }
+#sendBtn { padding:0 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
 </style>
 </head>
 
@@ -124,8 +50,10 @@ header {
   <div id="loading">Loading messages…</div>
 </div>
 
+<div id="typingIndicator">Provider is typing...</div>
+
 <div id="inputContainer">
-  <input id="messageInput" placeholder="Type a message…" />
+  <input id="messageInput" placeholder="Type a message…" autocomplete="off" />
   <button id="sendBtn">Send</button>
 </div>
 
@@ -133,7 +61,7 @@ header {
 import { db } from "./firebase.js";
 import {
   doc, getDoc, collection, addDoc, onSnapshot,
-  query, orderBy, serverTimestamp, updateDoc, getDocs, writeBatch, limit
+  query, orderBy, serverTimestamp, updateDoc, getDocs, writeBatch, limit, where
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -147,77 +75,97 @@ if(!dealId){
 const messagesContainer = document.getElementById("messagesContainer");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
+const typingIndicator = document.getElementById("typingIndicator");
 
 const chatRef = doc(db,"chats",dealId);
 const messagesRef = collection(chatRef,"messages");
 
+// 1. Initial Load check
 const chatSnap = await getDoc(chatRef);
 if(!chatSnap.exists()){
   document.body.innerHTML="<p style='padding:20px;color:red'>Chat not found.</p>";
-  throw new Error("Chat does not exist");
 }
 
-// Real-time messages
+// 2. Real-time Message Listener
 onSnapshot(query(messagesRef, orderBy("timestamp","asc")), snap => {
+  document.getElementById("loading")?.remove();
   messagesContainer.innerHTML="";
   snap.forEach(d => {
     const m = d.data();
     const div = document.createElement("div");
     div.className = `message ${m.sender} ${m.text==="[Message deleted]"?"deleted":""}`;
-    
-    const time = m.timestamp ? new Date(m.timestamp.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
 
+    const time = m.timestamp ? new Date(m.timestamp.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
     div.innerHTML=`<div>${m.text}</div><div class="messageTime">${time}</div>`;
 
-    // Only allow last client message to edit/delete
+    // Only allow edit/delete for client's own messages that are still 'editable'
     if(m.sender==="client" && m.editable && m.text!=="[Message deleted]"){
       const controls = document.createElement("div");
       controls.className="controls";
       controls.innerHTML=`<button class="editBtn">Edit</button><button class="delBtn">Delete</button>`;
 
-      controls.querySelector(".editBtn").onclick = async ()=>{
+      controls.querySelector(".editBtn").onclick = () => {
         const newT = prompt("Edit your message:", m.text);
         if(newT && newT!==m.text) updateDoc(d.ref,{text:newT});
       };
-      controls.querySelector(".delBtn").onclick = async ()=>{
+      controls.querySelector(".delBtn").onclick = async () => {
         if(confirm("Delete this message?")) await updateDoc(d.ref,{text:"[Message deleted]", editable:false});
       };
       div.appendChild(controls);
     }
-
     messagesContainer.appendChild(div);
   });
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 });
 
-// Send message with locking previous client message
+// 3. Provider Typing Listener
+onSnapshot(chatRef, snap => {
+  if(snap.exists()){
+    typingIndicator.style.display = snap.data().providerTyping ? "block" : "none";
+  }
+});
+
+// 4. Send Message Logic
 async function sendMessage(){
   const text=input.value.trim();
   if(!text) return;
   input.value="";
   sendBtn.disabled=true;
 
-  const batch=writeBatch(db);
+  try {
+    const batch = writeBatch(db);
 
-  // Lock previous client message
-  const lastQ=query(messagesRef, where("sender","==","client"), orderBy("timestamp","desc"), limit(1));
-  const lastSnap = await getDocs(lastQ);
-  lastSnap.forEach(d=>batch.update(d.ref,{editable:false}));
+    // Lock the previous client message
+    const lastQ = query(messagesRef, where("sender","==","client"), orderBy("timestamp","desc"), limit(1));
+    const lastSnap = await getDocs(lastQ);
+    lastSnap.forEach(d => batch.update(d.ref, {editable: false}));
 
-  const newMsg={text, sender:"client", timestamp:serverTimestamp(), editable:true};
-  const newDoc=doc(messagesRef);
-  batch.set(newDoc,newMsg);
-  batch.update(chatRef,{lastMessage:newMsg});
+    // Add new message
+    const newMsg = { text, sender: "client", timestamp: serverTimestamp(), editable: true };
+    const newDoc = doc(messagesRef);
+    batch.set(newDoc, newMsg);
+    
+    // Update chat head
+    batch.update(chatRef, { lastMessage: newMsg, clientTyping: false });
 
-  await batch.commit();
-  sendBtn.disabled=false;
+    await batch.commit();
+  } catch (err) {
+    console.error("Chat error:", err);
+  } finally {
+    sendBtn.disabled=false;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
 }
 
-sendBtn.onclick=sendMessage;
-input.addEventListener("keydown", e=>{
-  if(e.key==="Enter") sendMessage();
+// 5. Typing Indicator
+input.addEventListener("input", ()=>{
+  updateDoc(chatRef, { clientTyping: true });
+  clearTimeout(window.typingTimer);
+  window.typingTimer = setTimeout(() => updateDoc(chatRef, { clientTyping: false }), 2000);
 });
-</script>
 
+sendBtn.onclick = sendMessage;
+input.onkeydown = e => { if(e.key==="Enter") sendMessage(); };
+</script>
 </body>
 </html>
