@@ -104,12 +104,11 @@ onAuthStateChanged(auth, async (user) => {
   loadDeals();
 });
 
-/* --- Complete Deal (FIXED: All Reads Before All Writes + Quantity Multiplication) --- */
+/* --- Complete Deal (unchanged) --- */
 async function processCompleteDeal(dealId, deal, card){
   const dealRef = doc(db, "deals", dealId);
 
   try {
-    // Soft Lock 
     await runTransaction(db, async (t) => {
       const snap = await t.get(dealRef);
       if(!snap.exists()) throw new Error("Deal not found.");
@@ -126,10 +125,6 @@ async function processCompleteDeal(dealId, deal, card){
     const offerRef = doc(db, "offers_all", deal.offerId);
     
     await runTransaction(db, async (t) => {
-      
-      // ==========================================================
-      // 1. ALL READS MUST HAPPEN FIRST
-      // ==========================================================
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
@@ -147,69 +142,48 @@ async function processCompleteDeal(dealId, deal, card){
         const metaRef = doc(db,"promoter-earnings",deal.promoterId,"metadata","summary");
         metaSnap = await t.get(metaRef);
       }
-      // END READS
-      
-      // ==========================================================
-      // 2. CALCULATIONS (QUANTITY MULTIPLICATION ADDED HERE)
-      // ==========================================================
-      
-      // **NEW: Retrieve the quantity, defaulting to 1 for older/misformed deals**
+
       const dealQuantity = deal.quantity || 1; 
 
       let commissionEarned = 0;
       if(offer.commissionType==="percentage") {
-          // Commission is based on (Offer Price * Quantity) * Percentage
           commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
       }
       else if(offer.commissionType==="fixed") {
-          // Commission is fixed value * Quantity
           commissionEarned = offer.commissionValue * dealQuantity;
       }
       else { 
-          // Fallback: If no type is set, use the value field multiplied by quantity
           commissionEarned = (deal.commissionValue || 0) * dealQuantity; 
       }
       
       commissionEarned = round(commissionEarned);
-
       const platformShare = round(commissionEarned*platformPercentage/100);
       const promoterNet = round(commissionEarned-platformShare);
-      
       const todayUTC = new Date().toISOString().split("T")[0];
       
-      // Update Platform Data Calculation
       platformData.totalRevenue += platformShare;
       platformData.dealsCount += 1;
       platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0)+platformShare;
 
-      // Update Offer Data Calculation
-      // Note: We use commissionEarned (the total commission for the provider/promoter)
       const updatedOfferData = {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
         outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
       };
       
-      // Promoter Metadata Calculation
       let meta = metaSnap?.exists() ? metaSnap.data() : {totalLifetimeEarnings:{},currentBalance:{},totalWithdrawn:{}};
       if(deal.promoterId && deal.promoterId!=="direct"){
           meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
           meta.currentBalance[currency] = meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency]||0);
           meta.lastUpdated = serverTimestamp();
       }
-      
-      // ==========================================================
-      // 3. ALL WRITES MUST HAPPEN LAST
-      // ==========================================================
-      
-      // Update offer totals
+
+      // Writes
       t.update(offerRef, updatedOfferData);
 
-      // Promoter earnings
       if(deal.promoterId && deal.promoterId!=="direct"){
         const promoterDealRef = doc(db,"promoter-earnings",deal.promoterId,"deals",dealId);
         const metaRef = doc(db,"promoter-earnings",deal.promoterId,"metadata","summary");
-        
         t.set(promoterDealRef,{
             ...deal, 
             commissionAmount:promoterNet, 
@@ -221,10 +195,8 @@ async function processCompleteDeal(dealId, deal, card){
         t.set(metaRef, meta, { merge:true });
       }
 
-      // Platform earnings
       t.set(platformRef, platformData, { merge:true });
 
-      // Completed deals
       const completedRef = doc(db, "completed-deals", dealId);
       t.set(completedRef, {
         ...deal,
@@ -237,7 +209,6 @@ async function processCompleteDeal(dealId, deal, card){
         providerPaid:false
       });
 
-      // Delete pending deal
       t.delete(dealRef);
     });
 
@@ -247,23 +218,47 @@ async function processCompleteDeal(dealId, deal, card){
 
   } catch(err){
     console.error(err);
-    // Reset status from 'processing' back to 'pending' if the main transaction fails
     setDoc(dealRef,{status:"pending"},{merge:true}).catch(e=>console.error("Failed to reset status:",e));
     showNotif(`**Financial Error:** ${err.message}`,"error");
   }
 }
 
-/* --- Cancel Deal --- */
+/* --- Cancel Deal (Move to Cancelled Deals) --- */
 async function processCancelDeal(dealId, deal, card){
+  const dealRef = doc(db,"deals",dealId);
+  const cancelledRef = doc(db,"cancelled-deals",dealId);
+
   try {
-    await deleteDoc(doc(db,"deals",dealId));
-    await sendNotifications(deal,"Deal Cancelled ❌",`Deal ${dealId} cancelled.`);
+    await runTransaction(db, async (t) => {
+      const snap = await t.get(dealRef);
+      if(!snap.exists()) throw new Error("Deal not found.");
+      t.set(cancelledRef, {
+        ...snap.data(),
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
+        cancelledBy: "provider"
+      });
+      t.delete(dealRef);
+    });
+
+    await sendNotifications(deal,"Deal Cancelled ❌",`Deal ${dealId} has been cancelled.`);
     card.remove();
     showNotif("Deal cancelled","error");
-  } catch(err){ 
-    console.error(err); 
-    showNotif(`**Cancel Error:** ${err.message}`,"error"); 
+
+  } catch(err){
+    console.error(err);
+    showNotif(`**Cancel Error:** ${err.message}`,"error");
   }
+}
+
+/* --- Execute Action Reusable --- */
+async function executeDealAction(type, dealId, deal, card){
+  const actionMap = {
+    complete: processCompleteDeal,
+    cancel: processCancelDeal
+  };
+  if(!actionMap[type]) throw new Error(`Unknown action type: ${type}`);
+  await actionMap[type](dealId, deal, card);
 }
 
 /* --- Schedule Actions --- */
@@ -287,19 +282,14 @@ function scheduleAction(type, dealId, deal, card){
   setTimeout(async ()=>{
     box.remove();
     if(!cancelled){
-      try {
-          if(type==="complete") await processCompleteDeal(dealId,deal,card);
-          else await processCancelDeal(dealId,deal,card);
-      } catch (e) {
-          console.error("Scheduled action failed:", e);
-      } finally {
-          buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); });
-      }
+      try { await executeDealAction(type,dealId,deal,card); }
+      catch(e){ console.error("Scheduled action failed:", e); }
+      finally { buttons.forEach(btn=>{ btn.disabled=false; btn.classList.remove("loading"); }); }
     }
   },5000);
 }
 
-/* --- Load Deals with Pagination --- */
+/* --- Load Deals --- */
 let lastDeal = null;
 function loadDeals(isInitialLoad=true){
   if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; loadMoreContainer.style.display="none"; }
@@ -330,59 +320,28 @@ function loadDeals(isInitialLoad=true){
     else { loadMoreBtn.textContent="Load More Deals"; loadMoreBtn.disabled=false; }
   }).catch(err=>{ 
     console.error(err); 
-    
-    let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}. Check console.`;
-    const indexRegex = /(https:\/\/[^/]+\/[^/]+\/console\/firestore\/indexes\?create_composite=true&[^>\s]+)/;
-    const match = err.message.match(indexRegex);
-
-    if (match) {
-         const indexUrl = match[1];
-         errorMsg = `
-             **CRITICAL: MISSING COMPOSITE INDEX!**<br>
-             Your query requires a specific index. Click the link below to fix it:<br>
-             <a href="${indexUrl}" target="_blank" style="color:#a3ff6e; font-weight:700;">
-                 Click here to create the required Firebase Index
-             </a>
-             <br>
-             <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">providerId, status, createdAt</code>
-         `;
-    } else if (err.message && err.message.includes('The query requires an index')) {
-         errorMsg = `
-             **CRITICAL: MISSING COMPOSITE INDEX!**<br>
-             Your query requires an index on the 'deals' collection with fields:
-             <code style="background:#253040;padding:2px 4px;border-radius:4px;font-size:11px;display:inline-block;margin-top:5px;">providerId (Ascending), status (Ascending), createdAt (Descending)</code><br>
-             **Action:** Please check your browser console for the direct link.
-         `;
-    }
-
-    dealsContainer.innerHTML = `<p style="color:#ef4444;">${errorMsg}</p>`;
-    showNotif(errorMsg,"error"); 
+    dealsContainer.innerHTML = `<p style="color:#ef4444;">**Failed to Load Deals:** ${err.code || 'Unknown Error'}. Check console.</p>`;
+    showNotif("Failed to load deals","error"); 
     loadMoreBtn.textContent="Failed to Load"; 
   });
 }
 loadMoreBtn.onclick=()=>loadDeals(false);
 
-/* --- Render Deal Card (Display Quantity) --- */
+/* --- Render Deal Card --- */
 function renderDealCard(dealId, deal){
   const card = document.createElement("div");
   card.className="deal-card "+(deal.status||"");
 
   let createdDate = 'N/A';
   if (deal.createdAt) {
-      if (typeof deal.createdAt.toDate === 'function') {
-          createdDate = deal.createdAt.toDate().toLocaleString();
-      } else if (deal.createdAt instanceof Date) {
-          createdDate = deal.createdAt.toLocaleString();
-      } else if (typeof deal.createdAt === 'string') {
-          try {
-              createdDate = new Date(deal.createdAt).toLocaleString();
-          } catch (e) {
-              createdDate = 'Invalid Date String';
-          }
+      if (typeof deal.createdAt.toDate === 'function') createdDate = deal.createdAt.toDate().toLocaleString();
+      else if (deal.createdAt instanceof Date) createdDate = deal.createdAt.toLocaleString();
+      else if (typeof deal.createdAt === 'string') {
+          try { createdDate = new Date(deal.createdAt).toLocaleString(); } 
+          catch (e) { createdDate = 'Invalid Date String'; }
       }
   }
   
-  // Retrieve and display Quantity
   const dealQuantity = deal.quantity || 1; 
 
   card.innerHTML = `
