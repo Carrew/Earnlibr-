@@ -3,259 +3,187 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Request Offer | EarnLibr</title>
+<title>EarnLibr — Client Chat</title>
+
 <style>
 :root {
-  --bg:#071028; --card:#0f1724; --accent1:#4a90e2;
-  --accent2:#a3ff6e; --muted:#cbd5e1; --radius:14px;
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#94a3b8;
+  --radius:14px;
 }
 body {
-  margin:0; font-family:sans-serif;
-  background:linear-gradient(180deg,var(--bg) 0%,#0b0d17 100%);
-  color:#fff; min-height:100vh; display:flex;
-  justify-content:center; align-items:flex-start; padding:40px 15px;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:#fff;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
 }
-.container {
-  background:var(--card); border-radius:var(--radius);
-  box-shadow:0 10px 30px rgba(0,0,0,.4); max-width:700px; width:100%; padding:30px;
+header {
+  background:var(--card);
+  padding:16px;
+  font-size:18px;
+  font-weight:700;
+  text-align:center;
+  border-bottom:1px solid #1a2235;
 }
-img { width:100%; height:250px; object-fit:cover; border-radius:var(--radius); background:#1a2235; margin-bottom:20px; }
-h1 { background:linear-gradient(90deg,var(--accent1),var(--accent2)); -webkit-background-clip:text; color:transparent; font-size:26px; }
-.price-section { display:flex; align-items:baseline; gap:15px; }
-.price { font-size:24px; font-weight:700; color:var(--accent2); }
-.category { font-size:13px; padding:4px 10px; border-radius:20px; background:rgba(163,255,110,.1); color:var(--accent2); }
-.desc { margin:20px 0; color:var(--muted); line-height:1.6; }
-form label { margin-top:15px; display:block; font-size:14px; color:var(--muted); }
-form input, form textarea { width:100%; margin-top:6px; padding:10px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; box-sizing: border-box; }
-button { margin-top:25px; width:100%; padding:14px; border:none; border-radius:10px; font-weight:700; cursor:pointer; background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#041018; transition:opacity 0.2s, transform 0.2s; }
-button:hover:not(:disabled) { transform:scale(1.005); }
-button:disabled { opacity:.6; cursor:not-allowed; }
-.success, .error { margin-top:20px; padding:15px; border-radius:10px; display:none; text-align:center; }
-.success { background:rgba(163,255,110,.1); color:var(--accent2); }
-.error { background:rgba(239,68,68,.1); color:#ef4444; }
-.loading { opacity:.6; pointer-events:none; }
+#messagesContainer {
+  flex:1;
+  padding:16px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.message {
+  max-width:80%;
+  padding:10px 14px;
+  border-radius:var(--radius);
+  line-height:1.4;
+  font-size:14px;
+}
+.message.client {
+  align-self:flex-start;
+  background:rgba(74,144,226,0.2);
+  color:#cfe7ff;
+}
+.message.provider {
+  align-self:flex-end;
+  background:rgba(163,255,110,0.15);
+  color:#d6ffd6;
+}
+.message.system {
+  align-self:center;
+  max-width:90%;
+  background:rgba(148,163,184,0.12);
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+  border-radius:10px;
+}
+#inputContainer {
+  display:flex;
+  gap:10px;
+  padding:14px;
+  background:var(--card);
+  border-top:1px solid #1a2235;
+}
+#messageInput {
+  flex:1;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #1a2235;
+  background:#141f33;
+  color:#fff;
+}
+#sendBtn {
+  padding:10px 20px;
+  border:none;
+  border-radius:8px;
+  background:var(--accent2);
+  color:#041018;
+  font-weight:600;
+  cursor:pointer;
+}
+#sendBtn:disabled {
+  opacity:.6;
+  cursor:not-allowed;
+}
+#loading {
+  padding:20px;
+  text-align:center;
+  color:var(--muted);
+}
 </style>
 </head>
 
 <body>
-<div class="container" id="container">
-  <img id="offerImage" src="https://via.placeholder.com/600x300?text=Loading..." />
-  <h1 id="offerTitle">Loading offer...</h1>
-  <div class="price-section">
-    <div class="price" id="offerPrice"></div>
-    <div class="category" id="offerCategory"></div>
-  </div>
-  <div class="desc" id="offerDescription"></div>
 
-  <form id="requestForm">
-    <label>Quantity <span style="color:#ef4444">*</span></label>
-    <input type="number" id="quantity" min="1" value="1" required>
-    <label>Full Name <span style="color:#ef4444">*</span></label>
-    <input type="text" id="clientName" required>
-    <label>Phone Number <span style="color:#ef4444">*</span></label>
-    <input type="text" id="clientContact" required placeholder="+231 xxx xxx xxx">
-    <label>Message (optional)</label>
-    <textarea id="note" placeholder="Any additional info..."></textarea>
-    <button type="submit" id="submitBtn">Request This Offer</button>
-  </form>
+<header>Secure Chat</header>
 
-  <div class="success" id="successMsg"></div>
-  <div class="error" id="errorMsg"></div>
+<div id="messagesContainer">
+  <div id="loading">Loading messages…</div>
+</div>
+
+<div id="inputContainer">
+  <input id="messageInput" placeholder="Type a message…" />
+  <button id="sendBtn">Send</button>
 </div>
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, collection, serverTimestamp, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import {
+  doc, getDoc, collection, addDoc, onSnapshot,
+  query, orderBy, serverTimestamp, updateDoc
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
-const offerId = params.get("offer");
-const promoterId = params.get("promoter") || "direct";
+const dealId = params.get("deal");
 
-let isSubmitting = false;
-let clientId = localStorage.getItem("clientId");
-if (!clientId) {
-  clientId = "client_" + Math.random().toString(36).slice(2,10);
-  localStorage.setItem("clientId", clientId);
+if (!dealId) {
+  document.body.innerHTML = "<p style='padding:20px;color:red'>Invalid chat link.</p>";
+  throw new Error("Missing deal ID");
 }
 
-const form = document.getElementById("requestForm");
-const submitBtn = document.getElementById("submitBtn");
-const errorMsg = document.getElementById("errorMsg");
-const successMsg = document.getElementById("successMsg");
-const container = document.getElementById("container");
+const messagesContainer = document.getElementById("messagesContainer");
+const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
 
-let offerData, providerId, providerInfo, promoterInfo;
+const chatRef = doc(db, "chats", dealId);
+const messagesRef = collection(chatRef, "messages");
 
-async function loadOffer() {
-  if (!offerId) {
-    document.getElementById("offerTitle").textContent = "Invalid or missing offer link.";
-    form.style.display = "none";
-    return;
-  }
-
-  try {
-    const snap = await getDoc(doc(db, "offers_all", offerId));
-    if (!snap.exists()) {
-      document.getElementById("offerTitle").textContent = "Offer not found (404).";
-      document.getElementById("offerImage").src = "https://via.placeholder.com/600x300?text=Offer+Not+Found";
-      form.style.display = "none";
-      return;
-    }
-
-    offerData = snap.data();
-    if (!offerData.verified || offerData.status !== "active") {
-      document.getElementById("offerTitle").textContent = "This offer is currently unavailable.";
-      document.getElementById("offerImage").src = "https://via.placeholder.com/600x300?text=Unavailable";
-      form.style.display = "none";
-      return;
-    }
-
-    providerId = offerData.providerId || "unknown";
-    if (providerId !== "unknown") {
-      const pSnap = await getDoc(doc(db, "users", providerId));
-      providerInfo = pSnap.exists() ? pSnap.data() : null;
-    }
-
-    if (promoterId !== "direct") {
-      const prSnap = await getDoc(doc(db, "users", promoterId));
-      promoterInfo = prSnap.exists() ? prSnap.data() : null;
-    }
-
-    document.getElementById("offerImage").src = offerData.imageUrl || "https://via.placeholder.com/600x300?text=Offer+Image";
-    document.getElementById("offerTitle").textContent = offerData.title || "Untitled Offer";
-    document.getElementById("offerPrice").textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
-    document.getElementById("offerDescription").textContent = offerData.description || "No description available.";
-    document.getElementById("offerCategory").textContent = offerData.category || "Uncategorized";
-
-  } catch(err) {
-    console.error(err);
-    document.getElementById("offerTitle").textContent = "Error loading offer. Check console.";
-    form.style.display = "none";
-  }
+// Ensure chat exists (resume-safe)
+const chatSnap = await getDoc(chatRef);
+if (!chatSnap.exists()) {
+  document.body.innerHTML = "<p style='padding:20px;color:red'>Chat not found.</p>";
+  throw new Error("Chat does not exist");
 }
-loadOffer();
 
-form.addEventListener("submit", async e => {
-  e.preventDefault();
-  if (isSubmitting) return;
+// Realtime listener
+const q = query(messagesRef, orderBy("timestamp","asc"));
+onSnapshot(q, snap => {
+  messagesContainer.innerHTML = "";
+  snap.forEach(d => {
+    const m = d.data();
+    const div = document.createElement("div");
+    div.className = `message ${m.sender}`;
+    div.textContent = m.text;
+    messagesContainer.appendChild(div);
+  });
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+});
 
-  isSubmitting = true;
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Processing...";
-  container.classList.add("loading");
-  errorMsg.style.display = "none";
+// Send message
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  sendBtn.disabled = true;
 
-  const quantity = Number(document.getElementById("quantity").value) || 1;
-  const clientName = document.getElementById("clientName").value.trim();
-  const clientContact = document.getElementById("clientContact").value.trim();
-  const note = document.getElementById("note").value.trim();
-
-  if (!clientName || !clientContact || quantity < 1) {
-    errorMsg.textContent = "Please fill in all required fields with a valid quantity (min 1).";
-    errorMsg.style.display = "block";
-    isSubmitting = false;
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Request This Offer";
-    container.classList.remove("loading");
-    return;
-  }
+  const msg = {
+    text,
+    sender: "client",
+    timestamp: serverTimestamp()
+  };
 
   try {
-    // DUPLICATE CHECK — redirect to chat if existing deal active/pending
-    const q = query(
-      collection(db, "deals"),
-      where("clientId","==",clientId),
-      where("offerId","==",offerId),
-      where("status","in",["pending","active"])
-    );
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-      window.location.href = `client-chat.html?deal=${existing.docs[0].id}&client=${clientId}`;
-      return;
-    }
-
-    const batch = writeBatch(db);
-    const dealRef = doc(collection(db, "deals"));
-    const dealId = dealRef.id;
-    const promoterName = promoterId === "direct" ? "Direct Lead" : (promoterInfo?.name || "Referral Promoter");
-
-    const dealData = {
-      offerId,
-      offerTitle: offerData.title,
-      offerPrice: offerData.price,
-      offerCurrency: offerData.currency || "$",
-      providerId,
-      promoterId,
-      clientId,
-      clientName,
-      clientContact,
-      note,
-      quantity,
-      status: "pending",
-      providerName: providerInfo?.name || "",
-      providerEmail: providerInfo?.email || "",
-      providerPhone: providerInfo?.phone || "",
-      commissionType: offerData.commissionType || "",
-      commissionValue: offerData.commissionValue || 0,
-      promoterName,
-      createdAt: serverTimestamp()
-    };
-    batch.set(dealRef, dealData);
-
-    // CHAT CREATION WITH NEW SYSTEM MESSAGE
-    const chatRef = doc(db, "chats", dealId);
-    batch.set(chatRef, {
-      dealId, providerId, clientId,
-      participants: { providerId, clientId },
-      clientInfo: { name: clientName, contact: clientContact },
-      lastMessage: { 
-        text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.", 
-        sender: "system", timestamp: serverTimestamp() 
-      },
-      status: "active",
-      createdAt: serverTimestamp()
-    });
-    const firstMsgRef = doc(collection(chatRef, "messages"));
-    batch.set(firstMsgRef, {
-      text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.",
-      sender: "system",
-      timestamp: serverTimestamp()
-    });
-
-    // NOTIFICATIONS
-    batch.set(doc(collection(db, "admin_notifications")), {
-      message: `${clientName} requested ${quantity} unit(s) of "${dealData.offerTitle}" (Referred by ${promoterName})`,
-      type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
-    });
-    if (providerId !== "unknown") {
-      batch.set(doc(collection(db, "notifications", providerId, "items")), {
-        title:"New Deal Request",
-        message:`Request for ${quantity}x ${dealData.offerTitle}. Source: ${promoterName}`,
-        type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
-      });
-    }
-    if (promoterId !== "direct") {
-      batch.set(doc(collection(db, "notifications", promoterId, "items")), {
-        title:"You Generated a Deal!",
-        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
-        type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
-      });
-    }
-
-    await batch.commit();
-    window.location.href = `client-chat.html?deal=${dealId}&client=${clientId}`;
-
-  } catch(err) {
-    console.error(err);
-    errorMsg.textContent = "Error submitting request: " + (err.message || "Please try again later.");
-    errorMsg.style.display = "block";
-    window.scrollTo({top:0, behavior:"smooth"});
-    isSubmitting = false;
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Request This Offer";
-    container.classList.remove("loading");
+    await addDoc(messagesRef, msg);
+    await updateDoc(chatRef, { lastMessage: msg });
+  } catch (e) {
+    console.error(e);
   }
+  sendBtn.disabled = false;
+}
+
+sendBtn.onclick = sendMessage;
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
 });
 </script>
+
 </body>
 </html>
