@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Review — Cancelled Deals</title>
+<style>
+body { font-family: Arial, sans-serif; background:#0b0d17; color:#eef2f7; margin:0; padding:20px; }
+h1 { color:#4a90e2; }
+.deal-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 10px rgba(0,0,0,0.5); }
+.deal-actions button { margin-right:8px; padding:6px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
+.approve { background:#4ade80; color:#041018; }
+.dispute { background:#ef4444; color:#fff; }
+a { color:#3b82f6; text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<h1>Cancelled Deals Pending Review</h1>
+<div id="dealsContainer">Loading cancelled deals...</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const dealsContainer = document.getElementById("dealsContainer");
+
+async function loadCancelledDeals() {
+  dealsContainer.innerHTML = "Loading cancelled deals...";
+  try {
+    const q = query(collection(db, "cancelled-deals"), where("reviewRequired", "==", true));
+    const snapshot = await getDocs(q);
+
+    if(snapshot.empty){
+      dealsContainer.innerHTML = "<p>No cancelled deals pending review.</p>";
+      return;
+    }
+
+    dealsContainer.innerHTML = "";
+    snapshot.forEach(docSnap => renderDealCard(docSnap.id, docSnap.data()));
+  } catch(err) {
+    console.error(err);
+    dealsContainer.innerHTML = `<p style="color:#ef4444;">Failed to load deals. Check console.</p>`;
+  }
+}
+
+function renderDealCard(dealId, deal){
+  const card = document.createElement("div");
+  card.className = "deal-card";
+  const chatLink = deal.chatRef ? `<a href="admin-chat-view.html?chat=${dealId}" target="_blank">View Chat</a>` : "No chat available";
+
+  card.innerHTML = `
+    <div><strong>Deal ID:</strong> ${dealId}</div>
+    <div><strong>Offer:</strong> ${deal.offerTitle || "N/A"} (QTY: ${deal.quantity || 1})</div>
+    <div><strong>Provider:</strong> ${deal.providerName || deal.providerId}</div>
+    <div><strong>Client:</strong> ${deal.clientName} (${deal.clientId})</div>
+    <div><strong>Status:</strong> ${deal.status}</div>
+    <div><strong>Cancelled At:</strong> ${deal.cancelledAt?.toDate ? deal.cancelledAt.toDate().toLocaleString() : "N/A"}</div>
+    <div><strong>Chat:</strong> ${chatLink}</div>
+    <div class="deal-actions">
+      <button class="approve">Approve Cancellation</button>
+      <button class="dispute">Dispute / Revert</button>
+    </div>
+  `;
+
+  // Approve cancellation
+  card.querySelector(".approve").onclick = async () => {
+    await updateDoc(doc(db, "cancelled-deals", dealId), { reviewRequired: false });
+    card.remove();
+    alert("Cancellation approved.");
+  };
+
+  // Dispute / revert
+  card.querySelector(".dispute").onclick = async () => {
+    // Example: mark as disputed, admin can later move it back to active deals
+    await updateDoc(doc(db, "cancelled-deals", dealId), { reviewRequired: false, status: "disputed" });
+    card.remove();
+    alert("Deal marked as disputed for further review.");
+  };
+
+  dealsContainer.appendChild(card);
+}
+
+// Initial load
+loadCancelledDeals();
+</script>
+</body>
+</html>
