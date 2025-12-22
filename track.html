@@ -209,7 +209,7 @@ form.addEventListener("submit", async e => {
       participants: { providerId, clientId },
       clientInfo: { name: clientName, contact: clientContact },
       lastMessage: { 
-        text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.", 
+        text: "🔒 EarnLibr Secure Conversation.This chat is monitored and recorded by EarnLibr. Messages may be reviewed only to resolve disputes and ensure fairness.", 
         sender: "system", timestamp: serverTimestamp() 
       },
       status: "active",
@@ -217,7 +217,7 @@ form.addEventListener("submit", async e => {
     });
     const firstMsgRef = doc(collection(chatRef, "messages"));
     batch.set(firstMsgRef, {
-      text: "🔒 This chat is private and secured. Messages are visible only to you and the other participant. They can only be reviewed by EarnLibr to resolve disputes.",
+      text: "🔒 🔒 EarnLibr Secure Conversation. This chat is monitored and recorded by EarnLibr. Messages may be reviewed only to resolve disputes and ensure fairness.",
       sender: "system",
       timestamp: serverTimestamp()
     });
@@ -237,7 +237,7 @@ form.addEventListener("submit", async e => {
     if (promoterId !== "direct") {
       batch.set(doc(collection(db, "notifications", promoterId, "items")), {
         title:"You Generated a Deal!",
-        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}".`,
+        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}, you eatn once this deal is completed".`,
         type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
     }
@@ -258,4 +258,4 @@ form.addEventListener("submit", async e => {
 });
 </script>
 </body>
-  </html>
+</html>
