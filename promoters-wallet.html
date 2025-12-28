@@ -6,15 +6,102 @@
 <title>Promoter Wallet</title>
 
 <style>
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.wallet-box { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.wallet-box h3 { margin-top: 0; }
-.wallet-box p { margin: 4px 0; font-size: 14px; }
-.wallet-box button { margin-top: 10px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; background: #4ade80; color: #041018; font-weight: 700; }
-.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0b0d17;
+  color: #eef2f7;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 2rem;
+  background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+  -webkit-background-clip: text;
+  color: transparent;
+  margin-bottom: 25px;
+}
+
+/* Notification */
+.notif {
+  background: #1a2235;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  display: none;
+}
 .notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
 .notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+
+/* Wallet panel */
+.wallet-panel {
+  background: rgba(15, 23, 36, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.wallet-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.8);
+}
+
+/* Wallet header with balance */
+.wallet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wallet-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.wallet-header span {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #4ade80;
+}
+
+/* Mini progress bar */
+.wallet-progress {
+  background: #1a2235;
+  border-radius: 8px;
+  height: 10px;
+  overflow: hidden;
+}
+.wallet-progress div {
+  height: 100%;
+  background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
+/* Buttons */
+.wallet-panel button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #4ade80;
+  color: #041018;
+  font-weight: 700;
+  transition: background 0.2s ease;
+}
+.wallet-panel button:hover {
+  background: #32cd70;
+}
+
+/* Responsive */
+@media(max-width:600px){
+  body{padding:10px;}
+  h1{font-size:1.5rem;}
+}
 </style>
 </head>
 <body>
@@ -27,7 +114,7 @@ h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-cl
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-  doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, runTransaction
+  doc, getDoc, collection, query, where, getDocs, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const walletContainer = document.getElementById("walletContainer");
@@ -41,7 +128,7 @@ const showNotif = (msg, type="success") => {
   setTimeout(() => (notif.style.display = "none"), 3000);
 };
 
-/* --- Load Session & Auth (unchanged) --- */
+/* --- Load Session & Auth --- */
 let userSession = localStorage.getItem("userSession");
 if (!userSession) {
   window.location.href = "login.html";
@@ -50,13 +137,7 @@ if (!userSession) {
 userSession = JSON.parse(userSession);
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user || user.uid !== userSession.uid) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-
-  if (!user.emailVerified) {
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
     localStorage.removeItem("userSession");
     window.location.href = "login.html";
     return;
@@ -87,7 +168,7 @@ onAuthStateChanged(auth, async (user) => {
   loadWallet(user.uid);
 });
 
-/* --- Load Wallet (unchanged) --- */
+/* --- Load Wallet --- */
 async function loadWallet(promoterId) {
   const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
   const metaSnap = await getDoc(metaRef);
@@ -104,24 +185,28 @@ async function loadWallet(promoterId) {
     const withdrawable = meta.currentBalance[currency] || 0;
     const totalWithdrawn = meta.totalWithdrawn?.[currency] || 0;
     const totalLifetime = meta.totalLifetimeEarnings?.[currency] || 0;
-    const buttonId = `withdraw-${currency}`;
-    
+
     const box = document.createElement("div");
-    box.className = "wallet-box";
+    box.className = "wallet-panel";
     box.innerHTML = `
-      <h3>${currency} Wallet</h3>
-      <p>Total Lifetime Earnings: ${totalLifetime.toFixed(2)}</p>
-      <p>Total Withdrawn: ${totalWithdrawn.toFixed(2)}</p>
-      <p>Available to Withdraw: <strong>${withdrawable.toFixed(2)}</strong></p>
-      <button id="${buttonId}">Request Withdrawal</button>
+      <div class="wallet-header">
+        <h3>${currency} Wallet</h3>
+        <span>${withdrawable.toFixed(2)}</span>
+      </div>
+      <div class="wallet-progress"><div></div></div>
+      <p>Total Lifetime: ${totalLifetime.toFixed(2)} | Withdrawn: ${totalWithdrawn.toFixed(2)}</p>
+      <button>Request Withdrawal</button>
     `;
     walletContainer.appendChild(box);
 
-    const withdrawBtn = box.querySelector(`#${buttonId}`);
-    
+    // Animate progress
+    const progress = box.querySelector(".wallet-progress div");
+    progress.style.width = totalLifetime > 0 ? `${(withdrawable / totalLifetime) * 100}%` : "0%";
+
+    const withdrawBtn = box.querySelector("button");
     if (withdrawable <= 0) {
-        withdrawBtn.disabled = true;
-        withdrawBtn.textContent = "No Balance to Withdraw";
+      withdrawBtn.disabled = true;
+      withdrawBtn.textContent = "No Balance to Withdraw";
     }
 
     withdrawBtn.onclick = async () => {
@@ -131,84 +216,67 @@ async function loadWallet(promoterId) {
   }
 }
 
-/* --- Request Withdrawal (FINAL FIX: Updates status flag, not final withdrawn: true) --- */
+/* --- Request Withdrawal --- */
 async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) {
   if (withdrawableAmount <= 0) {
     btn.disabled = true;
     return showNotif("No withdrawable balance", "error");
   }
-  
+
   const originalText = btn.textContent;
   btn.textContent = "Processing...";
 
-  // Get a temporary ID for the request document before the transaction
   const withdrawalRequestRef = doc(collection(db, "withdrawal-requests")); 
   const withdrawalRequestId = withdrawalRequestRef.id;
-  
+
   try {
     await runTransaction(db, async (t) => {
-      // 1. READ: Get the current wallet balance summary
       const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
       const metaSnap = await t.get(metaRef);
       if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");
-      
+
       const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;
-      
-      // 2. CHECK: Ensure the balance hasn't changed
       if (parseFloat(currentBalance.toFixed(2)) !== parseFloat(withdrawableAmount.toFixed(2))) {
         throw new Error("Balance mismatch. Please refresh and try again.");
       }
-      
-      // 3. READ: Find all eligible deals
+
       const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
       const dealsQuery = query(
         dealsCollectionRef,
-        // Query deals that are NOT YET MARKED AS REQUESTED OR WITHDRAWN
         where("withdrawalRequestId", "==", null), 
         where("offerCurrency", "==", currency)
       );
-      
+
       const dealSnap = await t.get(dealsQuery);
-      if (dealSnap.empty) {
-        throw new Error("No eligible deals found to link to the withdrawal.");
-      }
+      if (dealSnap.empty) throw new Error("No eligible deals found to link to the withdrawal.");
 
       const dealIds = dealSnap.docs.map(d => d.id);
 
-      // 4. WRITE: Create the withdrawal request document
-      const requestData = {
+      t.set(withdrawalRequestRef, {
         withdrawalRequestId,
         promoterId,
         currency,
         amount: withdrawableAmount,
         dealIds,
         requestedAt: serverTimestamp(),
-        status: "pending" // Admin will change this to 'completed'
-      };
-      t.set(withdrawalRequestRef, requestData); 
+        status: "pending"
+      });
 
-      // 5. WRITE: Update the deals to link them to the request ID (marks them as 'in queue')
-      // NOTE: We DO NOT set 'withdrawn: true' here. That is reserved for the Admin.
       dealSnap.docs.forEach((d) => {
         t.update(doc(dealsCollectionRef, d.id), {
           withdrawalRequestId: withdrawalRequestId,
-          withdrawalRequestedAt: serverTimestamp() 
+          withdrawalRequestedAt: serverTimestamp()
         });
       });
 
-      // 6. WRITE: Update the promoter wallet metadata
-      const newBalance = Math.max(0, currentBalance - withdrawableAmount);
-      // NOTE: We DO NOT update totalWithdrawn here. That is reserved for the Admin.
-      
       t.update(metaRef, {
-        [`currentBalance.${currency}`]: newBalance // Atomically decrement available balance
+        [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount)
       });
     });
 
-    // Transaction successful
     showNotif(`Withdrawal request for ${withdrawableAmount.toFixed(2)} ${currency} submitted successfully!`);
-    loadWallet(promoterId); 
-    
+    loadWallet(promoterId);
+
   } catch(err) {
     console.error("Withdrawal failed:", err);
     showNotif(`Withdrawal failed: ${err.message}`, "error");
