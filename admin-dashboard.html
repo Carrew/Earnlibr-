@@ -6,83 +6,135 @@
 <title>EarnLibr — Admin Dashboard</title>
 <style>
 :root {
-  --bg:#0b0d17; --card:#0f1724;
-  --accent1:#4a90e2; --accent2:#a3ff6e;
-  --muted:#bfc7d6; --danger:#ef4444; --success:#4ade80;
+  --bg: #0b0d17;
+  --card: rgba(15,23,36,0.85);
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #ef4444;
+  --success: #4ade80;
 }
-body { margin:0; font-family:Inter,system-ui,Arial; background:var(--bg); color:#eef2f7; min-height:100vh; }
-header { display:flex; align-items:center; justify-content:center; background:linear-gradient(90deg,var(--accent1),var(--accent2)); padding:20px; color:#041018; }
-header img { height:50px; margin-right:15px; } header h1 { font-size:24px; font-weight:bold; }
-.notif { margin:10px auto; padding:10px 15px; width:90%; max-width:500px; border-radius:8px; display:none; font-size:14px; }
-.notif.success { background:#1a2235; border-left:4px solid var(--success); color:var(--success);}
-.notif.error { background:#1a2235; border-left:4px solid var(--danger); color:var(--danger);}
-.profile-card { background:var(--card); margin:20px auto; max-width:500px; padding:20px; border-radius:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.5);}
-.profile-card h2 { margin:5px 0; } .profile-card p { margin:2px 0; color:var(--muted); font-size:14px; }
-.logout-btn { margin-top:12px; padding:8px 14px; border-radius:8px; background:var(--danger); color:#fff; border:none; cursor:pointer; font-weight:bold; transition:0.2s; }
-.logout-btn:hover { opacity:0.9; }
-.grid-container { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; padding:20px; max-width:1000px; margin:0 auto;}
-.grid-card { background:var(--card); border-radius:12px; padding:25px 15px; text-align:center; cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.grid-card:hover { transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.6); }
-.grid-card i { font-size:36px; margin-bottom:10px; color:var(--accent1); }
-.grid-card span { font-size:16px; font-weight:600; color:#eef2f7; text-align:center; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: Inter, system-ui, Arial;
+  background: var(--bg);
+  color: #eef2f7;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+#menuToggle { display: none; }
+.menu-icon {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  cursor: pointer;
+  width: 30px;
+  height: 22px;
+  z-index: 1100;
+}
+.menu-icon span {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: var(--accent1);
+  border-radius: 2px;
+  margin: 4px 0;
+  transition: all 0.4s ease;
+}
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100%;
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  padding-top: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  transition: left 0.4s ease;
+  z-index: 1000;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar a {
+  padding: 15px 25px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-decoration: none;
+  color: #eef2f7;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: background 0.3s, transform 0.2s;
+}
+.sidebar a:hover { background: rgba(74,144,226,0.25); transform: translateX(5px); }
+.sidebar a i { color: var(--accent1); min-width: 24px; text-align: center; }
+#menuToggle:checked ~ .sidebar { left: 0; }
+#menuToggle:checked ~ .menu-icon span:nth-child(1) { transform: rotate(45deg) translate(6px,6px);}
+#menuToggle:checked ~ .menu-icon span:nth-child(2) { opacity:0; }
+#menuToggle:checked ~ .menu-icon span:nth-child(3) { transform: rotate(-45deg) translate(6px,-6px);}
+.main-content { flex: 1; padding: 20px; margin-left: 0; transition: margin-left 0.4s ease; }
+#menuToggle:checked ~ .main-content { margin-left: 280px; }
+.profile-hero { display: flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; background: linear-gradient(135deg, rgba(74,144,226,0.05), rgba(163,255,110,0.05)); }
+.profile-card { background: rgba(15,23,36,0.9); backdrop-filter: blur(12px); border-radius: 20px; padding: 40px 30px; max-width:600px; width:100%; text-align:center; box-shadow:0 12px 30px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
+.profile-card:hover { transform: translateY(-4px); }
+.profile-avatar { width:100px; height:100px; margin:-70px auto 15px; border:4px solid var(--accent1); border-radius:50%; overflow:hidden; box-shadow:0 6px 15px rgba(0,0,0,0.4); }
+.profile-avatar img { width:100%; height:100%; object-fit:cover; }
+.profile-card h2 { font-size:28px; margin:10px 0 5px; }
+.profile-card p { color: var(--muted); font-size:16px; margin-bottom:20px; }
+.profile-stats { display:flex; justify-content:space-around; margin-bottom:25px; flex-wrap:wrap; gap:15px; }
+.profile-stats .stat { display:flex; align-items:center; gap:8px; font-size:15px; background: rgba(255,255,255,0.05); padding:10px 15px; border-radius:12px; flex:1; min-width:120px; justify-content:center; transition: background 0.3s, transform 0.2s; }
+.profile-stats .stat:hover { background: rgba(74,144,226,0.15); transform: translateY(-3px); }
+.profile-actions { display:flex; justify-content:center; gap:15px; }
+.btn.logout-btn { padding:10px 20px; border-radius:12px; background: var(--danger); border:none; color:#fff; font-weight:bold; cursor:pointer; transition:0.3s; }
+.btn.logout-btn:hover { opacity:0.9; transform:translateY(-2px); }
+.notif { margin:10px auto; padding:12px 18px; width:90%; max-width:500px; border-radius:10px; display:none; font-size:14px; text-align:center; }
+.notif.success { background:#1a2235; border-left:4px solid var(--success); color:var(--success); }
+.notif.error { background:#1a2235; border-left:4px solid var(--danger); color:var(--danger); }
 </style>
 <script src="https://kit.fontawesome.com/a2b6f38c57.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-<header>
-  <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr Logo">
-  <h1>EarnLibr Admin</h1>
-</header>
+<input type="checkbox" id="menuToggle">
+<label for="menuToggle" class="menu-icon"><span></span><span></span><span></span></label>
 
-<div id="notif" class="notif"></div>
-
-<div class="profile-card">
-  <h2 id="adminName">Admin Name</h2>
-  <p id="adminEmail">admin@example.com</p>
-  <p id="adminPhone">+0000000000</p>
-  <p id="adminReferral">Referral Code: N/A</p>
-  <p id="adminCreated">Joined: N/A</p>
-  <button id="logoutBtn" class="logout-btn">Logout</button>
+<div class="sidebar">
+  <a href="admin-approve-promoters-payout.html"><i class="fas fa-hand-holding-usd"></i>Approve Promoters Payout</a>
+  <a href="admin-commission-settings.html"><i class="fas fa-cogs"></i>Commission Settings</a>
+  <a href="admin-deals-management.html"><i class="fas fa-briefcase"></i>Deals Management</a>
+  <a href="admin-providers-bill.html"><i class="fas fa-file-invoice-dollar"></i>Providers Bills</a>
+  <a href="admin-providers-payments-verify.html"><i class="fas fa-check-circle"></i>Verify Providers Payments</a>
+  <a href="admin-verify-offers.html"><i class="fas fa-tags"></i>Verify Offers</a>
+  <a href="Platform-Revenue.html"><i class="fas fa-dollar-sign"></i>Platform Revenue</a>
 </div>
 
-<!-- Updated grid-container with data-url and no inline onclick -->
-<div class="grid-container">
-  <div class="grid-card" data-url="admin-approve-promoters-payout.html">
-    <i class="fas fa-hand-holding-usd"></i>
-    <span>Approve Promoters Payout</span>
+<div class="main-content">
+  <div id="notif" class="notif"></div>
+  <div class="profile-hero">
+    <div class="profile-card">
+      <div class="profile-avatar">
+        <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="Admin Avatar">
+      </div>
+      <h2 id="adminName"></h2>
+      <p id="adminEmail"></p>
+      <div class="profile-stats">
+        <div class="stat"><i class="fas fa-phone-alt"></i><span id="adminPhone"></span></div>
+        <div class="stat"><i class="fas fa-gift"></i><span id="adminReferral"></span></div>
+        <div class="stat"><i class="fas fa-calendar-alt"></i><span id="adminCreated"></span></div>
+      </div>
+      <div class="profile-actions">
+        <button id="logoutBtn" class="btn logout-btn">Logout</button>
+      </div>
+    </div>
   </div>
-  <div class="grid-card" data-url="admin-commission-settings.html">
-    <i class="fas fa-cogs"></i>
-    <span>Commission Settings</span>
-  </div>
-  <div class="grid-card" data-url="admin-deals-management.html">
-    <i class="fas fa-briefcase"></i>
-    <span>Deals Management</span>
-  </div>
-  <div class="grid-card" data-url="admin-providers-bill.html">
-    <i class="fas fa-file-invoice-dollar"></i>
-    <span>Providers Bills</span>
-  </div>
-  <div class="grid-card" data-url="admin-providers-payments-verify.html">
-    <i class="fas fa-check-circle"></i>
-    <span>Verify Providers Payments</span>
-  </div>
-  <div class="grid-card" data-url="admin-verify-offers.html">
-    <i class="fas fa-tags"></i>
-    <span>Verify Offers</span>
-  </div>
-<div class="grid-card" data-url="Platform-Revenue.html">
-    <i class="fas fa-tags"></i>
-    <span>Platform Revenue</span>
-</div>
 </div>
 
-<script type="module">
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
+<script>
 const notif = document.getElementById('notif');
 const adminName = document.getElementById('adminName');
 const adminEmail = document.getElementById('adminEmail');
@@ -91,45 +143,27 @@ const adminReferral = document.getElementById('adminReferral');
 const adminCreated = document.getElementById('adminCreated');
 const logoutBtn = document.getElementById('logoutBtn');
 
-onAuthStateChanged(auth, async user => {
-  if(!user){
-    notif.textContent = '⚠ You must be logged in as admin to access this page.';
-    notif.className = 'notif error';
-    notif.style.display = 'block';
-    setTimeout(()=> window.location.href='login.html',2000);
-    return;
-  }
+// Retrieve session from localStorage
+const session = JSON.parse(localStorage.getItem('userSession') || 'null');
 
-  const adminDoc = await getDoc(doc(db,'admins',user.uid));
-  if(!adminDoc.exists()){
-    notif.textContent = '⚠ Unauthorized access.';
-    notif.className = 'notif error';
-    notif.style.display = 'block';
-    setTimeout(()=> window.location.href='login.html',2000);
-    return;
-  }
+// Check if session exists and is admin
+if(!session || session.role !== 'admin'){
+  notif.textContent = '⚠ You must be logged in as admin to access this page.';
+  notif.className = 'notif error';
+  notif.style.display = 'block';
+  setTimeout(() => window.location.href='login.html', 2000);
+} else {
+  adminName.textContent = session.name || 'Admin';
+  adminEmail.textContent = session.email || '';
+  adminPhone.textContent = session.phone || 'N/A';
+  adminReferral.textContent = `Referral Code: ${session.referralCode || 'N/A'}`;
+  adminCreated.textContent = `Joined: ${new Date(session.createdAt).toLocaleDateString() || 'N/A'}`;
+}
 
-  const data = adminDoc.data();
-  adminName.textContent = data.name;
-  adminEmail.textContent = data.email;
-  adminPhone.textContent = data.phone || 'N/A';
-  adminReferral.textContent = `Referral Code: ${data.referralCode || 'N/A'}`;
-  adminCreated.textContent = `Joined: ${new Date(data.createdAt).toLocaleDateString()}`;
-});
-
-logoutBtn.addEventListener('click', async ()=>{
-  await signOut(auth);
+// Logout
+logoutBtn.addEventListener('click', ()=>{
+  localStorage.removeItem('userSession');
   window.location.href='login.html';
-});
-
-// ✅ New navigation logic using data-url
-document.querySelectorAll('.grid-card').forEach(card => {
-  card.addEventListener('click', () => {
-    const url = card.dataset.url;
-    if (url) {
-      window.location.href = url;
-    }
-  });
 });
 </script>
 
