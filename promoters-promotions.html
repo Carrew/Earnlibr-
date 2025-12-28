@@ -50,7 +50,7 @@ const showNotif = (msg, type="success") => {
   setTimeout(() => { notif.style.display = "none"; }, 5000);
 };
 
-/* --- Session & Promoter Auth Check (production-ready) --- */
+/* --- Session & Promoter Auth Check */
 let userSession = null;
 
 onAuthStateChanged(auth, async (user) => {
@@ -59,29 +59,22 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "login.html";
     return;
   }
-
   try {
     const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-
     let uData = null;
     let role = null;
 
     if (userDoc.exists()) {
         uData = userDoc.data();
         role = uData.role;
-    } else if (adminDoc.exists()) {
-        uData = adminDoc.data();
-        role = adminDoc.data().role || 'admin';
-    }
 
-    if (role !== 'promoter') {
+    if (role !== 'freelancer') {
         localStorage.removeItem("userSession");
         window.location.href = "login.html";
         return;
     }
 
-    userSession = { uid: user.uid, name: uData?.name || "Promoter", email: uData?.email, role };
+    userSession = { uid: user.uid, name: uData?.name || "freelance r", email: uData?.email, role };
     localStorage.setItem('userSession', JSON.stringify(userSession));
 
     loadDeals();
