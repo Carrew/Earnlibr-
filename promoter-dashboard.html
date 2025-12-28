@@ -135,9 +135,8 @@
 </div>
 
 <script type="module">
-import { auth, db } from "./firebase.js";
+import { auth } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 // DOM elements
 const notif = document.getElementById('notif');
@@ -149,96 +148,61 @@ const promoterCreated = document.getElementById('promoterCreated');
 const logoutBtn = document.getElementById('logoutBtn');
 const gridCards = document.querySelectorAll('.grid-card');
 
-// Show toast notification
-function showNotif(type, message, duration=2000) {
+// Notification
+function showNotif(type, message, duration = 1800) {
   notif.className = `notif ${type}`;
   notif.textContent = message;
   notif.style.display = 'block';
   setTimeout(() => notif.style.display = 'none', duration);
 }
 
-// Navigate to page
-function navigate(url) {
-  window.location.href = url;
-}
-
-// Attach navigation events
+// Navigation
 gridCards.forEach(card => {
-  card.addEventListener('click', () => navigate(card.dataset.url));
+  card.addEventListener('click', () => {
+    window.location.href = card.dataset.url;
+  });
 });
 
 // Logout
 logoutBtn.addEventListener('click', async () => {
   await signOut(auth);
   localStorage.removeItem('userSession');
-  navigate('login.html');
+  window.location.href = "login.html";
 });
 
-// Fetch user data from Firestore
-async function fetchUserData(uid) {
-  const userDoc = await getDoc(doc(db, 'users', uid));
-  if (!userDoc.exists()) throw new Error('User document not found.');
-  return userDoc.data();
+// Populate profile
+function populateProfile(session, user) {
+  promoterName.textContent = session.name || "Promoter";
+  promoterEmail.textContent = session.email || user.email;
+  promoterPhone.textContent = session.phone || "N/A";
+  promoterReferral.textContent = `Referral Code: ${session.referralCode || "N/A"}`;
+  promoterCreated.textContent =
+    `Joined: ${new Date(session.createdAt || user.metadata.creationTime).toLocaleDateString()}`;
 }
 
-// Populate profile UI
-function populateProfile(data, user) {
-  promoterName.textContent = data.name || 'Unknown';
-  promoterEmail.textContent = data.email || user.email;
-  promoterPhone.textContent = data.phone || 'N/A';
-  promoterReferral.textContent = `Referral Code: ${data.referralCode || 'N/A'}`;
-  promoterCreated.textContent = `Joined: ${new Date(data.createdAt || user.metadata.creationTime).toLocaleDateString()}`;
-}
-
-// Update local session
-function updateLocalSession(data, uid) {
-  localStorage.setItem('userSession', JSON.stringify({
-    uid,
-    name: data.name,
-    email: data.email,
-    role: data.role,
-    referralCode: data.referralCode,
-    phone: data.phone,
-    country: data.country,
-    createdAt: data.createdAt
-  }));
-}
-
-// Enforce promoter role
-function enforcePromoterRole(data) {
-  if (data.role !== 'freelancer') {
-    showNotif('error', 'Unauthorized access. Only promoters allowed.', 2000);
-    setTimeout(() => navigate('login.html'), 2000);
-    throw new Error('Unauthorized');
-  }
-}
-
-// Auth listener
-onAuthStateChanged(auth, async (user) => {
+// Auth guard
+onAuthStateChanged(auth, (user) => {
   if (!user) {
-    showNotif('error', '⚠ You must be logged in.', 1800);
-    setTimeout(() => navigate('login.html'), 1800);
-    return;
-  }
-  if (!user.emailVerified) {
-    showNotif('error', 'Please verify your email.', 1800);
-    setTimeout(() => navigate('login.html'), 1800);
+    window.location.href = "login.html";
     return;
   }
 
-  try {
-    const userData = await fetchUserData(user.uid);
-    enforcePromoterRole(userData);
-    populateProfile(userData, user);
-    updateLocalSession(userData, user.uid);
-    showNotif('success', '✅ Verified promoter access granted.', 1500);
-  } catch (err) {
-    console.error(err);
-    showNotif('error', 'Error loading user data.', 2000);
-    setTimeout(() => navigate('login.html'), 2000);
+  const sessionRaw = localStorage.getItem("userSession");
+  if (!sessionRaw) {
+    window.location.href = "login.html";
+    return;
   }
+
+  const session = JSON.parse(sessionRaw);
+
+  if (session.role !== "freelancer") {
+    window.location.href = "login.html";
+    return;
+  }
+
+  populateProfile(session, user);
 });
 </script>
 
 </body>
-</html>
+    </html>
