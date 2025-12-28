@@ -222,29 +222,29 @@ async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) 
   console.log(`Starting withdrawal: ${currency} - Amount: ${withdrawableAmount}`);
 
   try {
+    // 1. Fetch eligible deals outside the transaction
+    const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
+    const dealsQuery = query(
+      dealsCollectionRef,
+      where("withdrawalRequestId", "==", null),
+      where("offerCurrency", "==", currency)
+    );
+    const dealSnap = await getDocs(dealsQuery);
+    if (dealSnap.empty) throw new Error("No eligible deals to withdraw.");
+
+    const dealRefs = dealSnap.docs.map(d => doc(db, "promoter-earnings", promoterId, "deals", d.id));
+
+    // 2. Run transaction
     await runTransaction(db, async (t) => {
       const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
       const metaSnap = await t.get(metaRef);
       if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");
 
       const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;
-
-      // Floating-point safe check
       if (currentBalance < withdrawableAmount || Math.abs(currentBalance - withdrawableAmount) > 0.01) {
         throw new Error("Balance mismatch. Please refresh and try again.");
       }
 
-      const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
-      const dealsQuery = query(
-        dealsCollectionRef,
-        where("withdrawalRequestId", "==", null),
-        where("offerCurrency", "==", currency)
-      );
-
-      const dealSnap = await t.get(dealsQuery);
-      if (dealSnap.empty) throw new Error("No eligible deals to withdraw.");
-
-      const dealIds = dealSnap.docs.map(d => d.id);
       const withdrawalRequestRef = doc(collection(db, "withdrawal-requests"));
       const withdrawalRequestId = withdrawalRequestRef.id;
 
@@ -254,18 +254,20 @@ async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) 
         promoterId,
         currency,
         amount: withdrawableAmount,
-        dealIds,
+        dealIds: dealRefs.map(d => d.id),
         requestedAt: serverTimestamp(),
         status: "pending"
       });
 
       // Update deals
-      dealSnap.docs.forEach(d => {
-        t.update(d.ref, {
+      for (const dealRef of dealRefs) {
+        const dealDocSnap = await t.get(dealRef);
+        if (!dealDocSnap.exists()) throw new Error("Deal document missing during transaction.");
+        t.update(dealRef, {
           withdrawalRequestId,
           withdrawalRequestedAt: serverTimestamp()
         });
-      });
+      }
 
       // Update wallet balance
       t.update(metaRef, {
