@@ -218,13 +218,14 @@ async function processCompleteDeal(dealId, deal, card){
         const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
 
         t.set(promoterDealRef, {
-          ...deal,
-          commissionAmount: promoterNet,
-          fullCommission: commissionEarned,
-          platformTax: platformShare,
-          completedAt: serverTimestamp(),
-          withdrawn: false
-        });
+  ...deal,
+  commissionAmount: promoterNet,
+  fullCommission: commissionEarned,
+  platformTax: platformShare,
+  completedAt: serverTimestamp(),
+  withdrawn: false,
+  withdrawalRequestId: null
+});
         t.set(metaRef, meta, { merge:true });
       }
 
