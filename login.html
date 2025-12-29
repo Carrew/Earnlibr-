@@ -196,8 +196,7 @@
           referralCode: userData.referralCode || '',
           phone: userData.phone || '',
           country: userData.country || '',
-          createdAt: userData.createdAt || ''
-        }));
+          createdAt: userData.createdAt?.toMillis() || null
 
         showMessage('✅ Login successful! Redirecting...');
         setTimeout(() => {
