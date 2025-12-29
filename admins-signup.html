@@ -91,7 +91,7 @@ input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px sol
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const nameInput = document.getElementById('name');
 const emailInput = document.getElementById('email');
@@ -159,7 +159,8 @@ signupBtn.addEventListener('click', async () => {
 
   const phone = phoneInput.replace(/^0+/, '');
   const fullPhone = `${countryCode}${phone}`;
-  signupBtn.disabled=true; signupBtn.textContent='Creating...';
+  signupBtn.disabled=true; 
+  signupBtn.textContent='Creating...';
 
   try {
     const userCred = await createUserWithEmailAndPassword(auth,email,password);
@@ -171,13 +172,15 @@ signupBtn.addEventListener('click', async () => {
       phone: fullPhone,
       referralCode: shortID,
       earnings:{ total:0, pending:0, paid:0 },
-      createdAt: new Date().toISOString()
+      createdAt: serverTimestamp()   // server timestamp
     });
 
     await sendEmailVerification(userCred.user);
     msg.textContent='✅ Admin account created! Please verify your email.';
-    signupBtn.disabled=false; signupBtn.textContent='Create Admin';
+
+    // Reset form
     nameInput.value=''; emailInput.value=''; passwordInput.value='';
+
   } catch(e) {
     console.error(e);
     const map = {
@@ -186,7 +189,9 @@ signupBtn.addEventListener('click', async () => {
       "auth/weak-password":"Password too weak — 8+ chars, uppercase & number."
     };
     err.style.display='block'; err.textContent=map[e.code]||e.message||"Signup failed.";
-    signupBtn.disabled=false; signupBtn.textContent='Create Admin';
+  } finally {
+    signupBtn.disabled=false;
+    signupBtn.textContent='Create Admin';
   }
 });
 </script>
