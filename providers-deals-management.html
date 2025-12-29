@@ -184,14 +184,15 @@ async function processCompleteDeal(dealId, deal, card){
       if(deal.promoterId && deal.promoterId!=="direct"){
         const promoterDealRef = doc(db,"promoter-earnings",deal.promoterId,"deals",dealId);
         const metaRef = doc(db,"promoter-earnings",deal.promoterId,"metadata","summary");
-        t.set(promoterDealRef,{
-            ...deal, 
-            commissionAmount:promoterNet, 
-            fullCommission:commissionEarned, 
-            platformTax:platformShare, 
-            completedAt:serverTimestamp(), 
-            withdrawn:false
-        });
+        t.set(promoterDealRef, {
+     ...deal,
+    commissionAmount: promoterNet,
+    fullCommission: commissionEarned,
+    platformTax: platformShare,
+    completedAt: serverTimestamp(),
+    withdrawn: false,
+    withdrawalRequestId: null
+   });
         t.set(metaRef, meta, { merge:true });
       }
 
