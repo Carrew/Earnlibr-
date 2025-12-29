@@ -1,222 +1,218 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EarnLibr — Login</title>
-  <style>
-    :root{
-      --bg:#0b0d17;   
-      --card:#0f1724;   
-      --accent1:#4a90e2;   
-      --accent2:#a3ff6e;   
-      --muted:#bfc7d6;  
-      --danger:#e74c3c;  
-    }
-    body{
-      margin:0;   
-      font-family:Inter,system-ui,Arial;   
-      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);  
-      color:#eef2f7;   
-      min-height:100vh;   
-      display:flex;   
-      align-items:center;   
-      justify-content:center;   
-      padding:20px;  
-    }
-    .card{
-      width:100%;   
-      max-width:420px;   
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));  
-      border-radius:14px;   
-      padding:22px;   
-      box-shadow:0 8px 30px rgba(2,6,23,0.6);   
-      border:1px solid rgba(255,255,255,0.03);  
-      overflow:hidden;  
-    }
-    .image-header{
-      width:100%;  
-      height:160px;  
-      border-radius:10px;  
-      overflow:hidden;  
-      margin-bottom:15px;  
-    }
-    .image-header img{
-      width:100%;  
-      height:100%;  
-      object-fit:cover;  
-      filter:brightness(0.8);  
-    }
-    h1{
-      font-size:22px;   
-      margin-bottom:6px;   
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));   
-      -webkit-background-clip:text;   
-      color:transparent;  
-    }
-    p.lead{
-      color:var(--muted);   
-      margin-bottom:14px;   
-      font-size:13px  
-    }
-    label{
-      display:block;   
-      font-size:13px;   
-      color:var(--muted);   
-      margin-top:12px;   
-      margin-bottom:6px  
-    }
-    input{
-      width:100%;   
-      padding:10px 12px;   
-      border-radius:8px;   
-      border:1px solid rgba(255,255,255,0.04);   
-      background:#071427;   
-      color:#fff;  
-      font-size:14px;  
-    }
-    .btn{
-      margin-top:18px;   
-      width:100%;   
-      padding:12px;   
-      border-radius:10px;   
-      border:0;   
-      cursor:pointer;  
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));   
-      color:#041018;   
-      font-weight:700;   
-      transition:opacity 0.2s;  
-    }
-    .btn:hover{opacity:0.9;}  
-    .small{
-      font-size:13px;   
-      color:var(--muted);   
-      margin-top:10px;   
-      text-align:center  
-    }
-    .link{
-      color:var(--accent2);   
-      text-decoration:none;   
-      font-weight:600  
-    }
-    .link:hover{opacity:0.8;}  
-    .error{
-      color:var(--danger);   
-      font-weight:600;   
-      margin-top:8px;  
-      font-size:13px;  
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="image-header">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">
-    </div>
+<!DOCTYPE html>  <html lang="en">  
+<head>  
+  <meta charset="utf-8" />  
+  <meta name="viewport" content="width=device-width,initial-scale=1" />  
+  <title>EarnLibr — Login</title>  
+  <style>  
+    :root{  
+      --bg:#0b0d17;     
+      --card:#0f1724;     
+      --accent1:#4a90e2;     
+      --accent2:#a3ff6e;     
+      --muted:#bfc7d6;    
+      --danger:#e74c3c;    
+    }  
+    body{  
+      margin:0;     
+      font-family:Inter,system-ui,Arial;     
+      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);    
+      color:#eef2f7;     
+      min-height:100vh;     
+      display:flex;     
+      align-items:center;     
+      justify-content:center;     
+      padding:20px;    
+    }  
+    .card{  
+      width:100%;     
+      max-width:420px;     
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));    
+      border-radius:14px;     
+      padding:22px;     
+      box-shadow:0 8px 30px rgba(2,6,23,0.6);     
+      border:1px solid rgba(255,255,255,0.03);    
+      overflow:hidden;    
+    }  
+    .image-header{  
+      width:100%;    
+      height:160px;    
+      border-radius:10px;    
+      overflow:hidden;    
+      margin-bottom:15px;    
+    }  
+    .image-header img{  
+      width:100%;    
+      height:100%;    
+      object-fit:cover;    
+      filter:brightness(0.8);    
+    }  
+    h1{  
+      font-size:22px;     
+      margin-bottom:6px;     
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));     
+      -webkit-background-clip:text;     
+      color:transparent;    
+    }  
+    p.lead{  
+      color:var(--muted);     
+      margin-bottom:14px;     
+      font-size:13px    
+    }  
+    label{  
+      display:block;     
+      font-size:13px;     
+      color:var(--muted);     
+      margin-top:12px;     
+      margin-bottom:6px    
+    }  
+    input{  
+      width:100%;     
+      padding:10px 12px;     
+      border-radius:8px;     
+      border:1px solid rgba(255,255,255,0.04);     
+      background:#071427;     
+      color:#fff;    
+      font-size:14px;    
+    }  
+    .btn{  
+      margin-top:18px;     
+      width:100%;     
+      padding:12px;     
+      border-radius:10px;     
+      border:0;     
+      cursor:pointer;    
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));     
+      color:#041018;     
+      font-weight:700;     
+      transition:opacity 0.2s;    
+    }  
+    .btn:hover{opacity:0.9;}    
+    .small{  
+      font-size:13px;     
+      color:var(--muted);     
+      margin-top:10px;     
+      text-align:center    
+    }  
+    .link{  
+      color:var(--accent2);     
+      text-decoration:none;     
+      font-weight:600    
+    }  
+    .link:hover{opacity:0.8;}    
+    .error{  
+      color:var(--danger);     
+      font-weight:600;     
+      margin-top:8px;    
+      font-size:13px;    
+    }  
+  </style>  
+</head>  
+<body>  
+  <div class="card">  
+    <div class="image-header">  
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">  
+    </div>  <h1>Welcome Back 👋</h1>  
+<p class="lead">Log in to continue your journey with EarnLibr.</p>  
 
-    <h1>Welcome Back 👋</h1>
-    <p class="lead">Log in to continue your journey with EarnLibr.</p>
+<label for="email">Email</label>  
+<input id="email" type="email" placeholder="example@gmail.com" />  
 
-    <label for="email">Email</label>
-    <input id="email" type="email" placeholder="example@gmail.com" />
+<label for="password">Password</label>  
+<input id="password" type="password" placeholder="Your password" />  
 
-    <label for="password">Password</label>
-    <input id="password" type="password" placeholder="Your password" />
+<p class="small" style="text-align:right; margin-top:6px;">  
+  <a class="link" href="users-password-reset.html">Forgot password?</a>  
+</p>  
 
-    <p class="small" style="text-align:right; margin-top:6px;">
-      <a class="link" href="users-password-reset.html">Forgot password?</a>
-    </p>
+<button id="loginBtn" class="btn">Login</button>  
 
-    <button id="loginBtn" class="btn">Login</button>
+<div id="message" class="small"></div>  
+<div id="error" class="error" style="display:none"></div>  
 
-    <div id="message" class="small"></div>
-    <div id="error" class="error" style="display:none"></div>
+<p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>
 
-    <p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>
-  </div>
-
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
-    const loginBtn = document.getElementById('loginBtn');
-    const msg = document.getElementById('message');
-    const err = document.getElementById('error');
-
-    function showMessage(t){ msg.textContent = t; }
-    function showError(e){ err.style.display='block'; err.textContent = e; }
-
-    loginBtn.addEventListener('click', async () => {
-      err.style.display='none'; msg.textContent = '';
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      if(!email || !password){ showError('Please enter your email and password.'); return; }
-
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Signing in...';
-
-      try {
-        const userCred = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCred.user;
-
-        if(!user.emailVerified){
-          showError('Please verify your email before logging in.');
-          loginBtn.disabled = false;
-          loginBtn.textContent = 'Login';
-          return;
-        }
-
-        // Firestore: get user document
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-
-        let userData = null;
-        let role = null;
-
-        if(userDoc.exists()){
-          userData = userDoc.data();
-          role = userData.role;
-        } else if(adminDoc.exists()){
-          userData = adminDoc.data();
-          role = userData.role || 'admin';
-        } else {
-          showError("User record not found.");
-          loginBtn.disabled = false;
-          loginBtn.textContent = "Login";
-          return;
-        }
-
-        localStorage.setItem('userSession', JSON.stringify({
-          uid: user.uid,
-          name: userData.name,
-          email: userData.email,
-          role: role,
-          referralCode: userData.referralCode || '',
-          phone: userData.phone || '',
-          country: userData.country || '',
-          createdAt: userData.createdAt?.toMillis() || null
-
-        showMessage('✅ Login successful! Redirecting...');
-        setTimeout(() => {
-          if(role === "freelancer") window.location.href = "promoter-dashboard.html";
-          else if(role === "provider") window.location.href = "provider-dashboard.html";
-          else if(role === "admin") window.location.href = "admin-dashboard.html";
-          else if(role === "super_admin") window.location.href = "super-admin.html";
-          else showError("Unknown user role.");
-        }, 1200);
-
-      } catch(e){
-        console.error(e);
-        if(e.code === 'auth/user-not-found') showError('No account found with this email.');
-        else if(e.code === 'auth/wrong-password') showError('Incorrect password.');
-        else showError('Login failed. Please check your credentials.');
-      } finally{
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-      }
-    });
-  </script>
-</body>
-  </html>
+  </div>    <script type="module">  
+    import { auth, db } from "./firebase.js";  
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";  
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";  
+  
+    const loginBtn = document.getElementById('loginBtn');  
+    const msg = document.getElementById('message');  
+    const err = document.getElementById('error');  
+  
+    function showMessage(t){ msg.textContent = t; }  
+    function showError(e){ err.style.display='block'; err.textContent = e; }  
+  
+    loginBtn.addEventListener('click', async () => {  
+      err.style.display='none'; msg.textContent = '';  
+      const email = document.getElementById('email').value.trim();  
+      const password = document.getElementById('password').value;  
+  
+      if(!email || !password){ showError('Please enter your email and password.'); return; }  
+  
+      loginBtn.disabled = true;  
+      loginBtn.textContent = 'Signing in...';  
+  
+      try {  
+        const userCred = await signInWithEmailAndPassword(auth, email, password);  
+        const user = userCred.user;  
+  
+        if(!user.emailVerified){  
+          showError('Please verify your email before logging in.');  
+          loginBtn.disabled = false;  
+          loginBtn.textContent = 'Login';  
+          return;  
+        }  
+  
+        // Firestore: get user document  
+        const userDoc = await getDoc(doc(db, 'users', user.uid));  
+        const adminDoc = await getDoc(doc(db, 'admins', user.uid));  
+  
+        let userData = null;  
+        let role = null;  
+  
+        if(userDoc.exists()){  
+          userData = userDoc.data();  
+          role = userData.role;  
+        } else if(adminDoc.exists()){  
+          userData = adminDoc.data();  
+          role = userData.role || 'admin';  
+        } else {  
+          showError("User record not found.");  
+          loginBtn.disabled = false;  
+          loginBtn.textContent = "Login";  
+          return;  
+        }  
+  
+        localStorage.setItem('userSession', JSON.stringify({  
+          uid: user.uid,  
+          name: userData.name,  
+          email: userData.email,  
+          role: role,  
+          referralCode: userData.referralCode || '',  
+          phone: userData.phone || '',  
+          country: userData.country || '',  
+          createdAt: userData.createdAt || ''  
+        }));  
+  
+        showMessage('✅ Login successful! Redirecting...');  
+        setTimeout(() => {  
+          if(role === "freelancer") window.location.href = "promoter-dashboard.html";  
+          else if(role === "provider") window.location.href = "provider-dashboard.html";  
+          else if(role === "admin") window.location.href = "admin-dashboard.html";  
+          else if(role === "super_admin") window.location.href = "super-admin.html";  
+          else showError("Unknown user role.");  
+        }, 1200);  
+  
+      } catch(e){  
+        console.error(e);  
+        if(e.code === 'auth/user-not-found') showError('No account found with this email.');  
+        else if(e.code === 'auth/wrong-password') showError('Incorrect password.');  
+        else showError('Login failed. Please check your credentials.');  
+      } finally{  
+        loginBtn.disabled = false;  
+        loginBtn.textContent = 'Login';  
+      }  
+    });  
+  </script>  </body>  
+</html>
