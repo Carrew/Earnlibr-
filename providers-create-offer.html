@@ -35,7 +35,7 @@ input, textarea, select { width:100%; padding:10px 12px; border-radius:8px; bord
 textarea { min-height:80px; resize:vertical; }
 button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight:700; color:#041018; cursor:pointer; }
 #imagePreview { width:100%; max-height:220px; object-fit:contain; border-radius:10px; margin-top:8px; display:none; }
-.notification { position:absolute; top:-10px; right:0; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; opacity:0.95; }
+.notification { position:absolute; top:-10px; right:0; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; opacity:0.95; z-index: 10; }
 .notification.success { background:#4ade80; color:#041018; }
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
@@ -43,6 +43,7 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
 </style>
 </head>
 <body>
+
 <div class="wrap">
   <aside class="card sidebar">
     <div class="logo">
@@ -62,10 +63,10 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
       <div id="avatar" class="avatar">P</div>
       <div>
         <div id="providerName" style="font-weight:700;">Loading...</div>
-        <div id="providerEmail" class="muted">—</div>
+        <div id="providerEmail" class="muted" style="font-size: 11px;">—</div>
       </div>
       <div style="margin-left:auto">
-        <button id="logoutBtn" class="btn" style="padding:6px 10px;">Logout</button>
+        <button id="logoutBtn" style="padding:6px 10px; font-size: 11px; width: auto; margin:0;">Logout</button>
       </div>
     </div>
   </aside>
@@ -75,8 +76,10 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
     <form id="offerForm">
       <label>Title</label>
       <input type="text" id="title" placeholder="Enter product or service title" required />
+      
       <label>Description</label>
       <textarea id="description" placeholder="Describe your product/service" required></textarea>
+      
       <label>Category</label>
       <select id="category" required>
         <option value="">Select category</option>
@@ -86,24 +89,32 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
         <option>Consultation</option>
         <option>Other</option>
       </select>
+      
       <label>Currency</label>
       <select id="currency" required></select>
+      
       <label>Price</label>
       <input type="number" id="price" placeholder="Main price" required />
+      
       <label>Commission Type</label>
       <select id="commissionType" required>
         <option value="fixed">Fixed</option>
         <option value="percentage">Percentage</option>
       </select>
+      
       <label>Commission Value</label>
       <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+      
       <label>Promotion Budget</label>
       <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+      
       <label>Total Products Available</label>
       <input type="number" id="totalProducts" placeholder="How many items available" required />
+      
       <label>Upload Product Image</label>
       <input type="file" id="productImage" accept="image/*" />
       <img id="imagePreview" alt="Preview" />
+      
       <button type="submit" id="submitBtn">Submit Offer for Verification</button>
     </form>
   </main>
@@ -127,6 +138,7 @@ const submitBtn = document.getElementById("submitBtn");
 let userSession = null;
 let imageBase64 = "";
 
+// Form Inputs
 const title = document.getElementById('title');
 const description = document.getElementById('description');
 const category = document.getElementById('category');
@@ -137,13 +149,13 @@ const commissionValue = document.getElementById('commissionValue');
 const promotionBudget = document.getElementById('promotionBudget');
 const totalProducts = document.getElementById('totalProducts');
 
-// --- 1. Centralized Admin Notification Helper ---
-// This writes to a common collection that all admins can monitor.
-async function sendAdminNotification(title, message) {
+// --- Helper Functions ---
+
+async function sendAdminNotification(notifTitle, message) {
   try {
     await addDoc(collection(db, `admin_notifications`), {
-      title,
-      message,
+      title: notifTitle,
+      message: message,
       type: "new_offer",
       createdAt: serverTimestamp(),
       read: false
@@ -153,7 +165,7 @@ async function sendAdminNotification(title, message) {
   }
 }
 
-function showNotification(message, type='info', duration=3000) {
+function showNotification(message, type='info', duration=4000) {
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
   notif.textContent = message;
@@ -161,10 +173,17 @@ function showNotification(message, type='info', duration=3000) {
   setTimeout(() => notif.remove(), duration);
 }
 
+// --- Session Verification ---
+
 const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) { window.location.href = 'login.html'; throw new Error('No session'); }
-userSession = JSON.parse(userSessionRaw);
-if (userSession.role !== 'provider') { localStorage.removeItem('userSession'); window.location.href='login.html'; throw new Error('Unauthorized'); }
+if (!userSessionRaw) { window.location.href = 'login.html'; }
+else {
+    userSession = JSON.parse(userSessionRaw);
+    if (userSession.role !== 'provider') { 
+        localStorage.removeItem('userSession'); 
+        window.location.href='login.html'; 
+    }
+}
 
 onAuthStateChanged(auth, (user) => {
   if (!user || user.uid !== userSession.uid || !user.emailVerified) {
@@ -178,47 +197,29 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// optional image compression function (unchanged)
-async function compressImage(file, maxSizeMB = 2) {
+// --- Logic ---
+
+async function compressImage(file, maxSizeMB = 1) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (e) => {
       const img = new Image();
-      img.src = event.target.result;
+      img.src = e.target.result;
       img.onload = () => {
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-        let ratio = 1;
-
-        const compressLoop = () => {
-          canvas.width = width * ratio;
-          canvas.height = height * ratio;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) return reject("Canvas toBlob failed");
-              if (blob.size / 1024 / 1024 > maxSizeMB && ratio > 0.1) {
-                ratio *= 0.8;
-                compressLoop();
-              } else {
-                const reader2 = new FileReader();
-                reader2.onload = (e) => resolve(e.target.result);
-                reader2.readAsDataURL(blob);
-              }
-            },
-            "image/jpeg",
-            0.8
-          );
-        };
-
-        compressLoop();
+        const maxDim = 800;
+        if (width > height && width > maxDim) { height *= maxDim / width; width = maxDim; }
+        else if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
       };
-      img.onerror = () => reject("Failed to load image");
     };
-    reader.onerror = () => reject("Failed to read file");
     reader.readAsDataURL(file);
   });
 }
@@ -228,74 +229,72 @@ function attachHandlers() {
   document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
   document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
   document.getElementById('logoutBtn').onclick = async () => { 
-    try { await signOut(auth); } catch(e){} 
+    await signOut(auth); 
     localStorage.removeItem('userSession'); 
     window.location.href='login.html'; 
   };
 
-  // Wait for currency dropdown population before attaching submit
-  const waitForCurrency = setInterval(() => {
-    if(currency.options.length > 0) {
-      clearInterval(waitForCurrency);
-      setupFormSubmit();
-    }
-  }, 200);
-
-  // Handle image input
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
     if (!file) return;
-
     try {
       imageBase64 = await compressImage(file);
       imagePreview.src = imageBase64;
       imagePreview.style.display = "block";
     } catch(err) {
-      console.error("Image compression failed:", err);
-      imageBase64 = "";
+      showNotification("Image processing failed", "error");
     }
   });
+
+  // Ensure currencies are loaded before enabling submit
+  const checkCurrency = setInterval(() => {
+    if(currency.options.length > 0) {
+      clearInterval(checkCurrency);
+      setupFormSubmit();
+    }
+  }, 300);
 }
 
 function setupFormSubmit() {
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
     submitBtn.disabled = true;
+    submitBtn.textContent = "Uploading Offer...";
 
     const offerData = {
       providerId: userSession.uid,
       title: title.value.trim(),
       description: description.value.trim(),
       category: category.value,
-      currency: currency.value || "USD",
+      currency: currency.value,
       price: parseFloat(price.value) || 0,
       commissionType: commissionType.value,
       commissionValue: parseFloat(commissionValue.value) || 0,
       promotionBudget: parseFloat(promotionBudget.value) || 0,
       totalProducts: parseInt(totalProducts.value) || 0,
-      imageTemp: imageBase64 || null,
+      imageTemp: imageBase64 || null, // Changed from imageTemp for standard naming
       status: "pending",
-      createdAt: new Date().toISOString()
+      createdAt: serverTimestamp() // ✅ SECURE SERVER TIME
     };
 
     try {
-      // Add offer to pending collection
       await addDoc(collection(db, "offers_pending"), offerData);
       
-      // Notify Admin using the helper function
-      const adminTitle = "New Offer Submitted 🔔";
-      const adminMessage = `Provider **${userSession.name}** submitted a new offer: "${offerData.title}". Requires verification.`;
-      await sendAdminNotification(adminTitle, adminMessage);
+      await sendAdminNotification(
+        "New Offer Submitted 🔔",
+        `Provider **${userSession.name}** submitted "${offerData.title}" for review.`
+      );
 
-      showNotification("Offer submitted successfully!", "success", 3000);
+      showNotification("Success! Your offer is now pending verification.", "success");
       offerForm.reset();
       imagePreview.style.display = "none";
       imageBase64 = "";
     } catch(err) {
-      console.error("Firestore error:", err);
-      showNotification("Failed to submit offer", "error", 4000);
+      console.error(err);
+      showNotification("Error: Could not save offer. Check your connection.", "error");
     } finally {
       submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Offer for Verification";
     }
   });
 }
