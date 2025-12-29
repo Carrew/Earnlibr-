@@ -185,15 +185,15 @@
         }  
   
         localStorage.setItem('userSession', JSON.stringify({  
-          uid: user.uid,  
-          name: userData.name,  
-          email: userData.email,  
-          role: role,  
-          referralCode: userData.referralCode || '',  
-          phone: userData.phone || '',  
-          country: userData.country || '',  
-          createdAt: userData.createdAt || ''  
-        }));  
+  uid: user.uid,  
+  name: userData?.name || '',  
+  email: userData?.email || '',  
+  role: role || '',  
+  referralCode: userData?.referralCode || '',  
+  phone: userData?.phone || '',  
+  country: userData?.country || '',  
+  createdAt: userData?.createdAt ? userData.createdAt.toDate().toISOString() : ''  
+}));
   
         showMessage('✅ Login successful! Redirecting...');  
         setTimeout(() => {  
