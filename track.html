@@ -237,7 +237,7 @@ form.addEventListener("submit", async e => {
     if (promoterId !== "direct") {
       batch.set(doc(collection(db, "notifications", promoterId, "items")), {
         title:"You Generated a Deal!",
-        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}, you eatn once this deal is completed".`,
+        message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}, you earn once this deal is completed".`,
         type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
     }
