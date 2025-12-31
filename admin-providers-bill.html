@@ -121,7 +121,7 @@ function loadDeals(){
       if(!grouped[providerId].offers[offerId]){
         grouped[providerId].offers[offerId] = { 
           offerTitle:d.offerTitle, 
-          currency:d.offercurrency||"USD", 
+          currency:d.offerCurrency||"USD", 
           total:0, 
           deals:[] 
         };
