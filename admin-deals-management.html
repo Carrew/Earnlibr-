@@ -240,10 +240,13 @@ async function processCompleteDeal(dealId, deal, card){
         commissionEarned,
         platformShare,
         promoterNet,
-        billedBy: null,
-        billedAt: null,
         providerPaid:false
       });
+
+        t.update(completedRef, {
+         billedBy: null,
+         billedAt: null
+         });
 
       t.delete(dealRef);
     });
