@@ -254,7 +254,23 @@ async function sendBill(providerId, offerId, offer, card = null){
     // 3. Notification
     await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated and is ready for payment.`);
 
-    if(card) card.remove(); // Remove card from UI
+    if(card) {
+  // Remove only the billed offer from the card
+  const breakdown = card.querySelector(".offer-breakdown");
+  const offerBoxes = Array.from(breakdown.children);
+  for(const box of offerBoxes){
+    const title = box.querySelector("strong")?.textContent || "";
+    if(title.includes(offer.offerTitle)){
+      box.remove();
+      break;
+    }
+  }
+
+  // If no more offers remain, remove the card entirely
+  if(breakdown.children.length === 0) {
+    card.remove();
+  }
+    }
     showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
 
   } catch(err) {
