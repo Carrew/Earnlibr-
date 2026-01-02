@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -172,8 +172,7 @@ function renderProviders(){
       const sendBtn = document.createElement("button");
       sendBtn.className="btn";
       sendBtn.textContent="Send Bill";
-      sendBtn.onclick = () =>
-  sendBill(providerId, offerId, offer, offerBox, card); 
+      sendBtn.onclick=()=>sendBill(providerId, offerId, offer, card); 
       offerBox.appendChild(sendBtn);
 
       breakdown.appendChild(offerBox);
@@ -188,8 +187,9 @@ function renderProviders(){
 }
 
 // --- Send Single Offer Bill ---
-async function sendBill(providerId, offerId, offer, offerBox = null, providerCard = null){ if(offer.total < (THRESHOLDS[offer.currency]||0)) {
-    if(providerCard) showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
+async function sendBill(providerId, offerId, offer, card = null){
+  if(offer.total < (THRESHOLDS[offer.currency]||0)) {
+    if(card) showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
     return;
   }
 
@@ -254,30 +254,16 @@ async function sendBill(providerId, offerId, offer, offerBox = null, providerCar
     // 3. Notification
     await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated and is ready for payment.`);
 
-    // Remove only offer from UI
-if (offerBox) {
-  offerBox.remove();
-}
-
-// If provider has no more offers, remove provider card
-if (providerCard) {
-  const remainingOffers =
-    providerCard.querySelectorAll(".offer-breakdown > div");
-  if (remainingOffers.length === 0) {
-    providerCard.remove();
-  }
-}
+    if(card) card.remove(); // Remove card from UI
     showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
 
   } catch(err) {
-  console.error("Billing Error:", err);
-
-  if (providerCard) {
-    showNotif(`Billing Failed: ${err.message}`, "error");
-  } else {
-    showNotif(`Billing Failed for ${offer.offerTitle}: ${err.message}`, "error");
+    console.error("Billing Error:", err);
+    if(card) showNotif(`Billing Failed: ${err.message}`, "error");
+    else showNotif(`Billing Failed for ${offer.offerTitle}: ${err.message}`, "error");
   }
 }
+
 // --- Send All Eligible Bills (Calls the atomic sendBill) ---
 sendAllBtn.onclick = async ()=>{
   const providers = Object.entries(grouped);
@@ -313,5 +299,6 @@ sendAllBtn.onclick = async ()=>{
   showNotif(`${sentCount} eligible bill(s) sent successfully!`);
 };
 </script>
+
 </body>
 </html>
