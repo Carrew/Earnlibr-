@@ -1,23 +1,29 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EarnLibr — Admin Send Bills </title>
+<title>EarnLibr — Admin Send Bills</title>
 <style>
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
-.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; }
+.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; opacity:0; transition: opacity .3s; }
+.notif.show { display:block; opacity:1; }
 .notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
 .notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
+.notif.info { border-left:4px solid #4a90e2; color:#4a90e2; }
 .provider-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); transition:opacity .5s, transform .3s; position:relative; }
 .provider-card:hover { transform:translateY(-4px); }
 .provider-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; }
+.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: opacity .2s; }
 .btn.danger { background:#ef4444; color:#fff; }
 .btn:disabled { opacity:0.6; cursor:not-allowed; }
 .offer-breakdown { background:#1a2235; border-radius:8px; padding:10px; margin-top:10px; display:none; font-size:13px; }
 .toggle-offers { margin-top:10px; background:#4a90e2; color:#041018; }
+.loader { display:inline-block; width:18px; height:18px; border:3px solid #eef2f7; border-radius:50%; border-top-color:#4ade80; animation: spin 1s linear infinite; margin-left:10px; vertical-align:middle; }
+@keyframes spin { 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
+.offer-box { margin-bottom:10px; padding:8px; border-radius:6px; background:#1a2235; }
+.offer-box strong { display:block; margin-bottom:5px; }
 </style>
 </head>
 <body>
@@ -42,9 +48,9 @@ import {
 const notif = document.getElementById("notif");
 const providersContainer = document.getElementById("providersContainer");
 const sendAllBtn = document.getElementById("sendAll");
-const THRESHOLDS = { USD: 1, LRD: 300 }; // Minimum amount to send a bill
-let grouped = {}; // Deals grouped by ProviderId -> OfferId
-let dealsCache = {}; // Cache to hold deal data for batch updates
+const THRESHOLDS = { USD: 1, LRD: 300 }; 
+let grouped = {}; 
+let dealsCache = {}; 
 
 // --- Auth Check ---
 let userSession = localStorage.getItem("userSession");
@@ -75,12 +81,10 @@ onAuthStateChanged(auth, async (user) => {
 // --- Utility Functions ---
 const showNotif = (msg,type="success")=>{
   notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display="block";
-  setTimeout(()=>{ notif.style.display="none"; },3000);
+  notif.className = `notif ${type} show`;
+  setTimeout(()=>{ notif.classList.remove("show"); },3000);
 };
 
-//  Use writeBatch for atomic notification sending
 async function sendNotifications(uid, title, message) {
   try {
     const batch = writeBatch(db);
@@ -98,7 +102,6 @@ async function sendNotifications(uid, title, message) {
 
 // --- Load unbilled completed deals ---
 function loadDeals(){
-  //  Only query deals that have been completed but are NOT YET BILLED (billedBy == null)
   const dealsQuery = query(collection(db,"completed-deals"), where("billedBy","==",null));
   
   onSnapshot(dealsQuery, snapshot=>{
@@ -153,7 +156,6 @@ function renderProviders(){
         <h2>${p.name}</h2>
       </div>
       ${totalsHTML}
-      <div></div>
       <button class="btn toggle-offers">Show Details</button>
       <div class="offer-breakdown"></div>
     `;
@@ -161,6 +163,7 @@ function renderProviders(){
     const breakdown = card.querySelector(".offer-breakdown");
     Object.entries(p.offers).forEach(([offerId,offer])=>{
       const offerBox = document.createElement("div");
+      offerBox.className="offer-box";
       offerBox.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
 
       offer.deals.forEach(deal=>{
@@ -172,7 +175,7 @@ function renderProviders(){
       const sendBtn = document.createElement("button");
       sendBtn.className="btn";
       sendBtn.textContent="Send Bill";
-      sendBtn.onclick=()=>sendBill(providerId, offerId, offer, card); 
+      sendBtn.onclick=()=>sendBill(providerId, offerId, offer, offerBox, sendBtn); 
       offerBox.appendChild(sendBtn);
 
       breakdown.appendChild(offerBox);
@@ -187,30 +190,31 @@ function renderProviders(){
 }
 
 // --- Send Single Offer Bill ---
-async function sendBill(providerId, offerId, offer, card = null){
+async function sendBill(providerId, offerId, offer, offerBox, button){
   if(offer.total < (THRESHOLDS[offer.currency]||0)) {
-    if(card) showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
+    showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
     return;
   }
 
-  // Generate new Bill ID reference
+  button.disabled = true;
+  const loader = document.createElement("span");
+  loader.className="loader";
+  button.textContent="Processing";
+  button.appendChild(loader);
+
   const billRef = doc(collection(db,"bills"));
   const billId = billRef.id;
-  const dealIds = offer.deals.map(d=>d.dealId); // All deals in the grouped offer are unbilled
+  const dealIds = offer.deals.map(d=>d.dealId);
 
   try {
-    // 1. TRANSACTION: Create Bill Documents and update Offer's financial ledger
     await runTransaction(db, async (t) => {
-      
       const offerRef = doc(db, "offers_all", offerId);
       const offerSnap = await t.get(offerRef);
       if(!offerSnap.exists()) throw new Error("Offer not found.");
-
-      // Safety check: Bill amount must be covered by outstanding balance
       if(parseFloat((offerSnap.data().outstandingBalance || 0).toFixed(2)) < parseFloat(offer.total.toFixed(2))) {
-        throw new Error("Outstanding balance mismatch. Bill amount exceeds remaining outstanding balance.");
+        throw new Error("Outstanding balance mismatch. Bill amount exceeds remaining balance.");
       }
-      
+
       const billData = {
         billId,
         providerId,
@@ -228,22 +232,16 @@ async function sendBill(providerId, offerId, offer, card = null){
         paymentTxnId: null, 
       };
 
-      // Create bill records atomically
       t.set(billRef, billData);
       t.set(doc(db,`providers/${providerId}/bills/${billId}`), billData);
-      
-      // Update offer balance: decrease outstanding (invoiced), increase amountBilled
       t.update(offerRef, {
         amountBilled: (offerSnap.data().amountBilled || 0) + offer.total,
         outstandingBalance: (offerSnap.data().outstandingBalance || 0) - offer.total
       });
+    });
 
-    }); // End Transaction
-
-    // 2. BATCH: Link Deals to the Bill ID (This removes them from the loadDeals query)
     const batch = writeBatch(db);
     dealIds.forEach(dealId => {
-      // Update the completed-deals document to link it to the bill
       batch.update(doc(db, "completed-deals", dealId), {
         billedBy: billId, 
         billedAt: serverTimestamp(),
@@ -251,36 +249,25 @@ async function sendBill(providerId, offerId, offer, card = null){
     });
     await batch.commit();
 
-    // 3. Notification
-    await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated and is ready for payment.`);
+    await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated.`);
 
-    if(card) {
-  // Remove only the billed offer from the card
-  const breakdown = card.querySelector(".offer-breakdown");
-  const offerBoxes = Array.from(breakdown.children);
-  for(const box of offerBoxes){
-    const title = box.querySelector("strong")?.textContent || "";
-    if(title.includes(offer.offerTitle)){
-      box.remove();
-      break;
+    offerBox.remove();
+    const breakdown = offerBox.parentElement;
+    if(breakdown.children.length === 0){
+      breakdown.parentElement.remove();
     }
-  }
 
-  // If no more offers remain, remove the card entirely
-  if(breakdown.children.length === 0) {
-    card.remove();
-  }
-    }
     showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
 
   } catch(err) {
     console.error("Billing Error:", err);
-    if(card) showNotif(`Billing Failed: ${err.message}`, "error");
-    else showNotif(`Billing Failed for ${offer.offerTitle}: ${err.message}`, "error");
+    showNotif(`Billing Failed: ${err.message}`, "error");
+  } finally {
+    button.disabled=false;
   }
 }
 
-// --- Send All Eligible Bills (Calls the atomic sendBill) ---
+// --- Send All Eligible Bills ---
 sendAllBtn.onclick = async ()=>{
   const providers = Object.entries(grouped);
   if(providers.length === 0){
@@ -292,7 +279,11 @@ sendAllBtn.onclick = async ()=>{
   for(const [providerId, p] of providers){
     for(const [offerId, offer] of Object.entries(p.offers)){
       if(offer.total >= (THRESHOLDS[offer.currency] || 0)){
-        eligibleOffers.push({ providerId, offerId, offer });
+        const card = Array.from(document.querySelectorAll(".provider-card")).find(c=>c.querySelector("h2").textContent===p.name);
+        const breakdown = card.querySelector(".offer-breakdown");
+        const offerBox = Array.from(breakdown.children).find(b=>b.querySelector("strong").textContent.includes(offer.offerTitle));
+        const sendBtn = offerBox.querySelector(".btn");
+        eligibleOffers.push({ providerId, offerId, offer, offerBox, sendBtn });
       }
     }
   }
@@ -305,14 +296,12 @@ sendAllBtn.onclick = async ()=>{
   sendAllBtn.disabled=true;
   showNotif("Processing all eligible bills...", "info");
 
-  let sentCount = 0;
-  for(const { providerId, offerId, offer } of eligibleOffers){
-    await sendBill(providerId, offerId, offer, null);
-    sentCount++;
+  for(const { providerId, offerId, offer, offerBox, sendBtn } of eligibleOffers){
+    await sendBill(providerId, offerId, offer, offerBox, sendBtn);
   }
 
   sendAllBtn.disabled=false;
-  showNotif(`${sentCount} eligible bill(s) sent successfully!`);
+  showNotif(`${eligibleOffers.length} eligible bill(s) sent successfully!`);
 };
 </script>
 
