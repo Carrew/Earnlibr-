@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Admin Send Bills </title>
 <style>
-/* Basic Styles for Admin Panel */
 body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
 h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
 .notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; }
@@ -47,7 +46,7 @@ const THRESHOLDS = { USD: 1, LRD: 300 }; // Minimum amount to send a bill
 let grouped = {}; // Deals grouped by ProviderId -> OfferId
 let dealsCache = {}; // Cache to hold deal data for batch updates
 
-// --- Auth Check (Standard Admin Setup) ---
+// --- Auth Check ---
 let userSession = localStorage.getItem("userSession");
 if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
 userSession = JSON.parse(userSession);
@@ -81,7 +80,7 @@ const showNotif = (msg,type="success")=>{
   setTimeout(()=>{ notif.style.display="none"; },3000);
 };
 
-// UPGRADE: Use writeBatch for atomic notification sending
+//  Use writeBatch for atomic notification sending
 async function sendNotifications(uid, title, message) {
   try {
     const batch = writeBatch(db);
@@ -97,9 +96,9 @@ async function sendNotifications(uid, title, message) {
   }
 }
 
-// --- Load unbilled completed deals (UPGRADE: New Query Logic) ---
+// --- Load unbilled completed deals ---
 function loadDeals(){
-  // UPGRADE: Only query deals that have been completed but are NOT YET BILLED (billedBy == null)
+  //  Only query deals that have been completed but are NOT YET BILLED (billedBy == null)
   const dealsQuery = query(collection(db,"completed-deals"), where("billedBy","==",null));
   
   onSnapshot(dealsQuery, snapshot=>{
@@ -136,7 +135,7 @@ function loadDeals(){
   });
 }
 
-// --- Render provider cards (minor changes for new status) ---
+// --- Render provider cards---
 function renderProviders(){
   providersContainer.innerHTML="";
   Object.keys(grouped).forEach(providerId=>{
@@ -187,7 +186,7 @@ function renderProviders(){
   });
 }
 
-// --- Send Single Offer Bill (FINAL, ATOMIC IMPLEMENTATION) ---
+// --- Send Single Offer Bill ---
 async function sendBill(providerId, offerId, offer, card = null){
   if(offer.total < (THRESHOLDS[offer.currency]||0)) {
     if(card) showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
@@ -260,15 +259,13 @@ async function sendBill(providerId, offerId, offer, card = null){
 
   } catch(err) {
     console.error("Billing Error:", err);
-    // Note: No need for status rollback here as the transaction failed before any permanent writes.
     if(card) showNotif(`Billing Failed: ${err.message}`, "error");
     else showNotif(`Billing Failed for ${offer.offerTitle}: ${err.message}`, "error");
   }
 }
 
-// --- Send All Eligible Bills (UPGRADE: Calls the atomic sendBill) ---
+// --- Send All Eligible Bills (Calls the atomic sendBill) ---
 sendAllBtn.onclick = async ()=>{
-  // Early checks for professional UX
   const providers = Object.entries(grouped);
   if(providers.length === 0){
     showNotif("No eligible bills to send.", "error");
