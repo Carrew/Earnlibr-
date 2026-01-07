@@ -239,7 +239,7 @@ function displayOffers(offers) {
   offers.forEach(offer => {
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";
     const desc = offer.description ? offer.description.substring(0,100)+"..." : '';
-    const link = `${window.location.origin}/Earnlibr-/track.html?offer=${offer.id}&promoter=${session.uid}`;
+    const link = `${window.location.origin}/track.html?offer=${offer.id}&promoter=${session.uid}`;
 
     const card = document.createElement('div');
     card.className='offer-card';
