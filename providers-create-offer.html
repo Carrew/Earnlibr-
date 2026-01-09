@@ -16,30 +16,156 @@
   --glass-2: rgba(255, 255, 255, 0.015);
   --radius: 12px;
 }
-html, body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background: linear-gradient(180deg, #071028 0%, #0b0d17 100%); color: #eef2f7; }
-.wrap { max-width: 1200px; margin: 28px auto; padding: 20px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
-.card { background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: var(--radius); padding: 18px; box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); overflow:hidden; }
-.sidebar { height: calc(100vh - 80px); display:flex; flex-direction:column; gap:14px; position:sticky; top:20px; }
-.logo { display:flex; gap:12px; align-items:center; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.03); }
-.logo img { width:44px; height:44px; object-fit:cover; border-radius:8px; }
-.logo h2 { font-size:16px; margin:0; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; }
-.nav { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
-.nav a { display:block; padding:10px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; cursor:pointer; }
-.nav a.active, .nav a:hover { color:#041018; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
-.profile { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center; }
-.avatar { width:44px; height:44px; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#041018; }
-.main { min-height:80vh; display:flex; flex-direction:column; gap:18px; position:relative; }
-h1 { font-size:20px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip:text; color:transparent; margin:0 0 10px 0; }
-form label { display:block; margin-top:14px; color:var(--muted); font-size:13px; }
-input, textarea, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071427; color:#fff; font-size:14px; margin-top:4px; }
+html, body {
+  height:100%;
+  margin:0;
+  font-family:Inter,system-ui,Arial;
+  background: linear-gradient(180deg, #071028 0%, #0b0d17 100%);
+  color: #eef2f7;
+}
+.wrap {
+  max-width: 1200px;
+  margin: 28px auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+}
+.card {
+  background: linear-gradient(180deg, var(--glass), var(--glass-2));
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+  border:1px solid rgba(255,255,255,0.03);
+  overflow:hidden;
+}
+.sidebar {
+  height: calc(100vh - 80px);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  position:sticky;
+  top:20px;
+}
+.logo {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.logo img {
+  width:44px;
+  height:44px;
+  object-fit:cover;
+  border-radius:8px;
+}
+.logo h2 {
+  font-size:16px;
+  margin:0;
+  background:linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip:text;
+  color:transparent;
+}
+.profile {
+  margin-top:auto;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,0.03);
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.avatar {
+  width:44px;
+  height:44px;
+  border-radius:10px;
+  background:linear-gradient(90deg, var(--accent1), var(--accent2));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  color:#041018;
+}
+.main {
+  min-height:80vh;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  position:relative;
+}
+h1 {
+  font-size:20px;
+  background:linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip:text;
+  color:transparent;
+  margin:0 0 10px 0;
+}
+form label {
+  display:block;
+  margin-top:14px;
+  color:var(--muted);
+  font-size:13px;
+}
+input, textarea, select {
+  width:100%;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:#071427;
+  color:#fff;
+  font-size:14px;
+  margin-top:4px;
+}
 textarea { min-height:80px; resize:vertical; }
-button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:linear-gradient(90deg, var(--accent1), var(--accent2)); font-weight:700; color:#041018; cursor:pointer; }
-#imagePreview { width:100%; max-height:220px; object-fit:contain; border-radius:10px; margin-top:8px; display:none; }
-.notification { position:absolute; top:-10px; right:0; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; opacity:0.95; z-index: 10; }
+button {
+  margin-top:18px;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(90deg, var(--accent1), var(--accent2));
+  font-weight:700;
+  color:#041018;
+  cursor:pointer;
+}
+button:disabled {
+  opacity:0.6;
+  cursor:not-allowed;
+}
+#submitBtn {
+  width:100%;
+}
+#imagePreview {
+  width:100%;
+  max-height:220px;
+  object-fit:contain;
+  border-radius:10px;
+  margin-top:8px;
+  display:none;
+}
+.notification {
+  position:absolute;
+  top:-10px;
+  right:0;
+  padding:10px 16px;
+  border-radius:8px;
+  font-weight:700;
+  font-size:0.9rem;
+  opacity:0.95;
+  z-index: 10;
+}
 .notification.success { background:#4ade80; color:#041018; }
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
-@media (max-width:980px) { .wrap { grid-template-columns:1fr; padding:14px; } .sidebar { position:relative; height:auto; } }
+@media (max-width:980px) {
+  .wrap {
+    grid-template-columns:1fr;
+    padding:14px;
+  }
+  .sidebar {
+    position:relative;
+    height:auto;
+  }
+}
 </style>
 </head>
 <body>
@@ -53,12 +179,9 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
         <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
       </div>
     </div>
-    <nav class="nav">
-      <a id="nav-dashboard">Dashboard</a>
-      <a id="nav-offers">Offers</a>
-      <a id="nav-create" class="active">Create Offer</a>
-      <a id="nav-notifs">Notifications</a>
-    </nav>
+
+    <!-- Navigation removed since it's not used -->
+
     <div class="profile">
       <div id="avatar" class="avatar">P</div>
       <div>
@@ -73,12 +196,23 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
 
   <main class="main card">
     <h1>Create a New Offer</h1>
-    <form id="offerForm">
+    <form id="offerForm" novalidate>
       <label>Title</label>
-      <input type="text" id="title" placeholder="Enter product or service title" required />
+      <input
+        type="text"
+        id="title"
+        placeholder="Enter product or service title"
+        required
+        minlength="3"
+      />
       
       <label>Description</label>
-      <textarea id="description" placeholder="Describe your product/service" required></textarea>
+      <textarea
+        id="description"
+        placeholder="Describe your product/service"
+        required
+        minlength="10"
+      ></textarea>
       
       <label>Category</label>
       <select id="category" required>
@@ -94,7 +228,14 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
       <select id="currency" required></select>
       
       <label>Price</label>
-      <input type="number" id="price" placeholder="Main price" required />
+      <input
+        type="number"
+        id="price"
+        placeholder="Main price"
+        required
+        min="0.01"
+        step="0.01"
+      />
       
       <label>Commission Type</label>
       <select id="commissionType" required>
@@ -103,15 +244,36 @@ button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:1
       </select>
       
       <label>Commission Value</label>
-      <input type="number" id="commissionValue" placeholder="e.g., 10 or 5%" required />
+      <input
+        type="number"
+        id="commissionValue"
+        placeholder="e.g., 10 or 5%"
+        required
+        min="0.01"
+        step="0.01"
+      />
       
       <label>Promotion Budget</label>
-      <input type="number" id="promotionBudget" placeholder="Set your promo budget" required />
+      <input
+        type="number"
+        id="promotionBudget"
+        placeholder="Set your promo budget"
+        required
+        min="0"
+        step="0.01"
+      />
       
       <label>Total Products Available</label>
-      <input type="number" id="totalProducts" placeholder="How many items available" required />
+      <input
+        type="number"
+        id="totalProducts"
+        placeholder="How many items available"
+        required
+        min="1"
+        step="1"
+      />
       
-      <label>Upload Product Image</label>
+      <label>Upload Product Image (optional)</label>
       <input type="file" id="productImage" accept="image/*" />
       <img id="imagePreview" alt="Preview" />
       
@@ -135,9 +297,6 @@ const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
 const submitBtn = document.getElementById("submitBtn");
 
-let userSession = null;
-let imageBase64 = "";
-
 // Form Inputs
 const title = document.getElementById('title');
 const description = document.getElementById('description');
@@ -148,6 +307,9 @@ const commissionType = document.getElementById('commissionType');
 const commissionValue = document.getElementById('commissionValue');
 const promotionBudget = document.getElementById('promotionBudget');
 const totalProducts = document.getElementById('totalProducts');
+
+let userSession = null;
+let imageBase64 = "";
 
 // --- Helper Functions ---
 
@@ -166,6 +328,9 @@ async function sendAdminNotification(notifTitle, message) {
 }
 
 function showNotification(message, type='info', duration=4000) {
+  const existing = document.querySelector('.notification');
+  if (existing) existing.remove();
+
   const notif = document.createElement('div');
   notif.className = `notification ${type}`;
   notif.textContent = message;
@@ -173,16 +338,83 @@ function showNotification(message, type='info', duration=4000) {
   setTimeout(() => notif.remove(), duration);
 }
 
+// --- Simple Validation ---
+
+function validateOfferForm() {
+  const titleVal = title.value.trim();
+  const descVal = description.value.trim();
+  const categoryVal = category.value;
+  const currencyVal = currency.value;
+
+  const priceVal = parseFloat(price.value);
+  const commissionVal = parseFloat(commissionValue.value);
+  const promotionVal = parseFloat(promotionBudget.value);
+  const totalProductsVal = parseInt(totalProducts.value);
+
+  if (!titleVal || titleVal.length < 3) {
+    showNotification("Title must be at least 3 characters.", "error");
+    return false;
+  }
+
+  if (!descVal || descVal.length < 10) {
+    showNotification("Description must be at least 10 characters.", "error");
+    return false;
+  }
+
+  if (!categoryVal) {
+    showNotification("Please select a category.", "error");
+    return false;
+  }
+
+  if (!currencyVal) {
+    showNotification("Please select a currency.", "error");
+    return false;
+  }
+
+  if (isNaN(priceVal) || priceVal <= 0) {
+    showNotification("Price must be greater than 0.", "error");
+    return false;
+  }
+
+  if (isNaN(commissionVal) || commissionVal <= 0) {
+    showNotification("Commission value must be greater than 0.", "error");
+    return false;
+  }
+
+  if (commissionType.value === "percentage" && (commissionVal <= 0 || commissionVal > 100)) {
+    showNotification("Commission percentage must be between 1 and 100.", "error");
+    return false;
+  }
+
+  if (isNaN(promotionVal) || promotionVal < 0) {
+    showNotification("Promotion budget cannot be negative.", "error");
+    return false;
+  }
+
+  if (isNaN(totalProductsVal) || totalProductsVal < 1) {
+    showNotification("Total products must be at least 1.", "error");
+    return false;
+  }
+
+  return true;
+}
+
 // --- Session Verification ---
 
 const userSessionRaw = localStorage.getItem('userSession');
-if (!userSessionRaw) { window.location.href = 'login.html'; }
-else {
+if (!userSessionRaw) {
+  window.location.href = 'login.html';
+} else {
+  try {
     userSession = JSON.parse(userSessionRaw);
-    if (userSession.role !== 'provider') { 
-        localStorage.removeItem('userSession'); 
-        window.location.href='login.html'; 
+    if (!userSession || userSession.role !== 'provider') {
+      localStorage.removeItem('userSession');
+      window.location.href = 'login.html';
     }
+  } catch (e) {
+    localStorage.removeItem('userSession');
+    window.location.href = 'login.html';
+  }
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -199,7 +431,7 @@ onAuthStateChanged(auth, (user) => {
 
 // --- Logic ---
 
-async function compressImage(file, maxSizeMB = 1) {
+async function compressImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -210,45 +442,66 @@ async function compressImage(file, maxSizeMB = 1) {
         let width = img.width;
         let height = img.height;
         const maxDim = 800;
-        if (width > height && width > maxDim) { height *= maxDim / width; width = maxDim; }
-        else if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+
+        if (width > height && width > maxDim) {
+          height *= maxDim / width;
+          width = maxDim;
+        } else if (height > maxDim) {
+          width *= maxDim / height;
+          height = maxDim;
+        }
         
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.7));
+
+        try {
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
       };
+      img.onerror = reject;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
 function attachHandlers() {
-  document.getElementById('nav-dashboard').onclick = () => window.location.href='provider-dashboard.html';
-  document.getElementById('nav-offers').onclick = () => window.location.href='manage-offers.html';
-  document.getElementById('nav-notifs').onclick = () => window.location.href='notifications.html';
+  // Logout
   document.getElementById('logoutBtn').onclick = async () => { 
     await signOut(auth); 
     localStorage.removeItem('userSession'); 
     window.location.href='login.html'; 
   };
 
+  // Image preview
   imageInput.addEventListener("change", async e => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showNotification("Please upload a valid image file.", "error");
+      imageInput.value = "";
+      return;
+    }
+
     try {
       imageBase64 = await compressImage(file);
       imagePreview.src = imageBase64;
       imagePreview.style.display = "block";
     } catch(err) {
-      showNotification("Image processing failed", "error");
+      console.error(err);
+      showNotification("Image processing failed.", "error");
     }
   });
 
   // Ensure currencies are loaded before enabling submit
   const checkCurrency = setInterval(() => {
-    if(currency.options.length > 0) {
+    if (currency.options.length > 0) {
       clearInterval(checkCurrency);
       setupFormSubmit();
     }
@@ -258,8 +511,16 @@ function attachHandlers() {
 function setupFormSubmit() {
   offerForm.addEventListener("submit", async e => {
     e.preventDefault();
+
     submitBtn.disabled = true;
     submitBtn.textContent = "Uploading Offer...";
+
+    // Extra validation before sending to Firestore
+    if (!validateOfferForm()) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Offer for Verification";
+      return;
+    }
 
     const offerData = {
       providerId: userSession.uid,
@@ -272,9 +533,9 @@ function setupFormSubmit() {
       commissionValue: parseFloat(commissionValue.value) || 0,
       promotionBudget: parseFloat(promotionBudget.value) || 0,
       totalProducts: parseInt(totalProducts.value) || 0,
-      imageTemp: imageBase64 || null, // Changed from imageTemp for standard naming
+      imageBase64: imageBase64 || null,
       status: "pending",
-      createdAt: serverTimestamp() // ✅ SECURE SERVER TIME
+      createdAt: serverTimestamp()
     };
 
     try {
