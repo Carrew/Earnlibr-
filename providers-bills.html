@@ -5,107 +5,401 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Provider Bills</title>
 <style>
-body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; }
-h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; }
-.bill-card { background:#0f1724; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); }
-.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; }
-.btn:disabled { opacity:0.6; cursor:not-allowed; }
-.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; display:none; }
-.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
-.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #ef4444;
+  --success: #4ade80;
+  --radius: 12px;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+  color: #eef2f7;
+  margin: 0;
+  padding: 20px;
+}
+
+.page-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 24px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0 0 6px 0;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+/* Global notification */
+.notif {
+  background:#111827;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:15px;
+  display:none;
+  font-size:14px;
+  border:1px solid rgba(148,163,184,0.4);
+}
+.notif.success { border-left:4px solid var(--success); color:#bbf7d0; }
+.notif.error { border-left:4px solid var(--danger); color:#fecaca; }
+
+/* Bills container */
+#billsContainer {
+  min-height: 120px;
+}
+
+/* Bill card */
+.bill-card {
+  background: linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+  padding:15px 14px 12px;
+  border-radius:var(--radius);
+  margin-bottom:14px;
+  box-shadow:0 10px 25px rgba(15,23,42,0.7);
+  border:1px solid rgba(148,163,184,0.25);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.bill-card:hover {
+  transform: translateY(-2px);
+  box-shadow:0 14px 35px rgba(15,23,42,0.9);
+}
+
+.bill-header-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+  font-size:13px;
+}
+
+.bill-title {
+  font-weight:600;
+  color:#e5e7eb;
+}
+
+.status-pill {
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  border:1px solid rgba(148,163,184,0.5);
+  color:var(--muted);
+}
+.status-pill.sent { border-color:#facc15; color:#facc15; }
+.status-pill.provider_marked_paid { border-color:var(--success); color:var(--success); }
+
+.bill-line {
+  font-size:13px;
+  margin-bottom:6px;
+  color:#e5e7eb;
+}
+.bill-line strong { color:#e5e7eb; }
+
+.bill-meta {
+  margin-top:8px;
+  font-size:11px;
+  color:var(--muted);
+}
+
+/* Button */
+.btn {
+  background:var(--success);
+  border:none;
+  padding:7px 14px;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:600;
+  color:#041018;
+  font-size:12px;
+  margin-top:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  box-shadow:0 8px 20px rgba(22,163,74,0.6);
+}
+.btn span.icon {
+  font-size:13px;
+}
+.btn:disabled {
+  opacity:0.6;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+/* Skeletons */
+.skeleton-card {
+  background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
+  border-radius: var(--radius);
+  padding: 14px 14px 10px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(30,64,175,0.4);
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.long { width: 90%; }
+.skeleton-line::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background: linear-gradient(90deg,
+    rgba(31,41,55,0) 0%,
+    rgba(55,65,81,0.9) 50%,
+    rgba(31,41,55,0) 100%
+  );
+  transform:translateX(-100%);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Empty state */
+.empty-state {
+  padding:20px 18px;
+  border-radius:var(--radius);
+  background:rgba(15,23,42,0.9);
+  border:1px dashed rgba(148,163,184,0.5);
+  font-size:13px;
+  color:var(--muted);
+}
+.empty-state strong {
+  color:#e5e7eb;
+  display:block;
+  margin-bottom:4px;
+}
 </style>
 </head>
 <body>
+<div class="page-wrap">
+  <h1>Your Bills</h1>
+  <div class="page-subtitle">Review and mark your outstanding bills as paid.</div>
 
-<h1>Your Bills</h1>
-<div id="notif" class="notif"></div>
-<div id="billsContainer">Loading bills...</div>
+  <div id="notif" class="notif"></div>
+  <div id="billsContainer">
+    <!-- Skeletons or bills will be injected here -->
+  </div>
+</div>
 
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { 
-    collection, doc, updateDoc, query, where, onSnapshot, serverTimestamp, writeBatch 
+import {
+  collection, doc, updateDoc, query, where, onSnapshot,
+  serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
 
-const showNotif = (msg,type="success")=>{
-  notif.textContent=msg;
-  notif.className=`notif ${type}`;
-  notif.style.display="block";
-  setTimeout(()=>{ notif.style.display="none"; },3000);
+const showNotif = (msg, type="success")=>{
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(()=>{ notif.style.display="none"; }, 4000);
 };
 
+// Skeleton helpers
+let skeletonContainer = null;
+
+function createSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "skeleton-card";
+  card.innerHTML = `
+    <div class="skeleton-line medium"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line short"></div>
+  `;
+  return card;
+}
+
+function showSkeleton(count = 3) {
+  hideSkeleton();
+  skeletonContainer = document.createElement("div");
+  for (let i = 0; i < count; i++) {
+    skeletonContainer.appendChild(createSkeletonCard());
+  }
+  billsContainer.innerHTML = "";
+  billsContainer.appendChild(skeletonContainer);
+}
+
+function hideSkeleton() {
+  if (skeletonContainer && skeletonContainer.parentNode) {
+    skeletonContainer.parentNode.removeChild(skeletonContainer);
+  }
+  skeletonContainer = null;
+}
+
 // --- Auth check ---
-let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
-userSession = JSON.parse(userSession);
+let rawSession = localStorage.getItem("userSession");
+let userSession = null;
+
+if (!rawSession) {
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
+
+try {
+  userSession = JSON.parse(rawSession);
+  if (!userSession || userSession.role !== "provider") {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    throw new Error("Invalid session");
+  }
+} catch (e) {
+  localStorage.removeItem("userSession");
+  window.location.href = "login.html";
+  throw e;
+}
 
 onAuthStateChanged(auth, async user=>{
-  if(!user || user.uid !== userSession.uid){ localStorage.removeItem("userSession"); window.location.href="login.html"; return; }
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
   loadBills();
 });
 
 // --- Load provider bills ---
 function loadBills(){
-  // Query only bills that have been 'sent' and are not yet marked for approval
+  showSkeleton(3);
+
   const billsQuery = query(
     collection(db, `providers/${userSession.uid}/bills`),
-    where("status", "==", "sent") 
+    where("status", "==", "sent")
   );
-  
+
+  let firstSnapshot = true;
+
   onSnapshot(billsQuery, snapshot=>{
-    billsContainer.innerHTML="";
-    if(snapshot.empty) { billsContainer.innerHTML="<p>No pending bills to pay.</p>"; return; }
+    if (firstSnapshot) {
+      hideSkeleton();
+      firstSnapshot = false;
+    }
+
+    billsContainer.innerHTML = "";
+
+    if(snapshot.empty) {
+      billsContainer.innerHTML = `
+        <div class="empty-state">
+          <strong>No pending bills to pay.</strong>
+          When admins send you bills for your completed deals, they will appear here for you to confirm payment.
+        </div>
+      `;
+      return;
+    }
 
     snapshot.docs.forEach(docSnap=>{
       const bill = docSnap.data();
-      const card = document.createElement("div");
-      card.className="bill-card";
-      card.innerHTML=`
-        <div><strong>Offer:</strong> ${bill.offerTitle} (${bill.currency})</div>
-        <div><strong>Total:</strong> ${bill.total.toFixed(2)}</div>
-        <div><strong>Status:</strong> ${bill.status}</div>
-      `;
-
-      if(bill.status==="sent"){
-        const btn = document.createElement("button");
-        btn.className="btn";
-        btn.textContent="Mark as Paid (Waiting Admin Approval)";
-        btn.onclick=()=>markAsPaid(bill.billId, btn);
-        card.appendChild(btn);
-      }
-
-      billsContainer.appendChild(card);
+      renderBillCard(bill);
     });
+  }, (err) => {
+    console.error("Bills snapshot error:", err);
+    hideSkeleton();
+    billsContainer.innerHTML = `<p style="color:#fecaca;font-size:13px;">Failed to load bills. Please reload.</p>`;
+    showNotif("Failed to load bills.", "error");
   });
 }
 
-// --- Mark a bill as paid (UPGRADED: Uses writeBatch and serverTimestamp) ---
+function renderBillCard(bill) {
+  const card = document.createElement("div");
+  card.className = "bill-card";
+
+  const totalNumber = typeof bill.total === "number"
+    ? bill.total
+    : parseFloat(bill.total || 0);
+
+  const safeTotal = isNaN(totalNumber) ? 0 : totalNumber;
+
+  const status = bill.status || "sent";
+  const currency = bill.currency || "USD";
+  const offerTitle = bill.offerTitle || "Untitled Offer";
+  const createdAt = bill.createdAt && typeof bill.createdAt.toDate === "function"
+    ? bill.createdAt.toDate().toLocaleString()
+    : "";
+
+  card.innerHTML = `
+    <div class="bill-header-row">
+      <div class="bill-title">${offerTitle}</div>
+      <div class="status-pill ${status}">${status.replace(/_/g," ").toUpperCase()}</div>
+    </div>
+
+    <div class="bill-line">
+      <strong>Total:</strong> ${currency} ${safeTotal.toFixed(2)}
+    </div>
+
+    <div class="bill-line">
+      <strong>Bill ID:</strong> ${bill.billId || "N/A"}
+    </div>
+
+    <div class="bill-meta">
+      ${createdAt ? `Created: ${createdAt}` : ""}
+    </div>
+  `;
+
+  if (status === "sent") {
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.innerHTML = `<span class="icon">💳</span><span>Mark as Paid (Admin Review)</span>`;
+    btn.onclick = () => markAsPaid(bill.billId, btn);
+    card.appendChild(btn);
+  }
+
+  billsContainer.appendChild(card);
+}
+
+// --- Mark a bill as paid ---
 async function markAsPaid(billId, btn){
-  btn.disabled=true;
+  if (!billId) {
+    showNotif("Missing bill ID. Cannot update.", "error");
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Updating...";
+
   try {
     const batch = writeBatch(db);
-    const updateData = { 
-      status: "provider_marked_paid", 
-      providerMarkedAt: serverTimestamp() // Use serverTimestamp for integrity
+    const updateData = {
+      status: "provider_marked_paid",
+      providerMarkedAt: serverTimestamp()
     };
 
-    // Update the main bill record
     batch.update(doc(db,"bills",billId), updateData);
-    
-    // Update the provider's subcollection record
     batch.update(doc(db, `providers/${userSession.uid}/bills/${billId}`), updateData);
-    
-    await batch.commit(); // Atomic update
 
-    showNotif("Bill marked as paid and sent for Admin Approval!");
+    await batch.commit();
+
+    showNotif("Bill marked as paid and sent for Admin approval!", "success");
   } catch(err) {
     console.error("Failed to mark bill as paid:", err);
     showNotif("Error: Failed to update bill status.", "error");
-    btn.disabled=false; // Re-enable on failure
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 </script>
