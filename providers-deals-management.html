@@ -5,43 +5,159 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EarnLibr — Provider Deals Management</title>
 <style>
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #ef4444;
+  --success: #4ade80;
+  --radius: 12px;
+}
+
 body {
-  font-family: Arial, sans-serif;
-  background: #0b0d17;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
   color: #eef2f7;
   margin: 0;
   padding: 20px;
 }
-h1 {
-  background: linear-gradient(90deg, #4a90e2, #a3ff6e);
-  -webkit-background-clip: text;
-  color: transparent;
+
+/* Page Layout */
+.page-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-header {
   margin-bottom: 20px;
 }
-.deal-card {
-  background: #0f1724;
-  border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  transition: opacity .5s ease, transform .3s;
-  position: relative;
+
+h1 {
+  font-size: 24px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0 0 6px 0;
 }
-.deal-card:hover { transform: translateY(-4px); }
-.deal-card.completed { border-left: 4px solid #4ade80; }
-.deal-card.cancelled { border-left: 4px solid #ef4444; }
-.deal-info { margin-bottom: 10px; font-size: 14px; }
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Notification bar */
+.notif {
+  background: #111827;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 15px 0;
+  font-size: 14px;
+  display: none;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.notif.success {
+  border-left: 4px solid var(--success);
+  color: #bbf7d0;
+}
+.notif.error {
+  border-left: 4px solid var(--danger);
+  color: #fecaca;
+}
+
+/* Deals container */
+#dealsContainer {
+  min-height: 120px;
+}
+
+/* Deal card */
+.deal-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  border-radius: var(--radius);
+  padding: 15px 14px 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  position: relative;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.deal-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9);
+}
+.deal-card.completed { border-left: 3px solid var(--success); }
+.deal-card.cancelled { border-left: 3px solid var(--danger); }
+
+.deal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.deal-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  color: var(--muted);
+}
+.deal-pill.pending { border-color: #facc15; color: #facc15; }
+.deal-pill.completed { border-color: var(--success); color: var(--success); }
+.deal-pill.cancelled { border-color: var(--danger); color: var(--danger); }
+
+.deal-info {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+.deal-info strong {
+  color: #e5e7eb;
+}
+
+.deal-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+/* Action buttons */
+.deal-actions {
+  margin-top: 8px;
+}
 .deal-actions button {
   margin-right: 8px;
   padding: 6px 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12px;
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
 }
-.complete { background: #4ade80; color: #041018; }
-.cancel { background: #ef4444; color: #fff; }
+.deal-actions button span.icon {
+  font-size: 13px;
+}
+.complete {
+  background: var(--success);
+  color: #022c22;
+}
+.cancel {
+  background: var(--danger);
+  color: #fef2f2;
+}
 button.loading {
   pointer-events: none;
   opacity: 0.7;
@@ -49,72 +165,144 @@ button.loading {
 button.loading::after {
   content: '';
   position: absolute;
-  top: 50%; left: 50%;
-  width: 16px; height: 16px;
-  margin: -8px 0 0 -8px;
-  border: 2px solid #fff;
+  top: 50%;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid rgba(248, 250, 252, 0.9);
   border-top: 2px solid transparent;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-.timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
-.notif {
-  background: #1a2235;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  font-size: 14px;
-  display: none;
+.timestamp {
+  font-size: 11px;
+  color: var(--muted);
 }
-.notif.success { border-left: 4px solid #4ade80; color: #a3ff6e; }
-.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
+
+/* Card mini toast */
 .card-notif {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #1a2235;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  background: #020617;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  border: 1px solid rgba(148, 163, 184, 0.4);
 }
 .card-notif button {
   background: transparent;
   border: none;
-  color: #a3ff6e;
+  color: var(--accent2);
   font-weight: 700;
   cursor: pointer;
+  font-size: 11px;
 }
-.card-notif button:hover { color: #4ade80; }
+.card-notif button:hover { color: var(--success); }
+
+/* Load more */
 .load-more {
   text-align: center;
   margin-top: 20px;
 }
 .load-more button {
-  padding: 10px 20px;
+  padding: 9px 20px;
   background: #3b82f6;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 13px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.6);
+}
+.load-more button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Skeleton loading */
+.skeleton-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
+  border-radius: var(--radius);
+  padding: 14px 14px 10px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(30, 64, 175, 0.4);
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.long { width: 90%; }
+
+.skeleton-line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(31, 41, 55, 0) 0%,
+    rgba(55, 65, 81, 0.9) 50%,
+    rgba(31, 41, 55, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Empty state */
+.empty-state {
+  padding: 22px 18px;
+  border-radius: var(--radius);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  font-size: 13px;
+  color: var(--muted);
+}
+.empty-state strong {
+  color: #e5e7eb;
+  display: block;
+  margin-bottom: 4px;
 }
 </style>
 </head>
 <body>
+<div class="page-wrap">
+  <header class="page-header">
+    <h1>Your Deals</h1>
+    <div class="page-subtitle">Manage and confirm deals generated from your offers.</div>
+  </header>
 
-<h1>Your Deals</h1>
-<div id="notif" class="notif"></div>
-<div id="dealsContainer">Loading deals...</div>
-<div id="loadMoreContainer" class="load-more" style="display: none;">
-  <button id="loadMoreBtn">Load More Deals</button>
+  <div id="notif" class="notif"></div>
+
+  <div id="dealsContainer">
+    <!-- Skeletons will be injected here on load -->
+  </div>
+
+  <div id="loadMoreContainer" class="load-more" style="display: none;">
+    <button id="loadMoreBtn">Load More Deals</button>
+  </div>
 </div>
 
 <script type="module">
@@ -134,11 +322,51 @@ const showNotif = (msg, type = "success") => {
   notif.textContent = msg;
   notif.className = `notif ${type}`;
   notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 10000);
+  setTimeout(() => { notif.style.display = "none"; }, 8000);
 };
 
-/* --- Helper --- */
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+/* --- Skeleton helpers --- */
+let skeletonContainer = null;
+
+function createSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "skeleton-card";
+  card.innerHTML = `
+    <div class="skeleton-line medium"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line short"></div>
+  `;
+  return card;
+}
+
+// showSkeleton:
+// - count: how many skeleton cards
+// - mode: "replace" (clear and show skeleton) or "append" (keep existing, add skeletons at bottom)
+function showSkeleton(count = 3, mode = "replace") {
+  hideSkeleton();
+  skeletonContainer = document.createElement("div");
+
+  for (let i = 0; i < count; i++) {
+    skeletonContainer.appendChild(createSkeletonCard());
+  }
+
+  if (mode === "replace") {
+    dealsContainer.innerHTML = "";
+    dealsContainer.appendChild(skeletonContainer);
+  } else {
+    dealsContainer.appendChild(skeletonContainer);
+  }
+}
+
+function hideSkeleton() {
+  if (skeletonContainer && skeletonContainer.parentNode) {
+    skeletonContainer.parentNode.removeChild(skeletonContainer);
+  }
+  skeletonContainer = null;
+}
 
 /* --- Notification Batching --- */
 async function sendNotifications(deal, title, message) {
@@ -208,7 +436,7 @@ onAuthStateChanged(auth, async (user) => {
     };
     localStorage.setItem('userSession', JSON.stringify(userSession));
 
-    loadDeals();
+    loadDeals(true);
   } catch (err) {
     console.error("Auth data load error:", err);
     showNotif("Failed to load user profile. Please reload.", "error");
@@ -259,12 +487,12 @@ async function processCompleteDeal(dealId, deal, card) {
         ? platformSnap.data()
         : { totalRevenue: 0, dealsCount: 0, dailyRevenue: {} };
 
-      // Make sure dailyRevenue is an object even for older docs
       platformData.dailyRevenue = platformData.dailyRevenue || {};
 
       let metaSnap = null;
       if (deal.promoterId && deal.promoterId !== "direct") {
-        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
+        const metaRef =
+          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
         metaSnap = await t.get(metaRef);
       }
 
@@ -309,24 +537,13 @@ async function processCompleteDeal(dealId, deal, card) {
         meta.lastUpdated = serverTimestamp();
       }
 
-      // Writes
       t.update(offerRef, updatedOfferData);
 
       if (deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef = doc(
-          db,
-          "promoter-earnings",
-          deal.promoterId,
-          "deals",
-          dealId
-        );
-        const metaRef = doc(
-          db,
-          "promoter-earnings",
-          deal.promoterId,
-          "metadata",
-          "summary"
-        );
+        const promoterDealRef =
+          doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
+        const metaRef =
+          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
         t.set(promoterDealRef, {
           ...deal,
           commissionAmount: promoterNet,
@@ -353,13 +570,11 @@ async function processCompleteDeal(dealId, deal, card) {
         providerPaid: false
       });
 
-      // Ensure billing fields always exist
       t.update(completedRef, {
         billedBy: null,
         billedAt: null
       });
 
-      // Remove from active deals
       t.delete(dealRef);
     });
 
@@ -368,7 +583,6 @@ async function processCompleteDeal(dealId, deal, card) {
     showNotif("Deal completed successfully", "success");
   } catch (err) {
     console.error(err);
-    // Try to reset status back from 'processing'
     setDoc(dealRef, { status: "pending" }, { merge: true }).catch((e) =>
       console.error("Failed to reset status:", e)
     );
@@ -418,10 +632,11 @@ async function executeDealAction(type, dealId, deal, card) {
 function scheduleAction(type, dealId, deal, card) {
   const box = document.createElement("div");
   box.className = "card-notif";
-  box.innerHTML = `${type === "complete" ? "Completing" : "Cancelling"} in 5s <button>Undo</button>`;
+  box.innerHTML =
+    `${type === "complete" ? "Completing" : "Cancelling"} in 5s <button>Undo</button>`;
   card.appendChild(box);
 
-  const buttons = card.querySelectorAll("button");
+  const buttons = card.querySelectorAll(".deal-actions button");
   buttons.forEach((btn) => { btn.disabled = true; btn.classList.add("loading"); });
 
   let cancelled = false;
@@ -451,9 +666,12 @@ let lastDeal = null;
 
 function loadDeals(isInitialLoad = true) {
   if (isInitialLoad) {
-    dealsContainer.innerHTML = "";
+    showSkeleton(3, "replace");
     lastDeal = null;
     loadMoreContainer.style.display = "none";
+  } else {
+    // For "load more", append a couple of skeletons under existing cards
+    showSkeleton(2, "append");
   }
 
   let dealsQuery = query(
@@ -476,8 +694,15 @@ function loadDeals(isInitialLoad = true) {
 
   getDocs(dealsQuery)
     .then((snapshot) => {
+      hideSkeleton();
+
       if (snapshot.empty && isInitialLoad) {
-        dealsContainer.innerHTML = "<p>No active deals found for your offers.</p>";
+        dealsContainer.innerHTML = `
+          <div class="empty-state">
+            <strong>No active deals yet.</strong>
+            Once promoters start driving clients to your offers, deals will show up here for you to confirm or cancel.
+          </div>
+        `;
         loadMoreContainer.style.display = "none";
         return;
       }
@@ -489,7 +714,9 @@ function loadDeals(isInitialLoad = true) {
         return;
       }
 
-      snapshot.docs.forEach((docSnap) => renderDealCard(docSnap.id, docSnap.data()));
+      snapshot.docs.forEach((docSnap) =>
+        renderDealCard(docSnap.id, docSnap.data())
+      );
       lastDeal = snapshot.docs[snapshot.docs.length - 1];
       loadMoreContainer.style.display = "block";
 
@@ -505,8 +732,9 @@ function loadDeals(isInitialLoad = true) {
     })
     .catch((err) => {
       console.error(err);
+      hideSkeleton();
       dealsContainer.innerHTML =
-        `<p style="color:#ef4444;">Failed to Load Deals: ${err.code || "Unknown Error"}. Check console.</p>`;
+        `<p style="color:#fecaca;font-size:13px;">Failed to load deals: ${err.code || "Unknown error"}. Check console.</p>`;
       showNotif("Failed to load deals", "error");
       if (loadMoreBtn) {
         loadMoreBtn.textContent = "Failed to Load";
@@ -545,27 +773,53 @@ function renderDealCard(dealId, deal) {
     : isDirect
       ? "Direct"
       : (deal.promoterName || "Unknown");
-
   const promoterIdText = deal.promoterId ? ` (${deal.promoterId})` : "";
+  const statusLabel = (deal.status || "pending").toLowerCase();
 
   card.innerHTML = `
-    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
+    <div class="deal-header-row">
+      <div style="font-size:12px; color:var(--muted);">
+        <strong style="color:#e5e7eb;">Deal ID:</strong> ${dealId}
+      </div>
+      <div class="deal-pill ${statusLabel}">
+        ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}
+      </div>
+    </div>
+
     <div class="deal-info">
       <strong>Offer:</strong> ${deal.offerTitle || "N/A"}
-      <span style="font-weight:700; color:#a3ff6e;">(QTY: ${dealQuantity})</span>
+      <span style="font-weight:700; color:var(--accent2); margin-left:4px;">
+        (QTY: ${dealQuantity})
+      </span>
     </div>
+
     <div class="deal-info">
       <strong>Promoter:</strong> ${promoterLabel}${promoterIdText}
     </div>
+
     <div class="deal-info">
       <strong>Client:</strong> ${deal.clientName || "N/A"} | ${deal.clientContact || "N/A"}
     </div>
-    <div class="deal-info"><strong>Note:</strong> ${deal.note || "None"}</div>
-    <div class="deal-actions">
-      <button class="complete">Mark Completed</button>
-      <button class="cancel">Mark Cancelled</button>
+
+    <div class="deal-info">
+      <strong>Note:</strong> ${deal.note || "None"}
     </div>
-    <div class="timestamp">Created: ${createdDate} | Status: ${deal.status || "Pending"}</div>
+
+    <div class="deal-actions">
+      <button class="complete">
+        <span class="icon">✅</span>
+        <span>Mark Completed</span>
+      </button>
+      <button class="cancel">
+        <span class="icon">✖</span>
+        <span>Mark Cancelled</span>
+      </button>
+    </div>
+
+    <div class="deal-meta-row">
+      <div class="timestamp">Created: ${createdDate}</div>
+      <div>${deal.offerCurrency || "USD"}</div>
+    </div>
   `;
 
   card.querySelector(".complete").onclick = () =>
