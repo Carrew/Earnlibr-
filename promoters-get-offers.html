@@ -475,10 +475,11 @@ function displayOffers(offers) {
     `;  
     offerGrid.appendChild(card);  
 
-    // Copy link  
+    // Copy ONLY the tracking link  
     card.querySelector('.btn.copy').onclick = () => {  
-      navigator.clipboard.writeText(link).then(()=>showNotification("✅ Promotion link copied!"))  
-      .catch(()=>showNotification("❌ Failed to copy link."));  
+      navigator.clipboard.writeText(link)  
+        .then(() => showNotification("✅ Promotion link copied!"))  
+        .catch(() => showNotification("❌ Failed to copy link."));  
     };  
 
     // Download image  
@@ -500,11 +501,31 @@ function displayOffers(offers) {
       }  
     };  
 
-    // Share (Web Share API if available, else copy)  
+    // Share: descriptions + link + image when supported  
     const shareBtn = card.querySelector('.btn.share');  
     shareBtn.onclick = async () => {  
-      const shareText = `Check out this offer: ${offer.title}`;  
+      const shareText = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
 
+      // Try sharing with image (Web Share API Level 2)  
+      try {  
+        const response = await fetch(image);  
+        const blob = await response.blob();  
+        const file = new File([blob], `${(offer.title || "offer").replace(/\s+/g,"_")}.jpg`, { type: blob.type });  
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {  
+          await navigator.share({  
+            title: offer.title,  
+            text: shareText,  
+            files: [file]  
+          });  
+          showNotification("📤 Offer shared with image!");  
+          return;  
+        }  
+      } catch (err) {  
+        console.warn("Image share not supported or failed:", err);  
+      }  
+
+      // Fallback: share text + link only  
       if (navigator.share) {  
         try {  
           await navigator.share({  
@@ -512,14 +533,17 @@ function displayOffers(offers) {
             text: shareText,  
             url: link  
           });  
-          showNotification("📤 Shared successfully!");  
+          showNotification("📤 Shared (image not supported on this device).");  
+          return;  
         } catch (err) {  
-          console.error("Share failed or cancelled:", err);  
+          console.error("Share failed:", err);  
         }  
-      } else {  
-        navigator.clipboard.writeText(link).then(()=>showNotification("🔗 Link copied (no native share available)."))  
-        .catch(()=>showNotification("❌ Failed to copy link."));  
       }  
+
+      // Last fallback: copy full promo text  
+      navigator.clipboard.writeText(shareText)  
+        .then(() => showNotification("🔗 Full promo copied (share not supported)."))  
+        .catch(() => showNotification("❌ Failed to copy promo."));  
     };  
   });  
 }  
