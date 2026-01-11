@@ -279,7 +279,7 @@ h1 {
 <script type="module">  
 import { auth, db } from "./firebase.js";  
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";  
-import { doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";  
+import { doc, getDoc, collection, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";  
 
 const offerGrid = document.getElementById('offerGrid');  
 const notification = document.getElementById('notification');  
@@ -289,6 +289,7 @@ const clearFiltersBtn = document.getElementById('clearFilters');
 
 let allOffers = [];  
 let skeletonContainer = null;  
+let promotedOfferIds = new Set(); // offers this promoter is already promoting  
 
 function showNotification(message) {  
   notification.textContent = message;  
@@ -329,6 +330,54 @@ function hideSkeleton() {
     skeletonContainer.parentNode.removeChild(skeletonContainer);  
   }  
   skeletonContainer = null;  
+}  
+
+// Load which offers this promoter is already promoting  
+async function loadPromotedOffers(promoterId) {  
+  promotedOfferIds = new Set();  
+  try {  
+    const colRef = collection(db, "promoter_offers", promoterId, "offers");  
+    const snap = await getDocs(colRef);  
+    snap.docs.forEach(docSnap => {  
+      promotedOfferIds.add(docSnap.id); // doc id is offer.id  
+    });  
+  } catch (err) {  
+    console.error("Failed to load promoted offers:", err);  
+  }  
+}  
+
+// Mark that this promoter chose to promote this offer (create doc with all fields)  
+async function markOfferPromoted(promoterId, offer) {  
+  try {  
+    const ref = doc(db, "promoter_offers", promoterId, "offers", offer.id);  
+    const now = new Date();  
+
+    await setDoc(ref, {  
+      offerId: offer.id,  
+      promoterId: promoterId,  
+      title: offer.title || 'Untitled Offer',  
+      description: offer.description || '',  
+      imageUrl: offer.imageUrl || '',  
+      category: offer.category || '',  
+      currency: offer.currency || '$',  
+      price: offer.price || null,  
+      commissionValue: offer.commissionValue || 0,  
+      commissionType: offer.commissionType || 'flat',  
+      status: offer.status || 'active',  
+
+      // tracking-related fields initialised here  
+      clicks: 0,  
+      lastClickAt: null,  
+      createdAt: now,  
+      startedPromotingAt: now,  
+      lastShareAt: now  
+    }, { merge: true });  
+
+    promotedOfferIds.add(offer.id);  
+  } catch (err) {  
+    console.error("Failed to mark offer as promoted:", err);  
+    throw err;  
+  }  
 }  
 
 // --- Auth & session safety ---  
@@ -388,6 +437,8 @@ onAuthStateChanged(auth, async (user) => {
 
     localStorage.setItem('userSession', JSON.stringify(sessionData));  
 
+    // Load promoted offers first so displayOffers knows which ones are already active  
+    await loadPromotedOffers(user.uid);  
     loadOffers();  
   } catch(err) {  
     console.error(err);  
@@ -460,6 +511,8 @@ function displayOffers(offers) {
 
     const link = `${window.location.origin}/track.html?offer=${offer.id}&promoter=${session.uid}`;  
 
+    const isPromoted = promotedOfferIds.has(offer.id);  
+
     const card = document.createElement('div');  
     card.className='offer-card';  
     card.innerHTML = `  
@@ -474,8 +527,15 @@ function displayOffers(offers) {
       </div>  
       <div class="offer-desc">💰 ${offer.currency || "$"} ${offer.price || "—"}</div>  
       <div class="offer-desc">🏆 Commission: ${offer.commissionValue || 0}${offer.commissionType==="percentage"?"%":""}</div>  
-      <div class="status active">${offer.status}</div>  
-      <div class="actions">  
+      <div class="status active">${isPromoted ? 'Promoting' : offer.status}</div>  
+
+      <!-- First step: choose to promote -->  
+      <div class="actions promote-chooser" style="${isPromoted ? 'display:none;' : ''}">  
+        <button class="btn start-promote"><span class="icon">🚀</span><span>Start Promoting</span></button>  
+      </div>  
+
+      <!-- Real tools: only visible once they promote -->  
+      <div class="actions main-actions" style="${isPromoted ? 'display:flex;' : 'display:none;'}">  
         <button class="btn copy"><span class="icon">🔗</span><span>Copy Link</span></button>  
         <button class="btn copy-caption"><span class="icon">📋</span><span>Copy Caption</span></button>  
         <button class="btn download"><span class="icon">📸</span><span>Download Image</span></button>  
@@ -483,6 +543,9 @@ function displayOffers(offers) {
       </div>  
     `;  
     offerGrid.appendChild(card);  
+
+    const promoteChooser = card.querySelector('.promote-chooser');  
+    const mainActions = card.querySelector('.main-actions');  
 
     // "See more / See less" toggle for description  
     const toggleBtn = card.querySelector('.toggle-desc');  
@@ -504,84 +567,114 @@ function displayOffers(offers) {
       };  
     }  
 
+    // Start promoting button – creates the doc and reveals tools  
+    const startPromoteBtn = card.querySelector('.start-promote');  
+    if (startPromoteBtn) {  
+      startPromoteBtn.onclick = async () => {  
+        startPromoteBtn.disabled = true;  
+        try {  
+          await markOfferPromoted(session.uid, offer);  
+          const statusEl = card.querySelector('.status');  
+          if (statusEl) statusEl.textContent = 'Promoting';  
+          if (promoteChooser) promoteChooser.style.display = 'none';  
+          if (mainActions) mainActions.style.display = 'flex';  
+          showNotification("🚀 You're now promoting this offer!");  
+        } catch (e) {  
+          showNotification("❌ Failed to start promoting this offer.");  
+          startPromoteBtn.disabled = false;  
+        }  
+      };  
+    }  
+
     // Copy ONLY the tracking link  
-    card.querySelector('.btn.copy').onclick = () => {  
-      navigator.clipboard.writeText(link)  
-        .then(() => showNotification("✅ Promotion link copied!"))  
-        .catch(() => showNotification("❌ Failed to copy link."));  
-    };  
+    const copyLinkBtn = card.querySelector('.btn.copy');  
+    if (copyLinkBtn) {  
+      copyLinkBtn.onclick = () => {  
+        navigator.clipboard.writeText(link)  
+          .then(() => showNotification("✅ Promotion link copied!"))  
+          .catch(() => showNotification("❌ Failed to copy link."));  
+      };  
+    }  
 
     // Copy full caption: title + full description + link  
-    card.querySelector('.btn.copy-caption').onclick = () => {  
-      const caption = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
-      navigator.clipboard.writeText(caption)  
-        .then(() => showNotification("📋 Caption copied! Paste it into your post."))  
-        .catch(() => showNotification("❌ Failed to copy caption."));  
-    };  
+    const copyCaptionBtn = card.querySelector('.btn.copy-caption');  
+    if (copyCaptionBtn) {  
+      copyCaptionBtn.onclick = () => {  
+        const caption = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
+        navigator.clipboard.writeText(caption)  
+          .then(() => showNotification("📋 Caption copied! Paste it into your post."))  
+          .catch(() => showNotification("❌ Failed to copy caption."));  
+      };  
+    }  
 
     // Download image  
-    card.querySelector('.btn.download').onclick = async () => {  
-      try {  
-        const res = await fetch(image);  
-        const blob = await res.blob();  
-        const url = window.URL.createObjectURL(blob);  
-        const a = document.createElement("a");  
-        a.href = url;  
-        a.download = `${(offer.title || "offer").replace(/\s+/g,"_")}.jpg`;  
-        document.body.appendChild(a);  
-        a.click();  
-        a.remove();  
-        window.URL.revokeObjectURL(url);  
-        showNotification("📸 Image downloaded!");  
-      } catch {  
-        showNotification("❌ Failed to download image.");  
-      }  
-    };  
+    const downloadBtn = card.querySelector('.btn.download');  
+    if (downloadBtn) {  
+      downloadBtn.onclick = async () => {  
+        try {  
+          const res = await fetch(image);  
+          const blob = await res.blob();  
+          const url = window.URL.createObjectURL(blob);  
+          const a = document.createElement("a");  
+          a.href = url;  
+          a.download = `${(offer.title || "offer").replace(/\s+/g,"_")}.jpg`;  
+          document.body.appendChild(a);  
+          a.click();  
+          a.remove();  
+          window.URL.revokeObjectURL(url);  
+          showNotification("📸 Image downloaded!");  
+        } catch {  
+          showNotification("❌ Failed to download image.");  
+        }  
+      };  
+    }  
 
     // Share: descriptions + link + image when supported  
     const shareBtn = card.querySelector('.btn.share');  
-    shareBtn.onclick = async () => {  
-      const shareText = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
+    if (shareBtn) {  
+      shareBtn.onclick = async () => {  
+        const shareText = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
 
-      // Try sharing with image (Web Share API Level 2)  
-      try {  
-        const response = await fetch(image);  
-        const blob = await response.blob();  
-        const file = new File([blob], `${(offer.title || "offer").replace(/\s+/g,"_")}.jpg`, { type: blob.type });  
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {  
-          await navigator.share({  
-            title: offer.title,  
-            text: shareText,  
-            files: [file]  
-          });  
-          showNotification("📤 Offer shared with image!");  
-          return;  
-        }  
-      } catch (err) {  
-        console.warn("Image share not supported or failed:", err);  
-      }  
-
-      // Fallback: share text + link only  
-      if (navigator.share) {  
+        // Try sharing with image (Web Share API Level 2)  
         try {  
-          await navigator.share({  
-            title: offer.title,  
-            text: shareText,  
-            url: link  
-          });  
-          showNotification("📤 Shared (image not supported on this device).");  
-          return;  
-        } catch (err) {  
-          console.error("Share failed:", err);  
-        }  
-      }  
+          const response = await fetch(image);  
+          const blob = await response.blob();  
+          const file = new File([blob], `${(offer.title || "offer").replace(/\s+/g,"_")}.jpg`, { type: blob.type });  
 
-      // Last fallback: copy full promo text  
-      navigator.clipboard.writeText(shareText)  
-        .then(() => showNotification("🔗 Full promo copied (share not supported)."))  
-        .catch(() => showNotification("❌ Failed to copy promo."));  
-    };  
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {  
+            await navigator.share({  
+              title: offer.title,  
+              text: shareText,  
+              files: [file]  
+            });  
+            showNotification("📤 Offer shared with image!");  
+            return;  
+          }  
+        } catch (err) {  
+          console.warn("Image share not supported or failed:", err);  
+        }  
+
+        // Fallback: share text + link only  
+        if (navigator.share) {  
+          try {  
+            await navigator.share({  
+              title: offer.title,  
+              text: shareText,  
+              url: link  
+            });  
+            showNotification("📤 Shared (image not supported on this device).");  
+            return;  
+          } catch (err) {  
+            console.error("Share failed:", err);  
+          }  
+        }  
+
+        // Last fallback: copy full promo text  
+        navigator.clipboard.writeText(shareText)  
+          .then(() => showNotification("🔗 Full promo copied (share not supported)."))  
+          .catch(() => showNotification("❌ Failed to copy promo."));  
+      };  
+    }  
   });  
 }  
 
