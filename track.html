@@ -65,7 +65,19 @@ button:disabled { opacity:.6; cursor:not-allowed; }
 
 <script type="module">
 import { db } from "./firebase.js";
-import { doc, getDoc, collection, serverTimestamp, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import {
+  doc,
+  getDoc,
+  collection,
+  serverTimestamp,
+  writeBatch,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  setDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const offerId = params.get("offer");
@@ -85,6 +97,47 @@ const successMsg = document.getElementById("successMsg");
 const container = document.getElementById("container");
 
 let offerData, providerId, providerInfo, promoterInfo;
+
+/**
+ * 🔄 Update promoter_offers stats when a visitor lands on this page
+ * - increments clicks
+ * - updates lastClickAt
+ * - sets lastSource = "view"
+ */
+async function updatePromoterStatsOnView() {
+  if (!offerId || !promoterId || promoterId === "direct") return;
+
+  const statsRef = doc(db, "promoter_offers", promoterId, "offers", offerId);
+
+  try {
+    await updateDoc(statsRef, {
+      clicks: increment(1),
+      lastClickAt: serverTimestamp(),
+      lastSource: "view"
+    });
+  } catch (err) {
+    // If doc doesn't exist yet (edge case), create a minimal one
+    try {
+      await setDoc(
+        statsRef,
+        {
+          offerId,
+          promoterId,
+          title: offerData?.title || "Untitled Offer",
+          imageUrl: offerData?.imageUrl || "",
+          status: offerData?.status || "active",
+          clicks: 1,
+          lastClickAt: serverTimestamp(),
+          lastSource: "view",
+          createdAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+    } catch (err2) {
+      console.error("Failed to create/update promoter stats on view:", err2);
+    }
+  }
+}
 
 async function loadOffer() {
   if (!offerId) {
@@ -126,6 +179,9 @@ async function loadOffer() {
     document.getElementById("offerPrice").textContent = `${offerData.currency || "$"} ${offerData.price || "N/A"}`;
     document.getElementById("offerDescription").textContent = offerData.description || "No description available.";
     document.getElementById("offerCategory").textContent = offerData.category || "Uncategorized";
+
+    // ✅ Once offer & promoter are known and valid, track the view/click
+    await updatePromoterStatsOnView();
 
   } catch(err) {
     console.error(err);
@@ -240,6 +296,27 @@ form.addEventListener("submit", async e => {
         message:`Your shared link converted into a deal for ${quantity} unit(s) of "${dealData.offerTitle}, you earn once this deal is completed".`,
         type:"deal", dealId, ...dealData, createdAt: serverTimestamp()
       });
+    }
+
+    // ✅ Update promoter_offers stats for this conversion (only if it's not a direct lead)
+    if (promoterId !== "direct") {
+      const statsRef = doc(db, "promoter_offers", promoterId, "offers", offerId);
+      batch.set(
+        statsRef,
+        {
+          offerId,
+          promoterId,
+          title: offerData.title || "Untitled Offer",
+          imageUrl: offerData.imageUrl || "",
+          status: offerData.status || "active",
+          lastDealAt: serverTimestamp(),
+          lastActionAt: serverTimestamp(),
+          lastSource: "deal",
+          dealsCount: increment(1),
+          totalQuantity: increment(quantity)
+        },
+        { merge: true }
+      );
     }
 
     await batch.commit();
