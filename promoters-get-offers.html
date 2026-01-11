@@ -450,10 +450,12 @@ function displayOffers(offers) {
 
   offers.forEach(offer => {  
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";  
-    const desc = offer.description  
-      ? (offer.description.length > 100  
-        ? offer.description.substring(0, 100) + "..."  
-        : offer.description)  
+
+    const fullDesc = offer.description || '';  
+    const desc = fullDesc  
+      ? (fullDesc.length > 100  
+        ? fullDesc.substring(0, 100) + "..."  
+        : fullDesc)  
       : '';  
 
     const link = `${window.location.origin}/track.html?offer=${offer.id}&promoter=${session.uid}`;  
@@ -463,23 +465,58 @@ function displayOffers(offers) {
     card.innerHTML = `  
       <img src="${image}" alt="Offer">  
       <div class="offer-title">${offer.title || 'Untitled Offer'}</div>  
-      <div class="offer-desc">${desc}</div>  
+      <div class="offer-desc">
+        <span class="desc-short">${desc}</span>
+        <span class="desc-full" style="display:none;">${fullDesc}</span>
+        ${fullDesc && fullDesc.length > 100  
+          ? '<button class="toggle-desc" style="margin-left:6px;background:none;border:none;color:var(--accent1);font-size:12px;cursor:pointer;padding:0;">See more</button>'  
+          : ''}  
+      </div>  
       <div class="offer-desc">💰 ${offer.currency || "$"} ${offer.price || "—"}</div>  
       <div class="offer-desc">🏆 Commission: ${offer.commissionValue || 0}${offer.commissionType==="percentage"?"%":""}</div>  
       <div class="status active">${offer.status}</div>  
       <div class="actions">  
         <button class="btn copy"><span class="icon">🔗</span><span>Copy Link</span></button>  
+        <button class="btn copy-caption"><span class="icon">📋</span><span>Copy Caption</span></button>  
         <button class="btn download"><span class="icon">📸</span><span>Download Image</span></button>  
         <button class="btn share"><span class="icon">📤</span><span>Share</span></button>  
       </div>  
     `;  
     offerGrid.appendChild(card);  
 
+    // "See more / See less" toggle for description  
+    const toggleBtn = card.querySelector('.toggle-desc');  
+    if (toggleBtn) {  
+      const shortEl = card.querySelector('.desc-short');  
+      const fullEl = card.querySelector('.desc-full');  
+
+      toggleBtn.onclick = () => {  
+        const expanded = fullEl.style.display === 'inline';  
+        if (expanded) {  
+          fullEl.style.display = 'none';  
+          shortEl.style.display = 'inline';  
+          toggleBtn.textContent = 'See more';  
+        } else {  
+          fullEl.style.display = 'inline';  
+          shortEl.style.display = 'none';  
+          toggleBtn.textContent = 'See less';  
+        }  
+      };  
+    }  
+
     // Copy ONLY the tracking link  
     card.querySelector('.btn.copy').onclick = () => {  
       navigator.clipboard.writeText(link)  
         .then(() => showNotification("✅ Promotion link copied!"))  
         .catch(() => showNotification("❌ Failed to copy link."));  
+    };  
+
+    // Copy full caption: title + full description + link  
+    card.querySelector('.btn.copy-caption').onclick = () => {  
+      const caption = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
+      navigator.clipboard.writeText(caption)  
+        .then(() => showNotification("📋 Caption copied! Paste it into your post."))  
+        .catch(() => showNotification("❌ Failed to copy caption."));  
     };  
 
     // Download image  
