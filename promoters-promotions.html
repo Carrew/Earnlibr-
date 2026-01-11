@@ -3,182 +3,243 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Promoter Deals Tracking</title>
+<title>EarnLibr — My Active Offers</title>
 <style>
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin: 0; padding: 20px; }
-h1 { background: linear-gradient(90deg, #a3ff6e, #4a90e2); -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }
-.deal-card { background: #0f1724; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: transform .3s; }
-.deal-card:hover { transform: translateY(-4px); }
-.deal-card.completed { border-left: 4px solid #4ade80; }
-.deal-card.cancelled { border-left: 4px solid #ef4444; }
-.deal-info { margin-bottom: 8px; font-size: 14px; }
-.deal-info strong { display: inline-block; width: 100px; }
-.status-pending { color: #facc15; font-weight: 700; }
-.status-completed { color: #4ade80; font-weight: 700; }
-.status-processing { color: #3b82f6; font-weight: 700; }
-.status-cancelled { color: #ef4444; font-weight: 700; }
-.timestamp { font-size: 12px; color: #bfc7d6; margin-top: 5px; }
-.notif { background: #1a2235; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none; border-left: 4px solid #4ade80; }
-.notif.error { border-left: 4px solid #ef4444; color: #ff8c8c; }
-.load-more { text-align: center; margin-top: 20px; }
-.load-more button { padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+/* REUSING YOUR CSS VARIABLES AND THEMES */
+:root {
+  --bg: #090c14;
+  --card: rgba(20, 25, 38, 0.85);
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #9ca3af;
+  --radius: 14px;
+  --text: #e5e7eb;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, Arial;
+  background: radial-gradient(circle at top, #0d111c 0%, #090c14 80%);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 30px 20px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+h1 {
+  font-size: 26px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+
+.back-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.back-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+.offer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.offer-card {
+  backdrop-filter: blur(14px);
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.offer-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.offer-title { font-weight: 600; font-size: 18px; color: #fff; margin-bottom: 8px; }
+
+/* Stats Bar Styling */
+.stats-bar {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.stat-value { color: var(--accent2); font-weight: 700; font-size: 15px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+
+.btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.btn.copy { background: var(--accent1); }
+.btn.share { background: linear-gradient(90deg, var(--accent2), #5cf060); color: #0a0f12; }
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 14px 22px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  color: #fff;
+  opacity: 0;
+  transition: 0.3s;
+  z-index: 9999;
+}
+.notification.show { opacity: 1; }
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  border: 1px dashed var(--muted);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
 </style>
 </head>
 <body>
 
-<h1>Your Referral Deals</h1>
-<div id="notif" class="notif"></div>
-<div id="dealsContainer">Loading deals...</div>
-<div id="loadMoreContainer" class="load-more" style="display: none;">
-    <button id="loadMoreBtn">Load More Deals</button>
-</div>
+<header>
+  <h1>My Active Promotions</h1>
+  <a href="promoter_get_offers.html" class="back-btn">← Find More Offers</a>
+</header>
+
+<div id="myOffersGrid" class="offer-grid">
+  </div>
+
+<div id="notification" class="notification"></div>
 
 <script type="module">
-import { auth, db } from './firebase.js';
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { collection, doc, getDoc, getDocs, query, orderBy, limit, startAfter, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const dealsContainer = document.getElementById("dealsContainer");
-const notif = document.getElementById("notif");
-const loadMoreBtn = document.getElementById("loadMoreBtn");
-const loadMoreContainer = document.getElementById("loadMoreContainer");
+const myOffersGrid = document.getElementById('myOffersGrid');
+const notification = document.getElementById('notification');
 
-const showNotif = (msg, type="success") => {
-  notif.innerHTML = msg; 
-  notif.className = `notif ${type}`;
-  notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 5000);
-};
+function showNotification(msg) {
+  notification.textContent = msg;
+  notification.classList.add('show');
+  setTimeout(() => notification.classList.remove('show'), 2500);
+}
 
-/* --- Session & Promoter Auth Check */
-let userSession = null;
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user || !user.emailVerified) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    return;
-  }
-  try {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    let uData = null;
-    let role = null;
-
-    if (userDoc.exists()) {
-        uData = userDoc.data();
-        role = uData.role;
-
-    if (role !== 'freelancer') {
-        localStorage.removeItem("userSession");
-        window.location.href = "login.html";
-        return;
-    }
-
-    userSession = { uid: user.uid, name: uData?.name || "freelance r", email: uData?.email, role };
-    localStorage.setItem('userSession', JSON.stringify(userSession));
-
-    loadDeals();
-
-  } catch (err) {
-    console.error(err);
-    showNotif("Failed to validate session.", "error");
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    loadMyOffers(user.uid);
+  } else {
+    window.location.href = 'login.html';
   }
 });
 
-/* --- Helper --- */
-const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-const formatCurrency = (amount, currency = 'USD') => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+async function loadMyOffers(uid) {
+  myOffersGrid.innerHTML = '<div class="empty-state">Loading your promotions...</div>';
+  
+  try {
+    // FETCHING FROM YOUR CUSTOM SUB-COLLECTION
+    const colRef = collection(db, "promoter_offers", uid, "offers");
+    const snap = await getDocs(colRef);
+    
+    if (snap.empty) {
+      myOffersGrid.innerHTML = `
+        <div class="empty-state">
+          <strong>You aren't promoting anything yet!</strong><br>
+          Go to "Find Offers" to start earning.
+        </div>`;
+      return;
+    }
+
+    myOffersGrid.innerHTML = "";
+    snap.forEach(docSnap => {
+      const offer = docSnap.data();
+      renderOfferCard(offer, uid);
+    });
+  } catch (err) {
+    console.error(err);
+    showNotification("Error loading offers.");
+  }
+}
+
+function renderOfferCard(offer, uid) {
+  const link = `${window.location.origin}/track.html?offer=${offer.offerId}&promoter=${uid}`;
+  const card = document.createElement('div');
+  card.className = 'offer-card';
+  
+  card.innerHTML = `
+    <img src="${offer.imageUrl || 'https://via.placeholder.com/400x200'}" alt="Offer">
+    <div class="offer-title">${offer.title}</div>
+    
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">Clicks</span>
+        <span class="stat-value">${offer.clicks || 0}</span>
+      </div>
+      <div class="stat-item" style="text-align:right;">
+        <span class="stat-label">Commission</span>
+        <span class="stat-value">${offer.commissionValue}${offer.commissionType === 'percentage' ? '%' : offer.currency}</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn copy" onclick="copyText('${link}')">🔗 Copy Link</button>
+      <button class="btn share" onclick="shareOffer('${offer.title}', '${link}')">📤 Share</button>
+    </div>
+  `;
+  myOffersGrid.appendChild(card);
+}
+
+// Global helper functions for the buttons
+window.copyText = (text) => {
+  navigator.clipboard.writeText(text);
+  showNotification("Link copied to clipboard!");
 };
 
-/* --- Load Deals with Pagination --- */
-let lastDeal = null;
-function loadDeals(isInitialLoad=true){
-  if(isInitialLoad){ dealsContainer.innerHTML=""; lastDeal=null; loadMoreContainer.style.display="none"; }
-
-  let dealsQuery = query(
-    collection(db,"deals"),
-    where("promoterId","==",userSession.uid),
-    orderBy("createdAt","desc"),
-    limit(25)
-  );
-
-  if(lastDeal) dealsQuery = query(dealsQuery,startAfter(lastDeal));
-
-  loadMoreBtn.disabled=true;
-  loadMoreBtn.textContent="Loading...";
-
-  getDocs(dealsQuery).then(snapshot=>{
-    if(snapshot.empty && isInitialLoad){ dealsContainer.innerHTML="<p>No referral deals found yet.</p>"; loadMoreContainer.style.display="none"; return; }
-    if(snapshot.empty){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; return; }
-
-    snapshot.docs.forEach(docSnap=>renderDealCard(docSnap.id,docSnap.data()));
-    lastDeal = snapshot.docs[snapshot.docs.length-1];
-    loadMoreContainer.style.display="block";
-
-    if(snapshot.docs.length<25){ loadMoreBtn.textContent="No More Deals"; loadMoreBtn.disabled=true; }
-    else { loadMoreBtn.textContent="Load More Deals"; loadMoreBtn.disabled=false; }
-  }).catch(err=>{ 
-    console.error(err);
-    let errorMsg = `**Failed to Load Deals:** ${err.code || 'Unknown Error'}. Check console.`;
-    dealsContainer.innerHTML = `<p style="color:#ef4444;">${errorMsg}</p>`;
-    showNotif(errorMsg,"error"); 
-    loadMoreBtn.textContent="Failed to Load"; 
-  });
-}
-loadMoreBtn.onclick=()=>loadDeals(false);
-
-/* --- Render Deal Card --- */
-function renderDealCard(dealId, deal){
-  const card = document.createElement("div");
-  card.className=`deal-card ${deal.status||''}`;
-
-  let createdDate = 'N/A';
-  if (deal.createdAt) {
-      if (typeof deal.createdAt.toDate === 'function') createdDate = deal.createdAt.toDate().toLocaleString();
-      else if (deal.createdAt instanceof Date) createdDate = deal.createdAt.toLocaleString();
-      else try { createdDate = new Date(deal.createdAt).toLocaleString(); } catch(e){ createdDate='Invalid Date'; }
-  }
-
-  const currency = deal.offerCurrency || "USD";
-  let commissionHtml = '';
-
-  if (deal.status === 'completed') {
-    const gross = formatCurrency(deal.commissionEarned || deal.fullCommission || 0, currency);
-    const net = formatCurrency(deal.promoterNet || deal.commissionAmount || 0, currency);
-    const platformFee = formatCurrency(deal.platformShare || 0, currency);
-
-    commissionHtml = `
-      <div class="deal-info"><strong>Gross Commission:</strong> <span style="color:#4ade80;">${gross}</span></div>
-      <div class="deal-info"><strong>Platform Fee:</strong> ${platformFee}</div>
-      <div class="deal-info"><strong>Your Net Payout:</strong> <span style="color:#a3ff6e; font-size:16px;">${net}</span></div>
-    `;
+window.shareOffer = async (title, url) => {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: title, url: url });
+    } catch (e) { console.log("Share cancelled"); }
   } else {
-    const estimatedCommission = formatCurrency(deal.commissionValue || 'N/A', currency);
-    commissionHtml = `
-      <div class="deal-info"><strong>Estimated Gross:</strong> <span style="color:#facc15;">${estimatedCommission}</span></div>
-      <div class="deal-info">Awaiting Provider approval for final payout calculation.</div>
-    `;
+    window.copyText(url);
   }
-
-  const clientDisplay = deal.clientName ? `${deal.clientName} (Contact Redacted)` : 'Client Name Unavailable';
-  const statusClass = `status-${deal.status || 'pending'}`;
-
-  card.innerHTML = `
-    <div class="deal-info"><strong>Deal ID:</strong> ${dealId}</div>
-    <div class="deal-info"><strong>Offer:</strong> ${deal.offerTitle || 'N/A'}</div>
-    <div class="deal-info"><strong>Provider:</strong> ${deal.providerName || 'N/A'}</div>
-    <div class="deal-info"><strong>Client:</strong> ${clientDisplay}</div>
-    <hr style="border-color: #1a2235; margin: 10px 0;">
-    ${commissionHtml}
-    <hr style="border-color: #1a2235; margin: 10px 0;">
-    <div class="timestamp">Created: ${createdDate} | Status: <span class="${statusClass}">${(deal.status || "Pending").toUpperCase()}</span></div>
-  `;
-  
-  dealsContainer.appendChild(card);
-}
+};
 </script>
 </body>
 </html>
