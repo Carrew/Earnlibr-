@@ -29,6 +29,18 @@ h1, h2 {
   color: transparent;
 }
 
+/* NEW: legal note */
+.legal-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0 18px;
+  max-width: 700px;
+}
+.legal-note a {
+  color: var(--accent2);
+  text-decoration: none;
+}
+
 .notif {
   background: #1a2235;
   padding: 12px;
@@ -84,6 +96,12 @@ td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 <body>
 
 <h1>My Wallet</h1>
+<p class="legal-note">
+  By requesting withdrawals, you confirm that your earnings come from genuine, policy-compliant activity.
+  All payouts are subject to verification, provider payments, and EarnLibr’s
+  <a href="/policies/terms.html" target="_blank">Terms of Service</a>.
+</p>
+
 <div id="notif" class="notif"></div>
 <div id="walletContainer" class="wallet-grid">Loading wallets...</div>
 
