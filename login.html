@@ -1,4 +1,5 @@
-<!DOCTYPE html>  <html lang="en">  
+<!DOCTYPE html>  
+<html lang="en">  
 <head>  
   <meta charset="utf-8" />  
   <meta name="viewport" content="width=device-width,initial-scale=1" />  
@@ -111,27 +112,38 @@
   <div class="card">  
     <div class="image-header">  
       <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">  
-    </div>  <h1>Welcome Back 👋</h1>  
-<p class="lead">Log in to continue your journey with EarnLibr.</p>  
+    </div>  
 
-<label for="email">Email</label>  
-<input id="email" type="email" placeholder="example@gmail.com" />  
+    <h1>Welcome Back 👋</h1>  
+    <p class="lead">Log in to continue your journey with EarnLibr.</p>  
 
-<label for="password">Password</label>  
-<input id="password" type="password" placeholder="Your password" />  
+    <label for="email">Email</label>  
+    <input id="email" type="email" placeholder="example@gmail.com" />  
 
-<p class="small" style="text-align:right; margin-top:6px;">  
-  <a class="link" href="users-password-reset.html">Forgot password?</a>  
-</p>  
+    <label for="password">Password</label>  
+    <input id="password" type="password" placeholder="Your password" />  
 
-<button id="loginBtn" class="btn">Login</button>  
+    <p class="small" style="text-align:right; margin-top:6px;">  
+      <a class="link" href="users-password-reset.html">Forgot password?</a>  
+    </p>  
 
-<div id="message" class="small"></div>  
-<div id="error" class="error" style="display:none"></div>  
+    <button id="loginBtn" class="btn">Login</button>  
 
-<p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>
+    <!-- NEW: legal line -->
+    <p class="small">
+      By logging in, you agree to EarnLibr’s
+      <a class="link" href="/policies/terms.html" target="_blank">Terms of Service</a>
+      and
+      <a class="link" href="/policies/privacy.html" target="_blank">Privacy Policy</a>.
+    </p>
 
-  </div>    <script type="module">  
+    <div id="message" class="small"></div>  
+    <div id="error" class="error" style="display:none"></div>  
+
+    <p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>
+  </div>  
+
+  <script type="module">  
     import { auth, db } from "./firebase.js";  
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";  
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";  
@@ -148,7 +160,10 @@
       const email = document.getElementById('email').value.trim();  
       const password = document.getElementById('password').value;  
   
-      if(!email || !password){ showError('Please enter your email and password.'); return; }  
+      if(!email || !password){  
+        showError('Please enter your email and password.');  
+        return;  
+      }  
   
       loginBtn.disabled = true;  
       loginBtn.textContent = 'Signing in...';  
@@ -185,15 +200,15 @@
         }  
   
         localStorage.setItem('userSession', JSON.stringify({  
-  uid: user.uid,  
-  name: userData?.name || '',  
-  email: userData?.email || '',  
-  role: role || '',  
-  referralCode: userData?.referralCode || '',  
-  phone: userData?.phone || '',  
-  country: userData?.country || '',  
-  createdAt: userData?.createdAt ? userData.createdAt.toDate().toISOString() : ''  
-}));
+          uid: user.uid,  
+          name: userData?.name || '',  
+          email: userData?.email || '',  
+          role: role || '',  
+          referralCode: userData?.referralCode || '',  
+          phone: userData?.phone || '',  
+          country: userData?.country || '',  
+          createdAt: userData?.createdAt ? userData.createdAt.toDate().toISOString() : ''  
+        }));  
   
         showMessage('✅ Login successful! Redirecting...');  
         setTimeout(() => {  
@@ -214,5 +229,6 @@
         loginBtn.textContent = 'Login';  
       }  
     });  
-  </script>  </body>  
+  </script>  
+</body>  
 </html>
