@@ -231,7 +231,6 @@
         // Send to Apps Script for sheet logging + welcome email
         fetch("https://script.google.com/macros/s/AKfycbwSzQdVRWoHbJxLwO398Uo0Ajrvfh5NGVplnlAWvills5Xiih2EiytIL53Gb_qPWti1/exec", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name,
             email: email,
