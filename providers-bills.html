@@ -40,7 +40,22 @@ h1 {
 .page-subtitle {
   font-size: 13px;
   color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* NEW: legal note */
+.legal-note {
+  font-size: 12px;
+  color: var(--muted);
   margin-bottom: 18px;
+}
+.legal-note a {
+  color: var(--accent2);
+  text-decoration: none;
+  font-weight: 500;
+}
+.legal-note a:hover {
+  text-decoration: underline;
 }
 
 /* Global notification */
@@ -196,6 +211,12 @@ h1 {
 <div class="page-wrap">
   <h1>Your Bills</h1>
   <div class="page-subtitle">Review and mark your outstanding bills as paid.</div>
+
+  <!-- NEW legal note -->
+  <p class="legal-note">
+    By managing and marking bills as paid, you confirm that payments have been made to EarnLibr according to our
+    <a href="/policies/terms.html" target="_blank" rel="noopener">Terms of Service</a>.
+  </p>
 
   <div id="notif" class="notif"></div>
   <div id="billsContainer">
