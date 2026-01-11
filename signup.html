@@ -60,7 +60,7 @@
   <div class="card">
 
     <div class="image-header">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr signup">
     </div>
 
     <h1>Join EarnLibr</h1>
@@ -95,6 +95,14 @@
     </select>
 
     <button id="signupBtn" class="btn">Create account</button>
+
+    <!-- NEW: legal summary -->
+    <p class="small">
+      By creating an account, you agree to EarnLibr’s
+      <a class="link" href="/policies/terms.html" target="_blank">Terms of Service</a>
+      and
+      <a class="link" href="/policies/privacy.html" target="_blank">Privacy Policy</a>.
+    </p>
 
     <div id="message" class="small"></div>
     <div id="error" class="error"></div>
@@ -220,7 +228,7 @@
 
         await sendEmailVerification(userCred.user);
 
-        // --- NEW: Send to Apps Script for sheet logging + welcome email ---
+        // Send to Apps Script for sheet logging + welcome email
         fetch("https://script.google.com/macros/s/AKfycbwSzQdVRWoHbJxLwO398Uo0Ajrvfh5NGVplnlAWvills5Xiih2EiytIL53Gb_qPWti1/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -235,7 +243,6 @@
         .then(res => res.json())
         .then(data => console.log("Apps Script response:", data.message))
         .catch(err => console.error("Apps Script error:", err));
-        // ---------------------------------------------------------------
 
         showMessage('✅ Account created! Please verify your email.');
         msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Open Gmail</a>`;
