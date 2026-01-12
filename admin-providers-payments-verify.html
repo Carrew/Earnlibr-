@@ -3,44 +3,297 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Admin Verify Payments </title>
+<title>EarnLibr — Admin Verify Payments</title>
 <style>
-  body { font-family: Arial,sans-serif; background:#0b0d17; color:#eef2f7; padding:20px; margin:0; }
-  h1 { background: linear-gradient(90deg,#4a90e2,#a3ff6e); -webkit-background-clip:text; color:transparent; margin-bottom:20px; font-size: 24px; }
-  .controls { margin-bottom: 20px; padding: 15px; background: #161b2c; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
-  .bill-card { background:#0f1724; padding:18px; border-radius:12px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); border: 1px solid #232d3f; transition: transform 0.2s, opacity 0.5s; }
-  .bill-card:hover { transform: translateY(-2px); border-color: #3b82f6; }
-  .bill-card.verified { opacity:0.5; pointer-events:none; border-left: 5px solid #4ade80; }
-  .btn { background:#4ade80; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: all 0.3s; }
-  .btn:hover:not(:disabled) { background:#3ec16b; transform: scale(1.02); }
-  .btn:disabled { opacity:0.6; cursor:not-allowed; }
-  .btn-all { background: #3b82f6; color: white; }
-  .notif { background:#1a2235; padding:12px; border-radius:8px; margin-bottom:15px; display:none; position: sticky; top: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-  .notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
-  .notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
-  .bill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-  .detail { margin-bottom: 5px; font-size: 14px; }
-  .detail strong { color: #94a3b8; }
+  :root {
+    --bg: #0b0d17;
+    --card: #0f1724;
+    --accent1: #4a90e2;
+    --accent2: #a3ff6e;
+    --muted: #bfc7d6;
+    --danger: #ef4444;
+    --success: #4ade80;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+    color: #eef2f7;
+    padding: 20px;
+    margin: 0;
+  }
+
+  .page-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    -webkit-background-clip:text;
+    color:transparent;
+    margin-bottom:6px;
+    font-size:24px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .notif {
+    background:#1a2235;
+    padding:12px;
+    border-radius:10px;
+    margin-bottom:15px;
+    display:none;
+    position: sticky;
+    top: 10px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    font-size: 14px;
+    border:1px solid rgba(148,163,184,0.4);
+  }
+  .notif.success { border-left:4px solid var(--success); color:#bbf7d0; }
+  .notif.error { border-left:4px solid var(--danger); color:#fecaca; }
+
+  .controls {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: #161b2c;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    border:1px solid rgba(148,163,184,0.3);
+  }
+
+  .controls span.label {
+    color: var(--muted);
+  }
+
+  .bill-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 15px;
+  }
+
+  .bill-card {
+    background: var(--card);
+    padding:18px 16px;
+    border-radius:var(--radius);
+    margin-bottom:5px;
+    box-shadow:0 5px 18px rgba(0,0,0,0.55);
+    border: 1px solid #232d3f;
+    transition: transform 0.2s, opacity 0.4s, border-color 0.2s;
+  }
+  .bill-card:hover {
+    transform: translateY(-2px);
+    border-color: #3b82f6;
+  }
+  .bill-card.verified {
+    opacity:0.45;
+    pointer-events:none;
+    border-left: 5px solid var(--success);
+  }
+
+  .bill-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:8px;
+    gap:10px;
+  }
+  .bill-title {
+    font-weight:600;
+    font-size:14px;
+  }
+  .status-pill {
+    padding:3px 10px;
+    border-radius:999px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    border:1px solid rgba(148,163,184,0.6);
+    color: #e5e7eb;
+    background: rgba(15,23,42,0.8);
+  }
+
+  .detail {
+    margin-bottom: 5px;
+    font-size: 13px;
+  }
+  .detail strong {
+    color: #94a3b8;
+  }
+
+  .proof-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top:1px solid #232d3f;
+    font-size:12px;
+  }
+  .proof-header {
+    font-weight:600;
+    margin-bottom:4px;
+    color:#e5e7eb;
+  }
+  .proof-meta {
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .receipt-thumb {
+    margin-top:6px;
+    border-radius:8px;
+    border:1px solid #232d3f;
+    overflow:hidden;
+  }
+  .receipt-thumb img {
+    width:100%;
+    max-height:220px;
+    object-fit:contain;
+    display:block;
+    background:#020617;
+  }
+  .receipt-link {
+    display:inline-block;
+    margin-top:6px;
+    font-size:12px;
+    color:#60a5fa;
+    text-decoration:none;
+  }
+  .receipt-link:hover {
+    text-decoration:underline;
+  }
+
+  .card-footer {
+    margin-top: 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    font-size:11px;
+    color:var(--muted);
+  }
+
+  .btn {
+    background:var(--success);
+    border:none;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    font-weight:700;
+    color:#041018;
+    font-size:12px;
+    transition: all 0.25s;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .btn span.icon {
+    font-size:13px;
+  }
+  .btn:hover:not(:disabled) {
+    background:#3ec16b;
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:0 8px 20px rgba(22,163,74,0.55);
+  }
+  .btn:disabled {
+    opacity:0.6;
+    cursor:not-allowed;
+    box-shadow:none;
+  }
+  .btn-all {
+    background: #3b82f6;
+    color: white;
+  }
+  .btn-all:hover:not(:disabled) {
+    background:#2563eb;
+    box-shadow:0 8px 20px rgba(37,99,235,0.6);
+  }
+
+  /* Skeletons */
+  .skeleton-card {
+    background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
+    border-radius: var(--radius);
+    padding: 16px 14px 12px;
+    margin-bottom: 5px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(30,64,175,0.4);
+  }
+  .skeleton-line {
+    height: 10px;
+    border-radius: 999px;
+    background: #1f2937;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton-line.short { width: 40%; }
+  .skeleton-line.medium { width: 65%; }
+  .skeleton-line.long { width: 90%; }
+  .skeleton-line::before {
+    content:'';
+    position:absolute;
+    inset:0;
+    background: linear-gradient(90deg,
+      rgba(31,41,55,0) 0%,
+      rgba(55,65,81,0.9) 50%,
+      rgba(31,41,55,0) 100%
+    );
+    transform:translateX(-100%);
+    animation: shimmer 1.2s infinite;
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  .empty-state {
+    padding:20px 18px;
+    border-radius:var(--radius);
+    background:rgba(15,23,42,0.9);
+    border:1px dashed rgba(148,163,184,0.5);
+    font-size:13px;
+    color:var(--muted);
+    text-align:center;
+  }
+  .empty-state strong {
+    color:#e5e7eb;
+    display:block;
+    margin-bottom:4px;
+  }
 </style>
 </head>
 <body>
+<div class="page-wrap">
+  <h1>Verify Provider Payments</h1>
+  <div class="page-subtitle">
+    Review provider-submitted proofs, confirm payments, and unlock their completed deals.
+  </div>
 
-<h1>Verify Provider Payments</h1>
+  <div id="notif" class="notif"></div>
 
-<div id="notif" class="notif"></div>
+  <div class="controls">
+    <span class="label">Action Center: Verify payments marked as paid by providers.</span>
+    <button id="verifyAllBtn" class="btn btn-all">
+      <span class="icon">✅</span><span>Verify All Pending</span>
+    </button>
+  </div>
 
-<div class="controls">
-  <span>Action Center:</span>
-  <button id="verifyAllBtn" class="btn btn-all">Verify All Pending</button>
+  <div id="billsContainer" class="bill-grid"></div>
 </div>
-
-<div id="billsContainer" class="bill-grid">Loading pending bills...</div>
 
 <script type="module">
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { 
-    collection, doc, onSnapshot, getDoc, serverTimestamp, writeBatch, query, where 
+  collection, doc, onSnapshot, getDoc,
+  serverTimestamp, writeBatch, query, where 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const billsContainer = document.getElementById("billsContainer");
@@ -48,7 +301,8 @@ const notif = document.getElementById("notif");
 const verifyAllBtn = document.getElementById("verifyAllBtn");
 
 let userSession = null;
-let billCards = []; // Tracks displayed bills for "Verify All" logic
+let billCards = []; // For "Verify All"
+let skeletonContainer = null;
 
 const showNotif = (msg, type="success") => {
   notif.textContent = msg;
@@ -57,14 +311,46 @@ const showNotif = (msg, type="success") => {
   setTimeout(() => { notif.style.display = "none"; }, 4000);
 };
 
-/* --- 1. SECURE AUTH (The Hybrid Security) --- */
+// Skeleton helpers
+function createSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "skeleton-card";
+  card.innerHTML = `
+    <div class="skeleton-line medium"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line short"></div>
+    <div class="skeleton-line medium"></div>
+  `;
+  return card;
+}
+
+function showSkeleton(count = 4) {
+  hideSkeleton();
+  skeletonContainer = document.createElement("div");
+  skeletonContainer.style.display = "grid";
+  skeletonContainer.style.gridTemplateColumns = "repeat(auto-fill, minmax(320px, 1fr))";
+  skeletonContainer.style.gap = "15px";
+  for (let i = 0; i < count; i++) {
+    skeletonContainer.appendChild(createSkeletonCard());
+  }
+  billsContainer.innerHTML = "";
+  billsContainer.appendChild(skeletonContainer);
+}
+
+function hideSkeleton() {
+  if (skeletonContainer && skeletonContainer.parentNode) {
+    skeletonContainer.parentNode.removeChild(skeletonContainer);
+  }
+  skeletonContainer = null;
+}
+
+/* --- 1. Secure Auth: Verify admin role in Firestore --- */
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login.html";
     return;
   }
 
-  // Live Role Verification from Database
   try {
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
     if (!adminDoc.exists()) {
@@ -75,26 +361,43 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     const adminData = adminDoc.data();
-    userSession = { uid: user.uid, name: adminData.name, role: "admin" };
+    userSession = { uid: user.uid, name: adminData.name || "Admin", role: "admin" };
     localStorage.setItem("userSession", JSON.stringify(userSession));
     
-    loadBills(); // Only load data if user is a verified admin
+    loadBills();
   } catch (err) {
     console.error("Auth error:", err);
     window.location.href = "login.html";
   }
 });
 
-/* --- 2. DATA LOADING (Snapshot for real-time) --- */
+/* --- 2. Load bills with status = provider_marked_paid --- */
 function loadBills() {
-  const billsQuery = query(collection(db, "bills"), where("status", "==", "provider_marked_paid"));
-  
+  showSkeleton(4);
+
+  const billsQuery = query(
+    collection(db, "bills"),
+    where("status", "==", "provider_marked_paid")
+  );
+
+  let firstSnapshot = true;
+
   onSnapshot(billsQuery, (snapshot) => {
+    if (firstSnapshot) {
+      hideSkeleton();
+      firstSnapshot = false;
+    }
+
     billsContainer.innerHTML = "";
     billCards = [];
-    
+
     if (snapshot.empty) {
-      billsContainer.innerHTML = "<p>No payments currently awaiting verification.</p>";
+      billsContainer.innerHTML = `
+        <div class="empty-state">
+          <strong>No payments awaiting verification.</strong>
+          When providers mark bills as paid and submit proof, they will appear here.
+        </div>
+      `;
       return;
     }
 
@@ -102,43 +405,141 @@ function loadBills() {
       const bill = docSnap.data();
       renderBillCard(docSnap.id, bill);
     });
+  }, (err) => {
+    console.error("Bills snapshot error:", err);
+    hideSkeleton();
+    billsContainer.innerHTML = `
+      <div class="empty-state">
+        <strong>Failed to load bills.</strong>
+        Please reload the page or check your connection.
+      </div>
+    `;
+    showNotif("Failed to load bills.", "error");
   });
 }
 
 function renderBillCard(id, data) {
   const card = document.createElement("div");
   card.className = "bill-card";
+
+  const totalNumber = typeof data.total === "number"
+    ? data.total
+    : parseFloat(data.total || 0);
+  const safeTotal = isNaN(totalNumber) ? 0 : totalNumber;
+
+  const currency = data.currency || "USD";
+  const providerName = data.providerName || "Unknown Provider";
+  const offerTitle = data.offerTitle || "Untitled Offer";
+  const dealsCount = Array.isArray(data.deals) ? data.deals.length : 0;
+
+  const providerProof = data.providerProof || {};
+  const senderName = providerProof.senderName || "Unknown";
+  const senderPhone = providerProof.senderPhone || "N/A";
+  const receiptUrl = providerProof.receiptUrl || "";
+  const format = (providerProof.cloudinaryFormat || "").toLowerCase();
+  const isPdf = format === "pdf";
+
   card.innerHTML = `
-    <div class="detail"><strong>ID:</strong> ${id}</div>
-    <div class="detail"><strong>Provider:</strong> ${data.providerName}</div>
-    <div class="detail"><strong>Offer:</strong> ${data.offerTitle}</div>
-    <div class="detail"><strong>Amount:</strong> ${data.total.toFixed(2)} ${data.currency}</div>
-    <div class="detail"><strong>Deals:</strong> ${data.deals?.length || 0} items</div>
-    <hr style="border:0; border-top:1px solid #232d3f; margin:10px 0;">
-    <button class="btn verify-btn">Verify Payment</button>
+    <div class="bill-header">
+      <div class="bill-title">${offerTitle}</div>
+      <div class="status-pill">Provider Marked Paid</div>
+    </div>
+
+    <div class="detail"><strong>Bill ID:</strong> ${id}</div>
+    <div class="detail"><strong>Provider:</strong> ${providerName}</div>
+    <div class="detail"><strong>Amount:</strong> ${safeTotal.toFixed(2)} ${currency}</div>
+    <div class="detail"><strong>Deals:</strong> ${dealsCount} item${dealsCount === 1 ? "" : "s"}</div>
   `;
 
-  const btn = card.querySelector(".verify-btn");
+  // Proof section
+  const proofSection = document.createElement("div");
+  proofSection.className = "proof-section";
+
+  if (receiptUrl) {
+    proofSection.innerHTML = `
+      <div class="proof-header">Payment Proof</div>
+      <div class="proof-meta">
+        <div><strong>Sender:</strong> ${senderName}</div>
+        <div><strong>Phone:</strong> ${senderPhone}</div>
+      </div>
+    `;
+
+    if (!isPdf) {
+      const thumbWrap = document.createElement("div");
+      thumbWrap.className = "receipt-thumb";
+      thumbWrap.innerHTML = `
+        <a href="${receiptUrl}" target="_blank" rel="noopener">
+          <img src="${receiptUrl}" alt="Payment receipt for ${offerTitle}" loading="lazy" />
+        </a>
+      `;
+      proofSection.appendChild(thumbWrap);
+    }
+
+    const link = document.createElement("a");
+    link.href = receiptUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.className = "receipt-link";
+    link.textContent = isPdf ? "Open receipt (PDF)" : "Open full receipt";
+    proofSection.appendChild(link);
+  } else {
+    proofSection.innerHTML = `
+      <div class="proof-header">Payment Proof</div>
+      <div class="proof-meta" style="color:#fbbf24;">
+        No receipt URL found. Please double-check before verifying.
+      </div>
+    `;
+  }
+
+  card.appendChild(proofSection);
+
+  const footer = document.createElement("div");
+  footer.className = "card-footer";
+
+  const metaInfo = document.createElement("div");
+  metaInfo.textContent = providerProof.submittedAt
+    ? "Proof submitted • check receipt before verifying."
+    : "Proof submission time not available.";
+
+  const btn = document.createElement("button");
+  btn.className = "btn verify-btn";
+  btn.innerHTML = `<span class="icon">✅</span><span>Verify Payment</span>`;
+
   btn.onclick = () => verifySinglePayment(id, data, btn, card);
-  
+
+  footer.appendChild(metaInfo);
+  footer.appendChild(btn);
+
+  card.appendChild(footer);
+
   billsContainer.appendChild(card);
-  
-  // Save for Verify All functionality
+
   billCards.push({ id, data, btn, card });
 }
 
-/* --- 3. ATOMIC VERIFICATION (The Hybrid Batch Logic) --- */
+/* --- 3. Atomic verification for a single bill --- */
 async function verifySinglePayment(billId, billData, btn, card) {
   if (btn.disabled) return;
+
+  // Extra safety: only allow if still provider_marked_paid
+  if (billData.status && billData.status !== "provider_marked_paid") {
+    showNotif(`Bill ${billId} is no longer pending verification.`, "error");
+    card.classList.add("verified");
+    btn.disabled = true;
+    return;
+  }
+
   btn.disabled = true;
-  btn.textContent = "Processing...";
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<span class="icon">⏳</span><span>Processing...</span>`;
 
   try {
     const batch = writeBatch(db);
 
-    // Update individual deals inside the bill
+    // Update individual deals if provided
     if (billData.deals && Array.isArray(billData.deals)) {
       billData.deals.forEach(dealId => {
+        if (!dealId) return;
         batch.update(doc(db, "completed-deals", dealId), {
           providerPaid: true,
           providerPaidAt: serverTimestamp(),
@@ -147,61 +548,81 @@ async function verifySinglePayment(billId, billData, btn, card) {
       });
     }
 
-    // Update Bill records in both global and provider collections
     const updateData = {
       status: "verified_paid",
       adminVerifiedAt: serverTimestamp(),
-      adminVerifiedBy: userSession.uid
+      adminVerifiedBy: userSession?.uid || null,
+      adminVerifiedByName: userSession?.name || null
     };
 
     batch.update(doc(db, "bills", billId), updateData);
-    batch.update(doc(db, `providers/${billData.providerId}/bills/${billId}`), updateData);
+    if (billData.providerId) {
+      batch.update(doc(db, `providers/${billData.providerId}/bills/${billId}`), updateData);
+    }
 
-    await batch.commit(); // Atomic execution
+    await batch.commit();
 
-    // Send Notification
-    await sendNotification(billData.providerId, "Payment Verified ✅", 
-      `Your payment for ${billData.offerTitle} (${billData.total.toFixed(2)} ${billData.currency}) was verified. Thank you!`);
+    // Try to send notification (non-blocking)
+    if (billData.providerId) {
+      sendNotification(
+        billData.providerId,
+        "Payment Verified ✅", 
+        `Your payment for ${billData.offerTitle || "a bill"} (${(billData.total || 0).toFixed ? billData.total.toFixed(2) : billData.total} ${billData.currency || ""}) was verified. Thank you!`
+      ).catch(e => console.error("Notification error:", e));
+    }
 
     card.classList.add("verified");
-    btn.textContent = "Verified ✅";
-    showNotif(`Verified bill ${billId}`);
+    btn.innerHTML = `<span class="icon">✅</span><span>Verified</span>`;
+    showNotif(`Verified bill ${billId}`, "success");
   } catch (err) {
     console.error("Verification error:", err);
-    showNotif(`Failed to verify ${billId}: ` + err.message, "error");
+    showNotif(`Failed to verify ${billId}: ${err.message}`, "error");
     btn.disabled = false;
-    btn.textContent = "Retry Verify";
+    btn.innerHTML = originalText;
   }
 }
 
-/* --- 4. UTILITIES --- */
+/* --- 4. Notifications --- */
 async function sendNotification(uid, title, message) {
   try {
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
-      title, message, read: false, createdAt: serverTimestamp()
+    const notifRef = doc(collection(db, `notifications/${uid}/items`));
+    batch.set(notifRef, {
+      title,
+      message,
+      read: false,
+      createdAt: serverTimestamp()
     });
     await batch.commit();
-  } catch (e) { console.error("Notif failed", e); }
+  } catch (e) {
+    console.error("Notification failed", e);
+  }
 }
 
+/* --- 5. Verify All --- */
 verifyAllBtn.onclick = async () => {
   const activeCards = billCards.filter(b => !b.btn.disabled);
-  if (activeCards.length === 0) return showNotif("Nothing to verify", "error");
+  if (activeCards.length === 0) {
+    showNotif("No pending payments to verify.", "error");
+    return;
+  }
+
+  const confirmed = confirm(`Verify all ${activeCards.length} pending payments? This will mark their linked deals as paid.`);
+  if (!confirmed) return;
 
   verifyAllBtn.disabled = true;
-  verifyAllBtn.textContent = "Processing All...";
-  
-  // Run all batch verifications concurrently
-  await Promise.all(activeCards.map(b => verifySinglePayment(b.id, b.data, b.btn, b.card)));
+  verifyAllBtn.innerHTML = `<span class="icon">⏳</span><span>Processing All...</span>`;
 
-  verifyAllBtn.textContent = "All Verified ✅";
+  await Promise.all(
+    activeCards.map(b => verifySinglePayment(b.id, b.data, b.btn, b.card))
+  );
+
+  verifyAllBtn.innerHTML = `<span class="icon">✅</span><span>All Verified</span>`;
   setTimeout(() => {
     verifyAllBtn.disabled = false;
-    verifyAllBtn.textContent = "Verify All Pending";
+    verifyAllBtn.innerHTML = `<span class="icon">✅</span><span>Verify All Pending</span>`;
   }, 3000);
 };
-
 </script>
 </body>
 </html>
