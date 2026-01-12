@@ -1,318 +1,342 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Promoter Wallet & History</title>
+<html lang="en">  
+<head>  
+<meta charset="UTF-8" />  
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />  
+<title>Promoter Wallet & History</title> 
+<style>  
+:root {  
+  --bg: #0b0d17;  
+  --card: rgba(15, 23, 36, 0.9);  
+  --accent1: #4a90e2;  
+  --accent2: #a3ff6e;  
+  --danger: #ef4444;  
+  --muted: #bfc7d6;  
+}  
+  
+body {  
+  font-family: 'Segoe UI', sans-serif;  
+  background: var(--bg);  
+  color: #eef2f7;  
+  margin: 0;  
+  padding: 20px;  
+}  
+  
+h1, h2 {  
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));  
+  -webkit-background-clip: text;  
+  color: transparent;  
+}  
+  
+/* NEW: legal note */  
+.legal-note {  
+  font-size: 12px;  
+  color: var(--muted);  
+  margin: 6px 0 18px;  
+  max-width: 700px;  
+}  
+.legal-note a {  
+  color: var(--accent2);  
+  text-decoration: none;  
+}  
+  
+.notif {  
+  background: #1a2235;  
+  padding: 12px;  
+  border-radius: 8px;  
+  margin-bottom: 15px;  
+  font-size: 14px;  
+  display: none;  
+}  
+.notif.success { border-left: 4px solid var(--accent2); color: var(--accent2); }  
+.notif.error { border-left: 4px solid var(--danger); color: #ff8c8c; }  
+  
+/* Wallet Panels */  
+.wallet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }  
+.wallet-panel {  
+  background: var(--card);  
+  backdrop-filter: blur(10px);  
+  border-radius: 16px;  
+  padding: 20px;  
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);  
+  border: 1px solid rgba(255,255,255,0.05);  
+  display: flex;  
+  flex-direction: column;  
+  gap: 10px;  
+}  
+  
+.wallet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }  
+.wallet-header span { font-size: 1.5rem; font-weight: 700; color: var(--accent2); }  
+  
+.wallet-progress { background: #1a2235; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 10px; }  
+.wallet-progress div { height: 100%; background: linear-gradient(90deg, var(--accent1), var(--accent2)); width: 0%; transition: width 0.8s ease; }  
+  
+.btn-withdraw {  
+  width: 100%; padding: 12px; border: none; border-radius: 10px; cursor: pointer;  
+  background: var(--accent2); color: #041018; font-weight: 700; transition: 0.2s;  
+}  
+.btn-withdraw:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }  
+  
+/* History Table */  
+.history-section { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }  
+.table-wrap { overflow-x: auto; }  
+table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }  
+th { text-align: left; color: var(--muted); padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }  
+td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }  
+  
+.status-pill { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }  
+.status-pending { background: rgba(74, 144, 226, 0.2); color: var(--accent1); }  
+.status-completed { background: rgba(163, 255, 110, 0.2); color: var(--accent2); }  
+.status-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }  
+  
+@media(max-width:600px){ body{padding:10px;} }  
+</style> 
+</head>  
+<body> 
+<h1>My Wallet</h1>  
+<p class="legal-note">  
+  By requesting withdrawals, you confirm that your earnings come from genuine, policy-compliant activity.  
+  All payouts are subject to verification, provider payments, and EarnLibr’s  
+  <a href="/policies/terms.html" target="_blank">Terms of Service</a>.  
+</p> 
+<div id="notif" class="notif"></div>  
+<div id="walletContainer" class="wallet-grid">Loading wallets...</div> 
 
-<style>
-:root {
-  --bg: #0b0d17;
-  --card: rgba(15, 23, 36, 0.9);
-  --accent1: #4a90e2;
-  --accent2: #a3ff6e;
-  --danger: #ef4444;
-  --muted: #bfc7d6;
-}
+<div class="history-section">  
+  <h2>Withdrawal History</h2>  
+  <div class="table-wrap">  
+    <table>  
+      <thead>  
+        <tr>  
+          <th>Date</th>  
+          <th>Amount</th>  
+          <th>Status</th>  
+          <th>Details</th>  
+        </tr>  
+      </thead>  
+      <tbody id="historyBody">  
+        <tr><td colspan="4" style="text-align:center;">Loading history...</td></tr>  
+      </tbody>  
+    </table>  
+  </div>  
+</div> 
 
-body {
-  font-family: 'Segoe UI', sans-serif;
-  background: var(--bg);
-  color: #eef2f7;
-  margin: 0;
-  padding: 20px;
-}
+<script type="module">  
+import { auth, db } from './firebase.js';  
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";  
+import {   
+  doc, getDoc, collection, query, where, getDocs, serverTimestamp, runTransaction, orderBy, onSnapshot   
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";  
+  
+const walletContainer = document.getElementById("walletContainer");  
+const historyBody = document.getElementById("historyBody");  
+const notif = document.getElementById("notif");  
+  
+const showNotif = (msg, type="success") => {  
+  notif.textContent = msg;  
+  notif.className = `notif ${type}`;  
+  notif.style.display = "block";  
+  setTimeout(() => (notif.style.display = "none"), 5000);  
+};  
+  
+// --- Load Session & Auth ---  
+let userSession = localStorage.getItem("userSession");  
+if (!userSession) {  
+  window.location.href = "login.html";  
+  throw new Error("No session found");  
+}  
+userSession = JSON.parse(userSession);  
+  
+onAuthStateChanged(auth, async (user) => {  
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {  
+    localStorage.removeItem("userSession");  
+    window.location.href = "login.html";  
+    return;  
+  }  
+  
+  const userDocRef = doc(db, "users", user.uid);  
+  const userDoc = await getDoc(userDocRef);  
+  
+  if (!userDoc.exists() || userDoc.data().role !== "freelancer") {  
+    localStorage.removeItem("userSession");  
+    window.location.href = "login.html";  
+    return;  
+  }  
+  
+  const data = userDoc.data();  
+  userSession = {  
+    uid: user.uid,  
+    name: data.name,  
+    email: data.email,  
+    role: data.role,  
+    referralCode: data.referralCode || "",  
+    phone: data.phone || "",  
+    country: data.country || "",  
+    createdAt: data.createdAt || ""  
+  };  
+  localStorage.setItem("userSession", JSON.stringify(userSession));  
+  
+  loadWallet(user.uid);  
+  loadHistory(user.uid);  
+});  
+  
+// --- Load Wallet ---  
+async function loadWallet(promoterId) {  
+  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
+  const metaSnap = await getDoc(metaRef);  
+  
+  if (!metaSnap.exists()) {  
+    walletContainer.innerHTML = "<p>No active earnings found.</p>";  
+    return;  
+  }  
+  
+  const meta = metaSnap.data();  
+  walletContainer.innerHTML = "";  
+  
+  for (const currency in meta.currentBalance) {  
+    const withdrawable = meta.currentBalance[currency] || 0;  
+    const totalWithdrawn = meta.totalWithdrawn?.[currency] || 0;  
+    const totalLifetime = meta.totalLifetimeEarnings?.[currency] || 1;  
+  
+    const box = document.createElement("div");  
+    box.className = "wallet-panel";  
+    box.innerHTML = `  
+      <div class="wallet-header">  
+        <h3>${currency}</h3>  
+        <span>${withdrawable.toFixed(2)}</span>  
+      </div>  
+      <div class="wallet-progress"><div style="width: ${(withdrawable/totalLifetime)*100}%"></div></div>  
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">  
+        Lifetime: ${totalLifetime.toFixed(2)} | Withdrawn: ${totalWithdrawn.toFixed(2)}  
+      </div>  
+      <button class="btn-withdraw" ${withdrawable <= 0 ? 'disabled' : ''}>  
+        ${withdrawable <= 0 ? 'Insufficient Balance' : 'Request Withdrawal'}  
+      </button>  
+    `;  
+    walletContainer.appendChild(box);  
+  
+    box.querySelector(".btn-withdraw").onclick = (e) => requestWithdrawal(promoterId, currency, withdrawable, e.target);  
+  }  
+}  
+  
+// --- Real-time Withdrawal History ---  
+function loadHistory(promoterId) {  
+  const q = query(  
+    collection(db, "withdrawal-requests"),   
+    where("promoterId", "==", promoterId),  
+    orderBy("requestedAt", "desc")  
+  );  
+  
+  onSnapshot(q, (snapshot) => {  
+    historyBody.innerHTML = "";  
+    if (snapshot.empty) {  
+      historyBody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No requests found.</td></tr>";  
+      return;  
+    }  
+  
+    snapshot.forEach(docSnap => {  
+      const data = docSnap.data();  
+      const date = data.requestedAt ? new Date(data.requestedAt.seconds * 1000).toLocaleDateString() : "Pending...";  
+      const statusClass = `status-${data.status}`;  
+      const reason = data.rejectionReason ? `<br><small style="color:var(--danger)">Reason: ${data.rejectionReason}</small>` : "";  
+  
+      const row = document.createElement("tr");  
+      row.innerHTML = `  
+        <td>${date}</td>  
+        <td><strong>${data.amount.toFixed(2)} ${data.currency}</strong></td>  
+        <td><span class="status-pill ${statusClass}">${data.status}</span></td>  
+        <td>
+          ID: ...${data.withdrawalRequestId.slice(-6)}<br>
+          Name: ${data.recipientName || "N/A"}<br>
+          Number: ${data.recipientNumber || "N/A"}
+          ${reason}
+        </td>  
+      `;  
+      historyBody.appendChild(row);  
+    });  
+  });  
+}  
+  
+// --- Request Withdrawal (Fixed Transaction + Name/Number) ---  
+async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) {  
+  if (withdrawableAmount <= 0) {  
+    btn.disabled = true;  
+    return showNotif("No withdrawable balance", "error");  
+  }  
 
-h1, h2 {
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  -webkit-background-clip: text;
-  color: transparent;
-}
-
-/* NEW: legal note */
-.legal-note {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 6px 0 18px;
-  max-width: 700px;
-}
-.legal-note a {
-  color: var(--accent2);
-  text-decoration: none;
-}
-
-.notif {
-  background: #1a2235;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  font-size: 14px;
-  display: none;
-}
-.notif.success { border-left: 4px solid var(--accent2); color: var(--accent2); }
-.notif.error { border-left: 4px solid var(--danger); color: #ff8c8c; }
-
-/* Wallet Panels */
-.wallet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }
-.wallet-panel {
-  background: var(--card);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.wallet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.wallet-header span { font-size: 1.5rem; font-weight: 700; color: var(--accent2); }
-
-.wallet-progress { background: #1a2235; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 10px; }
-.wallet-progress div { height: 100%; background: linear-gradient(90deg, var(--accent1), var(--accent2)); width: 0%; transition: width 0.8s ease; }
-
-.btn-withdraw {
-  width: 100%; padding: 12px; border: none; border-radius: 10px; cursor: pointer;
-  background: var(--accent2); color: #041018; font-weight: 700; transition: 0.2s;
-}
-.btn-withdraw:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
-
-/* History Table */
-.history-section { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-th { text-align: left; color: var(--muted); padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-
-.status-pill { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-.status-pending { background: rgba(74, 144, 226, 0.2); color: var(--accent1); }
-.status-completed { background: rgba(163, 255, 110, 0.2); color: var(--accent2); }
-.status-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-
-@media(max-width:600px){ body{padding:10px;} }
-</style>
-</head>
-<body>
-
-<h1>My Wallet</h1>
-<p class="legal-note">
-  By requesting withdrawals, you confirm that your earnings come from genuine, policy-compliant activity.
-  All payouts are subject to verification, provider payments, and EarnLibr’s
-  <a href="/policies/terms.html" target="_blank">Terms of Service</a>.
-</p>
-
-<div id="notif" class="notif"></div>
-<div id="walletContainer" class="wallet-grid">Loading wallets...</div>
-
-<div class="history-section">
-  <h2>Withdrawal History</h2>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Amount</th>
-          <th>Status</th>
-          <th>Details</th>
-        </tr>
-      </thead>
-      <tbody id="historyBody">
-        <tr><td colspan="4" style="text-align:center;">Loading history...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<script type="module">
-import { auth, db } from './firebase.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { 
-  doc, getDoc, collection, query, where, getDocs, serverTimestamp, runTransaction, orderBy, onSnapshot 
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
-const walletContainer = document.getElementById("walletContainer");
-const historyBody = document.getElementById("historyBody");
-const notif = document.getElementById("notif");
-
-const showNotif = (msg, type="success") => {
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display = "block";
-  setTimeout(() => (notif.style.display = "none"), 5000);
-};
-
-// --- Load Session & Auth ---
-let userSession = localStorage.getItem("userSession");
-if (!userSession) {
-  window.location.href = "login.html";
-  throw new Error("No session found");
-}
-userSession = JSON.parse(userSession);
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
+  // Collect payout details from promoter
+  const recipientName = prompt("Enter the name/account name to receive this payout:");
+  if (!recipientName || !recipientName.trim()) {
+    showNotif("Withdrawal cancelled: name is required.", "error");
     return;
   }
 
-  const userDocRef = doc(db, "users", user.uid);
-  const userDoc = await getDoc(userDocRef);
-
-  if (!userDoc.exists() || userDoc.data().role !== "freelancer") {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
+  const recipientNumber = prompt("Enter the phone / account number to receive payment on:");
+  if (!recipientNumber || !recipientNumber.trim()) {
+    showNotif("Withdrawal cancelled: number is required.", "error");
     return;
   }
+  
+  const originalText = btn.textContent;  
+  btn.textContent = "Processing...";  
+  btn.disabled = true;  
+  
+  try {  
+    const dealsRef = collection(db, "promoter-earnings", promoterId, "deals");  
+    const q = query(dealsRef, where("withdrawalRequestId", "==", null), where("offerCurrency", "==", currency));  
+    const dealSnap = await getDocs(q);  
+  
+    if (dealSnap.empty) throw new Error("No eligible deals found.");  
+    const dealRefs = dealSnap.docs.map(d => doc(db, "promoter-earnings", promoterId, "deals", d.id));  
+  
+    await runTransaction(db, async (t) => {  
+      const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
+      const metaSnap = await t.get(metaRef);  
+      if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");  
+  
+      const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;  
+      if (currentBalance < withdrawableAmount) throw new Error("Balance changed. Refresh page.");  
+  
+      // --- READ ALL DEALS FIRST ---  
+      const dealDocs = await Promise.all(dealRefs.map(ref => t.get(ref)));  
+      for (const d of dealDocs) if (!d.exists()) throw new Error("Deal missing during transaction.");  
+  
+      // --- NOW DO WRITES ---  
+      const reqRef = doc(collection(db, "withdrawal-requests"));  
+      const withdrawalRequestId = reqRef.id;  
+  
+      t.set(reqRef, {  
+        withdrawalRequestId,  
+        promoterId,  
+        currency,  
+        amount: withdrawableAmount,  
+        status: "pending",  
+        requestedAt: serverTimestamp(),  
+        dealIds: dealRefs.map(r => r.id),
 
-  const data = userDoc.data();
-  userSession = {
-    uid: user.uid,
-    name: data.name,
-    email: data.email,
-    role: data.role,
-    referralCode: data.referralCode || "",
-    phone: data.phone || "",
-    country: data.country || "",
-    createdAt: data.createdAt || ""
-  };
-  localStorage.setItem("userSession", JSON.stringify(userSession));
+        // NEW: store payout info
+        recipientName: recipientName.trim(),
+        recipientNumber: recipientNumber.trim(),
 
-  loadWallet(user.uid);
-  loadHistory(user.uid);
-});
-
-// --- Load Wallet ---
-async function loadWallet(promoterId) {
-  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
-  const metaSnap = await getDoc(metaRef);
-
-  if (!metaSnap.exists()) {
-    walletContainer.innerHTML = "<p>No active earnings found.</p>";
-    return;
-  }
-
-  const meta = metaSnap.data();
-  walletContainer.innerHTML = "";
-
-  for (const currency in meta.currentBalance) {
-    const withdrawable = meta.currentBalance[currency] || 0;
-    const totalWithdrawn = meta.totalWithdrawn?.[currency] || 0;
-    const totalLifetime = meta.totalLifetimeEarnings?.[currency] || 1;
-
-    const box = document.createElement("div");
-    box.className = "wallet-panel";
-    box.innerHTML = `
-      <div class="wallet-header">
-        <h3>${currency}</h3>
-        <span>${withdrawable.toFixed(2)}</span>
-      </div>
-      <div class="wallet-progress"><div style="width: ${(withdrawable/totalLifetime)*100}%"></div></div>
-      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
-        Lifetime: ${totalLifetime.toFixed(2)} | Withdrawn: ${totalWithdrawn.toFixed(2)}
-      </div>
-      <button class="btn-withdraw" ${withdrawable <= 0 ? 'disabled' : ''}>
-        ${withdrawable <= 0 ? 'Insufficient Balance' : 'Request Withdrawal'}
-      </button>
-    `;
-    walletContainer.appendChild(box);
-
-    box.querySelector(".btn-withdraw").onclick = (e) => requestWithdrawal(promoterId, currency, withdrawable, e.target);
-  }
-}
-
-// --- Real-time Withdrawal History ---
-function loadHistory(promoterId) {
-  const q = query(
-    collection(db, "withdrawal-requests"), 
-    where("promoterId", "==", promoterId),
-    orderBy("requestedAt", "desc")
-  );
-
-  onSnapshot(q, (snapshot) => {
-    historyBody.innerHTML = "";
-    if (snapshot.empty) {
-      historyBody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No requests found.</td></tr>";
-      return;
-    }
-
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const date = data.requestedAt ? new Date(data.requestedAt.seconds * 1000).toLocaleDateString() : "Pending...";
-      const statusClass = `status-${data.status}`;
-      const reason = data.rejectionReason ? `<br><small style="color:var(--danger)">Reason: ${data.rejectionReason}</small>` : "";
-
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${date}</td>
-        <td><strong>${data.amount.toFixed(2)} ${data.currency}</strong></td>
-        <td><span class="status-pill ${statusClass}">${data.status}</span></td>
-        <td>ID: ...${data.withdrawalRequestId.slice(-6)} ${reason}</td>
-      `;
-      historyBody.appendChild(row);
-    });
-  });
-}
-
-// --- Request Withdrawal (Fixed Transaction) ---
-async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) {
-  if (withdrawableAmount <= 0) {
-    btn.disabled = true;
-    return showNotif("No withdrawable balance", "error");
-  }
-
-  const originalText = btn.textContent;
-  btn.textContent = "Processing...";
-  btn.disabled = true;
-
-  try {
-    const dealsRef = collection(db, "promoter-earnings", promoterId, "deals");
-    const q = query(dealsRef, where("withdrawalRequestId", "==", null), where("offerCurrency", "==", currency));
-    const dealSnap = await getDocs(q);
-
-    if (dealSnap.empty) throw new Error("No eligible deals found.");
-    const dealRefs = dealSnap.docs.map(d => doc(db, "promoter-earnings", promoterId, "deals", d.id));
-
-    await runTransaction(db, async (t) => {
-      const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
-      const metaSnap = await t.get(metaRef);
-      if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");
-
-      const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;
-      if (currentBalance < withdrawableAmount) throw new Error("Balance changed. Refresh page.");
-
-      // --- READ ALL DEALS FIRST ---
-      const dealDocs = await Promise.all(dealRefs.map(ref => t.get(ref)));
-      for (const d of dealDocs) if (!d.exists()) throw new Error("Deal missing during transaction.");
-
-      // --- NOW DO WRITES ---
-      const reqRef = doc(collection(db, "withdrawal-requests"));
-      const withdrawalRequestId = reqRef.id;
-
-      t.set(reqRef, {
-        withdrawalRequestId,
-        promoterId,
-        currency,
-        amount: withdrawableAmount,
-        status: "pending",
-        requestedAt: serverTimestamp(),
-        dealIds: dealRefs.map(r => r.id)
-      });
-
-      dealRefs.forEach(ref => t.update(ref, { withdrawalRequestId, withdrawalRequestedAt: serverTimestamp() }));
-      t.update(metaRef, { [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount) });
-    });
-
-    showNotif(`Withdrawal request for ${withdrawableAmount.toFixed(2)} ${currency} submitted successfully!`);
-    loadWallet(promoterId);
-
-  } catch (err) {
-    showNotif(err.message, "error");
-    btn.disabled = false;
-    btn.textContent = originalText;
-  }
-}
-</script>
-</body>
+        // Optional: also store who is making the request from session
+        promoterName: userSession?.name || "",
+        promoterEmail: userSession?.email || "",
+        promoterPhone: userSession?.phone || "",
+      });  
+  
+      dealRefs.forEach(ref => t.update(ref, { withdrawalRequestId, withdrawalRequestedAt: serverTimestamp() }));  
+      t.update(metaRef, { [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount) });  
+    });  
+  
+    showNotif(`Withdrawal request for ${withdrawableAmount.toFixed(2)} ${currency} submitted successfully!`);  
+    loadWallet(promoterId);  
+  
+  } catch (err) {  
+    showNotif(err.message, "error");  
+    btn.disabled = false;  
+    btn.textContent = originalText;  
+  }  
+}  
+</script> 
+</body>  
 </html>
