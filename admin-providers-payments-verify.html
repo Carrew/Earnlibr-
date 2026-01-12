@@ -207,6 +207,7 @@
     cursor:not-allowed;
     box-shadow:none;
   }
+
   .btn-all {
     background: #3b82f6;
     color: white;
@@ -214,6 +215,16 @@
   .btn-all:hover:not(:disabled) {
     background:#2563eb;
     box-shadow:0 8px 20px rgba(37,99,235,0.6);
+  }
+
+  .btn-reject {
+    background: transparent;
+    border:1px solid var(--danger);
+    color:#fecaca;
+  }
+  .btn-reject:hover:not(:disabled) {
+    background: rgba(239,68,68,0.16);
+    box-shadow:0 6px 16px rgba(239,68,68,0.35);
   }
 
   /* Skeletons */
@@ -273,13 +284,13 @@
 <div class="page-wrap">
   <h1>Verify Provider Payments</h1>
   <div class="page-subtitle">
-    Review provider-submitted proofs, confirm payments, and unlock their completed deals.
+    Review provider-submitted proofs, confirm or reject payments, and unlock their completed deals.
   </div>
 
   <div id="notif" class="notif"></div>
 
   <div class="controls">
-    <span class="label">Action Center: Verify payments marked as paid by providers.</span>
+    <span class="label">Action Center: Verify or reject payments marked as paid by providers.</span>
     <button id="verifyAllBtn" class="btn btn-all">
       <span class="icon">✅</span><span>Verify All Pending</span>
     </button>
@@ -501,23 +512,34 @@ function renderBillCard(id, data) {
     ? "Proof submitted • check receipt before verifying."
     : "Proof submission time not available.";
 
-  const btn = document.createElement("button");
-  btn.className = "btn verify-btn";
-  btn.innerHTML = `<span class="icon">✅</span><span>Verify Payment</span>`;
+  const btnGroup = document.createElement("div");
+  btnGroup.style.display = "flex";
+  btnGroup.style.gap = "6px";
 
-  btn.onclick = () => verifySinglePayment(id, data, btn, card);
+  const verifyBtn = document.createElement("button");
+  verifyBtn.className = "btn verify-btn";
+  verifyBtn.innerHTML = `<span class="icon">✅</span><span>Verify</span>`;
+  verifyBtn.onclick = () => verifySinglePayment(id, data, verifyBtn, card);
+
+  const rejectBtn = document.createElement("button");
+  rejectBtn.className = "btn btn-reject";
+  rejectBtn.innerHTML = `<span class="icon">❌</span><span>Reject</span>`;
+  rejectBtn.onclick = () => rejectSinglePayment(id, data, rejectBtn, card);
+
+  btnGroup.appendChild(rejectBtn);
+  btnGroup.appendChild(verifyBtn);
 
   footer.appendChild(metaInfo);
-  footer.appendChild(btn);
+  footer.appendChild(btnGroup);
 
   card.appendChild(footer);
 
   billsContainer.appendChild(card);
 
-  billCards.push({ id, data, btn, card });
+  billCards.push({ id, data, btn: verifyBtn, card }); // verifyAll only touches verify
 }
 
-/* --- 3. Atomic verification for a single bill --- */
+/* --- 3. Atomic verification for a single bill (Approve) --- */
 async function verifySinglePayment(billId, billData, btn, card) {
   if (btn.disabled) return;
 
@@ -567,7 +589,7 @@ async function verifySinglePayment(billId, billData, btn, card) {
       sendNotification(
         billData.providerId,
         "Payment Verified ✅", 
-        `Your payment for ${billData.offerTitle || "a bill"} (${(billData.total || 0).toFixed ? billData.total.toFixed(2) : billData.total} ${billData.currency || ""}) was verified. Thank you!`
+        `Your payment for ${billData.offerTitle || "a bill"} (${(typeof billData.total === "number" ? billData.total.toFixed(2) : billData.total || "")} ${billData.currency || ""}) was verified. Thank you!`
       ).catch(e => console.error("Notification error:", e));
     }
 
@@ -582,7 +604,83 @@ async function verifySinglePayment(billId, billData, btn, card) {
   }
 }
 
-/* --- 4. Notifications --- */
+/* --- 4. Reject payment: reset everything back to pending --- */
+async function rejectSinglePayment(billId, billData, btn, card) {
+  if (btn.disabled) return;
+
+  // Still only makes sense while provider_marked_paid
+  if (billData.status && billData.status !== "provider_marked_paid") {
+    showNotif(`Bill ${billId} is no longer pending; cannot reject here.`, "error");
+    btn.disabled = true;
+    return;
+  }
+
+  const confirmed = confirm(`Reject this payment proof for bill ${billId}? This will reset the bill back to pending and clear the proof.`);
+  if (!confirmed) return;
+
+  const reason = prompt("Optional: enter a reason for rejection (provider will see this):", "") || null;
+
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<span class="icon">⏳</span><span>Rejecting...</span>`;
+
+  try {
+    const batch = writeBatch(db);
+
+    // Reset deals just in case anything was pre-marked
+    if (billData.deals && Array.isArray(billData.deals)) {
+      billData.deals.forEach(dealId => {
+        if (!dealId) return;
+        batch.update(doc(db, "completed-deals", dealId), {
+          providerPaid: false,
+          providerPaidAt: null,
+          linkedBillId: null
+        });
+      });
+    }
+
+    // Reset the bill status back to 'sent' and clear current proof
+    const updateData = {
+      status: "sent",                       // back to pending state
+      providerProof: null,                 // clear proof so provider must re-submit
+      adminLastDecision: {
+        type: "rejected",
+        reason: reason,
+        at: serverTimestamp(),
+        by: userSession?.uid || null,
+        byName: userSession?.name || null
+      }
+    };
+
+    batch.update(doc(db, "bills", billId), updateData);
+    if (billData.providerId) {
+      batch.update(doc(db, `providers/${billData.providerId}/bills/${billId}`), updateData);
+    }
+
+    await batch.commit();
+
+    // Notify provider about rejection
+    if (billData.providerId) {
+      const baseMsg = `Your payment proof for ${billData.offerTitle || "a bill"} was rejected. Please review and submit a new, clear receipt.`;
+      const fullMsg = reason ? `${baseMsg}\nReason: ${reason}` : baseMsg;
+      sendNotification(
+        billData.providerId,
+        "Payment Proof Rejected ❌",
+        fullMsg
+      ).catch(e => console.error("Notification error:", e));
+    }
+
+    showNotif(`Rejected bill ${billId} and reset to pending.`, "success");
+    // This card will disappear on next snapshot (status != provider_marked_paid anymore)
+  } catch (err) {
+    console.error("Rejection error:", err);
+    showNotif(`Failed to reject ${billId}: ${err.message}`, "error");
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+/* --- 5. Notifications --- */
 async function sendNotification(uid, title, message) {
   try {
     const batch = writeBatch(db);
@@ -599,7 +697,7 @@ async function sendNotification(uid, title, message) {
   }
 }
 
-/* --- 5. Verify All --- */
+/* --- 6. Verify All --- */
 verifyAllBtn.onclick = async () => {
   const activeCards = billCards.filter(b => !b.btn.disabled);
   if (activeCards.length === 0) {
@@ -611,18 +709,4 @@ verifyAllBtn.onclick = async () => {
   if (!confirmed) return;
 
   verifyAllBtn.disabled = true;
-  verifyAllBtn.innerHTML = `<span class="icon">⏳</span><span>Processing All...</span>`;
-
-  await Promise.all(
-    activeCards.map(b => verifySinglePayment(b.id, b.data, b.btn, b.card))
-  );
-
-  verifyAllBtn.innerHTML = `<span class="icon">✅</span><span>All Verified</span>`;
-  setTimeout(() => {
-    verifyAllBtn.disabled = false;
-    verifyAllBtn.innerHTML = `<span class="icon">✅</span><span>Verify All Pending</span>`;
-  }, 3000);
-};
-</script>
-</body>
-</html>
+  verifyAllBtn.innerHTML = `<span class="icon">⏳</span><span>P
