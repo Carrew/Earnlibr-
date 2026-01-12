@@ -120,6 +120,53 @@ header {
   background:#ef4444;
 }
 
+/* Inline edit / delete UI */
+.inlineEdit,
+.deleteConfirm {
+  margin-top:6px;
+  padding-top:6px;
+  border-top:1px solid rgba(255,255,255,0.16);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+}
+
+.inlineEditInput {
+  flex:1;
+  padding:4px 8px;
+  border-radius:6px;
+  border:1px solid #1e293b;
+  background:#020617;
+  color:#e2e8f0;
+  outline:none;
+  font-size:12px;
+}
+
+.inlineBtn {
+  border:none;
+  border-radius:6px;
+  padding:3px 8px;
+  font-size:11px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.inlineBtn.primary {
+  background:var(--accent2);
+  color:#041018;
+}
+
+.inlineBtn.ghost {
+  background:rgba(15,23,42,0.9);
+  color:#e2e8f0;
+}
+
+.inlineBtn.danger {
+  background:#ef4444;
+  color:#fff;
+}
+
 /* Typing indicator */
 #typingIndicator {
   font-size:12px;
@@ -262,7 +309,7 @@ if (!dealId) {
 /* ─────────────────────────
    Cloudinary config
    ───────────────────────── */
-const CLOUD_NAME = "dye3bda08";        
+const CLOUD_NAME = "dye3bda08";
 const UPLOAD_PRESET = "earnlibrmedia";
 
 /* ─────────────────────────
@@ -376,21 +423,117 @@ onSnapshot(query(messagesRef, orderBy("timestamp", "asc")), snap => {
         <button class="delBtn">Delete</button>
       `;
 
+      // Inline editor instead of prompt()
       controls.querySelector(".editBtn").onclick = () => {
-        const newText = prompt("Edit your message:", m.text || "");
-        if (newText && newText !== m.text) {
-          updateDoc(docSnap.ref, { text: newText });
-        }
+        // Avoid multiple editors on the same message
+        if (div.querySelector(".inlineEdit")) return;
+
+        const editWrapper = document.createElement("div");
+        editWrapper.className = "inlineEdit";
+
+        const input = document.createElement("input");
+        input.className = "inlineEditInput";
+        input.type = "text";
+        input.value = m.text || "";
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "inlineBtn primary";
+        saveBtn.textContent = "Save";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "inlineBtn ghost";
+        cancelBtn.textContent = "Cancel";
+
+        editWrapper.appendChild(input);
+        editWrapper.appendChild(saveBtn);
+        editWrapper.appendChild(cancelBtn);
+        div.appendChild(editWrapper);
+
+        input.focus();
+        input.select();
+
+        const cleanup = () => {
+          if (editWrapper.parentNode) {
+            editWrapper.parentNode.removeChild(editWrapper);
+          }
+        };
+
+        cancelBtn.onclick = cleanup;
+
+        saveBtn.onclick = async () => {
+          const newText = input.value.trim();
+          if (!newText || newText === m.text) {
+            cleanup();
+            return;
+          }
+          try {
+            await updateDoc(docSnap.ref, { text: newText });
+            showToast("Message updated", 2200);
+          } catch (err) {
+            console.error(err);
+            showToast("Could not update message");
+          } finally {
+            cleanup();
+          }
+        };
+
+        // Enter to save, Escape to cancel
+        input.onkeydown = e => {
+          if (e.key === "Enter") {
+            saveBtn.click();
+          } else if (e.key === "Escape") {
+            cleanup();
+          }
+        };
       };
 
-      controls.querySelector(".delBtn").onclick = async () => {
-        if (confirm("Delete this message?")) {
-          await updateDoc(docSnap.ref, {
-            deleted: true,
-            text: "[Message deleted]",
-            editable: false
-          });
-        }
+      // Inline delete confirmation instead of confirm()
+      controls.querySelector(".delBtn").onclick = () => {
+        // Avoid stacking confirmations
+        if (div.querySelector(".deleteConfirm")) return;
+
+        const confirmRow = document.createElement("div");
+        confirmRow.className = "deleteConfirm";
+
+        const label = document.createElement("span");
+        label.textContent = "Delete this message?";
+
+        const yesBtn = document.createElement("button");
+        yesBtn.className = "inlineBtn danger";
+        yesBtn.textContent = "Delete";
+
+        const noBtn = document.createElement("button");
+        noBtn.className = "inlineBtn ghost";
+        noBtn.textContent = "Cancel";
+
+        confirmRow.appendChild(label);
+        confirmRow.appendChild(yesBtn);
+        confirmRow.appendChild(noBtn);
+        div.appendChild(confirmRow);
+
+        const cleanup = () => {
+          if (confirmRow.parentNode) {
+            confirmRow.parentNode.removeChild(confirmRow);
+          }
+        };
+
+        noBtn.onclick = cleanup;
+
+        yesBtn.onclick = async () => {
+          try {
+            await updateDoc(docSnap.ref, {
+              deleted: true,
+              text: "[Message deleted]",
+              editable: false
+            });
+            showToast("Message deleted", 2200);
+          } catch (err) {
+            console.error(err);
+            showToast("Could not delete message");
+          } finally {
+            cleanup();
+          }
+        };
       };
 
       div.appendChild(controls);
@@ -518,10 +661,10 @@ async function sendMessage() {
    Typing indicator (clientTyping)
    ───────────────────────── */
 messageInput.addEventListener("input", () => {
-  updateDoc(chatRef, { clientTyping: true });
+  updateDoc(chatRef, { clientTyping: true }).catch(() => {});
   clearTimeout(window.typingTimer);
   window.typingTimer = setTimeout(() => {
-    updateDoc(chatRef, { clientTyping: false });
+    updateDoc(chatRef, { clientTyping: false }).catch(() => {});
   }, 2000);
 });
 
