@@ -157,7 +157,6 @@ button:disabled {
 .notification.error { background:#ef4444; color:#fff; }
 .notification.info { background:#3b82f6; color:#fff; }
 
-/* NEW: legal note style */
 .legal-note {
   font-size:12px;
   color:var(--muted);
@@ -188,8 +187,6 @@ button:disabled {
         <div style="font-size:12px;color:var(--muted);">Provider Panel</div>
       </div>
     </div>
-
-    <!-- Navigation removed since it's not used -->
 
     <div class="profile">
       <div id="avatar" class="avatar">P</div>
@@ -517,7 +514,6 @@ function attachHandlers() {
     }
   });
 
-  // Ensure currencies are loaded before enabling submit
   const checkCurrency = setInterval(() => {
     if (currency.options.length > 0) {
       clearInterval(checkCurrency);
@@ -551,7 +547,7 @@ function setupFormSubmit() {
       commissionValue: parseFloat(commissionValue.value) || 0,
       promotionBudget: parseFloat(promotionBudget.value) || 0,
       totalProducts: parseInt(totalProducts.value) || 0,
-      imageBase64: imageBase64 || null,
+      imageTemp: imageBase64 || null,
       status: "pending",
       createdAt: serverTimestamp()
     };
@@ -579,4 +575,4 @@ function setupFormSubmit() {
 }
 </script>
 </body>
-  </html>
+</html>
