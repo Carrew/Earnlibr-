@@ -228,9 +228,14 @@ h1 {
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  collection, doc, updateDoc, query, where, onSnapshot,
+  collection, doc, query, where, onSnapshot,
   serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+// ===== Cloudinary config =====
+const CLOUDINARY_CLOUD_NAME = "dye3bda08";
+const CLOUDINARY_UPLOAD_PRESET = "earnlibrmedia";
+// No special folder; using preset defaults
 
 const billsContainer = document.getElementById("billsContainer");
 const notif = document.getElementById("notif");
@@ -303,6 +308,38 @@ onAuthStateChanged(auth, async user=>{
   }
   loadBills();
 });
+
+// --- Cloudinary helper: upload receipt ---
+async function uploadReceiptToCloudinary(file, billId) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Cloudinary upload failed");
+  }
+
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(data.error.message || "Cloudinary error");
+  }
+
+  return {
+    url: data.secure_url,
+    publicId: data.public_id,
+    format: data.format,
+    resourceType: data.resource_type,
+    bytes: data.bytes
+  };
+}
 
 // --- Load provider bills ---
 function loadBills(){
@@ -381,33 +418,122 @@ function renderBillCard(bill) {
     </div>
   `;
 
+  // Proof-of-payment UI (sender info + screenshot)
   if (status === "sent") {
+    const proofWrap = document.createElement("div");
+    proofWrap.style.marginTop = "10px";
+    proofWrap.style.fontSize = "12px";
+
+    proofWrap.innerHTML = `
+      <div style="margin-bottom:6px;color:var(--muted);">
+        Tell us who sent the payment and upload a screenshot of the receipt.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <input
+          type="text"
+          class="sender-name-input"
+          placeholder="Sender name (required)"
+          style="padding:6px 8px;border-radius:8px;border:1px solid rgba(148,163,184,0.6);background:#020617;color:#e5e7eb;font-size:12px;"
+        />
+        <input
+          type="tel"
+          class="sender-phone-input"
+          placeholder="Sender phone number (required)"
+          style="padding:6px 8px;border-radius:8px;border:1px solid rgba(148,163,184,0.6);background:#020617;color:#e5e7eb;font-size:12px;"
+        />
+        <input
+          type="file"
+          class="proof-file-input"
+          accept="image/*,application/pdf"
+          style="font-size:11px;color:var(--muted);"
+        />
+        <div style="font-size:11px;color:var(--muted);">
+          Make sure the screenshot clearly shows the transaction ID, date, and amount.
+        </div>
+      </div>
+    `;
+
     const btn = document.createElement("button");
     btn.className = "btn";
-    btn.innerHTML = `<span class="icon">💳</span><span>Mark as Paid (Admin Review)</span>`;
-    btn.onclick = () => markAsPaid(bill.billId, btn);
+    btn.style.marginTop = "10px";
+    btn.innerHTML = `<span class="icon">💳</span><span>Submit Proof & Mark as Paid</span>`;
+
+    btn.onclick = () => {
+      const senderNameInput  = proofWrap.querySelector(".sender-name-input");
+      const senderPhoneInput = proofWrap.querySelector(".sender-phone-input");
+      const fileInput        = proofWrap.querySelector(".proof-file-input");
+
+      const senderName  = senderNameInput.value.trim();
+      const senderPhone = senderPhoneInput.value.trim();
+      const file        = fileInput.files[0];
+
+      if (!senderName) {
+        showNotif("Please enter the sender's name.", "error");
+        senderNameInput.focus();
+        return;
+      }
+      if (!senderPhone) {
+        showNotif("Please enter the sender's phone number.", "error");
+        senderPhoneInput.focus();
+        return;
+      }
+      if (!file) {
+        showNotif("Please upload a screenshot of the payment.", "error");
+        fileInput.focus();
+        return;
+      }
+
+      markAsPaid(bill.billId, btn, {
+        senderName,
+        senderPhone,
+        file
+      });
+    };
+
+    card.appendChild(proofWrap);
     card.appendChild(btn);
   }
 
   billsContainer.appendChild(card);
 }
 
-// --- Mark a bill as paid ---
-async function markAsPaid(billId, btn){
+// --- Mark a bill as paid + store Cloudinary proof ---
+async function markAsPaid(billId, btn, proof){
   if (!billId) {
     showNotif("Missing bill ID. Cannot update.", "error");
+    return;
+  }
+  if (!proof || !proof.file) {
+    showNotif("Missing proof file. Cannot update.", "error");
     return;
   }
 
   const originalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = "Updating...";
+  btn.textContent = "Uploading proof...";
 
   try {
+    // 1) Upload screenshot/receipt to Cloudinary
+    const uploaded = await uploadReceiptToCloudinary(proof.file, billId);
+
+    // 2) Update Firestore docs
+    btn.textContent = "Updating bill...";
+
     const batch = writeBatch(db);
+
     const updateData = {
       status: "provider_marked_paid",
-      providerMarkedAt: serverTimestamp()
+      providerMarkedAt: serverTimestamp(),
+      providerProof: {
+        senderName: proof.senderName,
+        senderPhone: proof.senderPhone,
+        receiptUrl: uploaded.url,
+        cloudinaryPublicId: uploaded.publicId,
+        cloudinaryFormat: uploaded.format,
+        cloudinaryBytes: uploaded.bytes,
+        submittedAt: serverTimestamp(),
+        submittedBy: userSession.uid
+      }
     };
 
     batch.update(doc(db,"bills",billId), updateData);
@@ -415,12 +541,13 @@ async function markAsPaid(billId, btn){
 
     await batch.commit();
 
-    showNotif("Bill marked as paid and sent for Admin approval!", "success");
+    showNotif("Proof submitted. Bill marked as paid and sent for Admin approval!", "success");
   } catch(err) {
-    console.error("Failed to mark bill as paid:", err);
-    showNotif("Error: Failed to update bill status.", "error");
+    console.error("Failed to submit proof:", err);
+    showNotif("Error: Failed to upload proof or update bill.", "error");
     btn.disabled = false;
     btn.textContent = originalText;
+    return;
   }
 }
 </script>
