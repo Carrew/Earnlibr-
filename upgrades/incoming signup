@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EarnLibr — Sign Up</title>
+
+  <style>
+    :root {
+      --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2;
+      --accent2:#a3ff6e; --muted:#bfc7d6; --danger:#e74c3c;
+    }
+    body {
+      margin:0; font-family:Inter,system-ui,Arial;
+      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
+      color:#eef2f7; min-height:100vh; display:flex;
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .card {
+      width:100%; max-width:420px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+      border-radius:14px; padding:22px; box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      border:1px solid rgba(255,255,255,0.03); overflow:hidden;
+    }
+    .image-header { width:100%; height:160px; border-radius:10px; overflow:hidden; margin-bottom:15px; }
+    .image-header img { width:100%; height:100%; object-fit:cover; filter:brightness(0.8); }
+    h1 {
+      font-size:22px; margin-bottom:6px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text; color:transparent;
+    }
+    p.lead { color:var(--muted); margin-bottom:14px; font-size:13px }
+    label { display:block; font-size:13px; color:var(--muted); margin-top:12px; margin-bottom:6px }
+    input, select {
+      width:100%; padding:10px 12px; border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:#071427; color:#fff; font-size:14px;
+    }
+    .password-wrap { position:relative; }
+    .toggle-password {
+      position:absolute; top:50%; right:10px; transform:translateY(-50%);
+      background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px;
+    }
+    .phone-group { display:flex; gap:8px; align-items:center; }
+    .phone-group select { width:35%; } .phone-group input { width:65%; }
+    .btn {
+      margin-top:18px; width:100%; padding:12px; border-radius:10px;
+      border:0; cursor:pointer;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#041018; font-weight:700; transition:opacity 0.2s;
+    }
+    .btn:hover { opacity:0.9; }
+    .small { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
+    .link { color:var(--accent2); text-decoration:none; font-weight:600; }
+    .error { color:var(--danger); font-weight:600; margin-top:8px; font-size:13px; display:none; }
+
+    /* Divider + Google button */
+    .divider {
+      margin: 14px 0 10px;
+      text-align: center;
+      position: relative;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .divider::before,
+    .divider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: rgba(148, 163, 184, 0.4);
+    }
+    .divider::before {
+      left: 0;
+    }
+    .divider::after {
+      right: 0;
+    }
+    .divider span {
+      background: rgba(11, 13, 23, 1);
+      padding: 0 8px;
+    }
+
+    .btn-google {
+      margin-top: 4px;
+      background: #ffffff;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+      width: 100%;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+    .btn-google:hover {
+      opacity: 0.95;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+    }
+    .btn-google img {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Terms modal */
+    .terms-backdrop {
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.65);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+    }
+    .terms-modal {
+      width:100%;
+      max-width:380px;
+      background:#050816;
+      border-radius:14px;
+      padding:18px 18px 14px;
+      box-shadow:0 15px 40px rgba(0,0,0,0.8);
+      border:1px solid rgba(148,163,184,0.35);
+    }
+    .terms-modal h2 {
+      margin:0 0 8px;
+      font-size:17px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      -webkit-background-clip:text;
+      color:transparent;
+    }
+    .terms-modal p {
+      font-size:13px;
+      color:var(--muted);
+      margin:6px 0;
+    }
+    .terms-modal a {
+      color:var(--accent2);
+      text-decoration:underline;
+    }
+    .terms-actions {
+      margin-top:14px;
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+    }
+    .btn-ghost {
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.5);
+      background:transparent;
+      color:var(--muted);
+      font-size:12px;
+      cursor:pointer;
+    }
+    .btn-primary {
+      padding:8px 14px;
+      border-radius:999px;
+      border:0;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#041018;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .terms-note {
+      font-size:11px;
+      color:var(--muted);
+      margin-top:6px;
+      text-align:left;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+
+    <div class="image-header">
+      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr signup">
+    </div>
+
+    <h1>Join EarnLibr</h1>
+    <p class="lead">Create your account to start earning and connecting securely.</p>
+
+    <label for="name">Full name</label>
+    <input id="name" type="text" placeholder="John Doe" />
+
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="example@gmail.com" />
+
+    <label for="password">Password</label>
+    <div class="password-wrap">
+      <input id="password" type="password" placeholder="Enter your password" />
+      <button type="button" id="togglePassword" class="toggle-password">👁️</button>
+    </div>
+    <div id="strength" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
+
+    <label for="country">Country</label>
+    <select id="country"></select>
+
+    <label for="phone">Phone number</label>
+    <div class="phone-group">
+      <select id="countryCode"></select>
+      <input id="phone" type="text" placeholder="555442507" />
+    </div>
+
+    <label for="role">I am a</label>
+    <select id="role">
+      <option value="freelancer">Freelancer</option>
+      <option value="provider">Service Provider / Business</option>
+    </select>
+
+    <button id="signupBtn" class="btn">Create account</button>
+
+    <div class="divider">
+      <span>or</span>
+    </div>
+
+    <button id="googleSignupBtn" type="button" class="btn-google">
+      <img
+        src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+        alt="Google logo"
+      />
+      Continue with Google
+    </button>
+
+    <!-- still visible short legal line -->
+    <p class="small">
+      By creating an account, you agree to EarnLibr’s
+      <a class="link" href="/policies/terms.html" target="_blank">Terms of Service</a>
+      and
+      <a class="link" href="/policies/privacy.html" target="_blank">Privacy Policy</a>.
+    </p>
+
+    <div id="message" class="small"></div>
+    <div id="error" class="error"></div>
+
+    <p class="small">Already have an account? <a class="link" href="login.html">Log in</a></p>
+  </div>
+
+  <!-- Terms & Privacy confirmation modal -->
+  <div class="terms-backdrop" id="termsBackdrop">
+    <div class="terms-modal">
+      <h2>Before you continue</h2>
+      <p>
+        To create an EarnLibr account, you need to agree to our
+        <a href="/policies/terms.html" target="_blank">Terms of Service</a>
+        and
+        <a href="/policies/privacy.html" target="_blank">Privacy Policy</a>.
+      </p>
+      <p class="terms-note">
+        This includes how we handle your data, how offers and commissions work, and how we keep the platform fair and secure for everyone.
+      </p>
+      <div class="terms-actions">
+        <button type="button" class="btn-ghost" id="cancelTermsBtn">Cancel</button>
+        <button type="button" class="btn-primary" id="acceptTermsBtn">I Agree & Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import {
+      createUserWithEmailAndPassword,
+      sendEmailVerification,
+      GoogleAuthProvider,
+      signInWithPopup
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    import {
+      doc, setDoc, getDoc, serverTimestamp, writeBatch
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    const signupBtn = document.getElementById('signupBtn');
+    const googleSignupBtn = document.getElementById('googleSignupBtn');
+    const msg = document.getElementById('message');
+    const err = document.getElementById('error');
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const strengthDiv = document.getElementById('strength');
+
+    const termsBackdrop = document.getElementById('termsBackdrop');
+    const acceptTermsBtn = document.getElementById('acceptTermsBtn');
+    const cancelTermsBtn = document.getElementById('cancelTermsBtn');
+
+    const params = new URLSearchParams(window.location.search);
+    const refByCode = params.get("ref");
+
+    let pendingAction = null; // "email" or "google"
+
+    const showMessage = t => { msg.style.color = '#bfc7d6'; msg.innerHTML = t; };
+    const showError = e => { err.style.display='block'; err.textContent = e; };
+
+    togglePassword.onclick = () => {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      togglePassword.textContent = isHidden ? "🙈" : "👁️";
+    };
+
+    passwordInput.oninput = () => {
+      const pwd = passwordInput.value;
+      const rules = {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        number: /[0-9]/.test(pwd),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
+      };
+      const strength = Object.values(rules).filter(Boolean).length;
+      const texts = ["🔴 Very Weak","🟠 Weak","🟡 Fair","🟢 Good","✅ Strong"];
+      strengthDiv.textContent = pwd ? `Password strength: ${texts[strength]}` : "";
+    };
+
+    // Load countries + codes
+    fetch("countries.json")
+      .then(res => res.json())
+      .then(data => {
+        const countrySelect = document.getElementById("country");
+        const codeSelect = document.getElementById("countryCode");
+        data.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.name; opt.textContent = c.name;
+          countrySelect.appendChild(opt);
+        });
+        countrySelect.onchange = () => {
+          const selected = data.find(c => c.name === countrySelect.value);
+          if (selected){
+            codeSelect.innerHTML = "";
+            const codeOpt = document.createElement("option");
+            codeOpt.value = selected.code;
+            codeOpt.textContent = selected.code;
+            codeSelect.appendChild(codeOpt);
+          }
+        };
+      });
+
+    const generateReferralCode = () => {
+      return 'r' + Math.random().toString(36).substring(2,8);
+    };
+
+    // Email/password signup
+    const createAccount = async () => {
+      err.style.display='none';
+      err.textContent = "";
+      msg.textContent = "";
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const country = document.getElementById('country').value;
+      const countryCode = document.getElementById('countryCode').value;
+      let phoneInput = document.getElementById('phone').value.trim();
+
+      if (!name || !email || !password || !country || !phoneInput)
+        return showError("Please fill all required fields.");
+
+      phoneInput = phoneInput.replace(/\D/g, "");
+      const fullPhone = `${countryCode}${phoneInput.replace(/^0+/, "")}`;
+
+      signupBtn.disabled = true;
+      signupBtn.textContent = "Creating...";
+      googleSignupBtn.disabled = true;
+
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCred.user.uid;
+
+        let referredByUid = null;
+        if (refByCode) {
+          const snap = await getDoc(doc(db, "referralCodes", refByCode));
+          if (snap.exists()) referredByUid = snap.data().ownerUid;
+        }
+
+        const referralCode = generateReferralCode();
+        const batch = writeBatch(db);
+
+        batch.set(doc(db, "users", uid), {
+          uid, name, email, role, country,
+          phone: fullPhone,
+          referralCode,
+          referredBy: referredByUid,
+          createdAt: serverTimestamp(),
+          provider: "email"
+        });
+
+        batch.set(doc(db, "referralCodes", referralCode), {
+          ownerUid: uid
+        });
+
+        await batch.commit();
+
+        await sendEmailVerification(userCred.user);
+
+        // Send to Apps Script (optional tracking)
+        const scriptURL = "https://script.google.com/macros/s/AKfycbyiwhjgMxdhm6IOWoIyy_jBjZiNts9qEAZHNBInhu3fmvcKv2ochVDuX4jBP1FSobbJ/exec";
+        const formData = new URLSearchParams();
+        formData.append("name", name);
+        formData.append("email", email);
+        formData.append("phone", fullPhone);
+        formData.append("location", country);
+        formData.append("userType", role === "provider" ? "Provider" : "Promoter");
+
+        fetch(scriptURL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: formData.toString()
+        }).catch(err => {
+          console.error("Apps Script network error:", err);
+        });
+
+        showMessage('✅ Account created! Please verify your email.');
+        msg.innerHTML += `<br><a href="https://mail.google.com" target="_blank" class="link">Open Gmail</a>`;
+
+        localStorage.setItem("userSession", JSON.stringify({
+          uid, name, email, role, referralCode
+        }));
+
+        setTimeout(() => window.location.href = "login.html", 5000);
+
+      } catch(e) {
+        console.error(e);
+        const map = {
+          "auth/email-already-in-use": "Email already in use.",
+          "auth/invalid-email": "Invalid email address.",
+          "auth/weak-password": "Password too weak — must have 8+ chars, uppercase, number.",
+        };
+        showError(map[e.code] || e.message);
+      }
+
+      signupBtn.disabled = false;
+      signupBtn.textContent = "Create account";
+      googleSignupBtn.disabled = false;
+    };
+
+    // Google sign-in / sign-up (sign-in is sign-in)
+    const googleSignInOrUp = async () => {
+      err.style.display = 'none';
+      err.textContent = "";
+      msg.textContent = "";
+
+      // Optional form values (if user filled them)
+      const formName = document.getElementById('name').value.trim();
+      const formRole = document.getElementById('role').value;
+      const formCountry = document.getElementById('country').value;
+      const formCountryCode = document.getElementById('countryCode').value;
+      let formPhone = document.getElementById('phone').value.trim();
+
+      let fullPhone = "";
+      if (formPhone && formCountryCode) {
+        formPhone = formPhone.replace(/\D/g, "");
+        fullPhone = `${formCountryCode}${formPhone.replace(/^0+/, "")}`;
+      }
+
+      signupBtn.disabled = true;
+      googleSignupBtn.disabled = true;
+      googleSignupBtn.textContent = "Connecting to Google...";
+
+      try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider); // opens normal Google popup
+
+        const user = result.user;
+        const uid = user.uid;
+
+        const googleName = user.displayName || "";
+        const googleEmail = user.email || "";
+
+        const name = formName || googleName;
+        const email = googleEmail;
+        const role = formRole || "freelancer";
+        const country = formCountry || "";
+        const phone = fullPhone || user.phoneNumber || "";
+
+        const userRef = doc(db, "users", uid);
+        const existingSnap = await getDoc(userRef);
+
+        let referralCode;
+        let referredByUid = null;
+
+        if (refByCode) {
+          const refSnap = await getDoc(doc(db, "referralCodes", refByCode));
+          if (refSnap.exists()) {
+            referredByUid = refSnap.data().ownerUid;
+          }
+        }
+
+        const batch = writeBatch(db);
+
+        if (existingSnap.exists()) {
+          // Already in DB -> treat as sign-in
+          const existing = existingSnap.data();
+          referralCode = existing.referralCode || generateReferralCode();
+
+          batch.set(userRef, {
+            ...existing,
+            name: name || existing.name,
+            country: country || existing.country,
+            phone: phone || existing.phone,
+            role: role || existing.role,
+            provider: "google"
+          }, { merge: true });
+
+          if (!existing.referralCode) {
+            batch.set(doc(db, "referralCodes", referralCode), {
+              ownerUid: uid
+            });
+          }
+        } else {
+          // First time with Google -> create profile
+          referralCode = generateReferralCode();
+
+          batch.set(userRef, {
+            uid,
+            name,
+            email,
+            role,
+            country,
+            phone,
+            referralCode,
+            referredBy: referredByUid,
+            createdAt: serverTimestamp(),
+            provider: "google"
+          });
+
+          batch.set(doc(db, "referralCodes", referralCode), {
+            ownerUid: uid
+          });
+        }
+
+        await batch.commit();
+
+        // Same Apps Script tracking idea as email
+        const scriptURL = "https://script.google.com/macros/s/AKfycbyiwhjgMxdhm6IOWoIyy_jBjZiNts9qEAZHNBInhu3fmvcKv2ochVDuX4jBP1FSobbJ/exec";
+        const formData = new URLSearchParams();
+        formData.append("name", name);
+        formData.append("email", email);
+        formData.append("phone", phone);
+        formData.append("location", country);
+        formData.append("userType", role === "provider" ? "Provider" : "Promoter");
+
+        fetch(scriptURL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: formData.toString()
+        }).catch(err => {
+          console.error("Apps Script network error:", err);
+        });
+
+        localStorage.setItem("userSession", JSON.stringify({
+          uid,
+          name,
+          email,
+          role,
+          referralCode
+        }));
+
+        showMessage("✅ Signed in with Google. Redirecting...");
+        setTimeout(() => window.location.href = "login.html", 2000);
+
+      } catch (e) {
+        console.error(e);
+        showError(e.message || "Google sign-in failed. Please try again.");
+      }
+
+      signupBtn.disabled = false;
+      googleSignupBtn.disabled = false;
+      googleSignupBtn.textContent = "Continue with Google";
+    };
+
+    // Button -> terms modal -> action
+    signupBtn.onclick = () => {
+      err.style.display='none';
+      err.textContent = "";
+      msg.textContent = "";
+      pendingAction = "email";
+      termsBackdrop.style.display = 'flex';
+    };
+
+    googleSignupBtn.onclick = () => {
+      err.style.display='none';
+      err.textContent = "";
+      msg.textContent = "";
+      pendingAction = "google";
+      termsBackdrop.style.display = 'flex';
+    };
+
+    cancelTermsBtn.onclick = () => {
+      termsBackdrop.style.display = 'none';
+      pendingAction = null;
+    };
+
+    acceptTermsBtn.onclick = () => {
+      termsBackdrop.style.display = 'none';
+      if (pendingAction === "email") {
+        createAccount();
+      } else if (pendingAction === "google") {
+        googleSignInOrUp();
+      }
+      pendingAction = null;
+    };
+  </script>
+
+</body>
+</html>
