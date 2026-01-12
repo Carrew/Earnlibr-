@@ -5,37 +5,236 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EarnLibr — Admin Send Bills</title>
 <style>
-body { font-family: Arial, sans-serif; background: #0b0d17; color: #eef2f7; margin:0; padding:20px; }
-h1 { background: linear-gradient(90deg, #4a90e2, #a3ff6e); -webkit-background-clip: text; color: transparent; margin-bottom:20px; }
-.notif { background:#1a2235; padding:10px; border-radius:8px; margin-bottom:15px; font-size:14px; display:none; opacity:0; transition: opacity .3s; }
-.notif.show { display:block; opacity:1; }
-.notif.success { border-left:4px solid #4ade80; color:#a3ff6e; }
-.notif.error { border-left:4px solid #ef4444; color:#ff8c8c; }
-.notif.info { border-left:4px solid #4a90e2; color:#4a90e2; }
-.provider-card { background:#0f1724; border-radius:12px; padding:15px; margin-bottom:15px; box-shadow:0 5px 15px rgba(0,0,0,0.5); transition:opacity .5s, transform .3s; position:relative; }
-.provider-card:hover { transform:translateY(-4px); }
-.provider-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-.btn { background:#4ade80; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#041018; transition: opacity .2s; }
-.btn.danger { background:#ef4444; color:#fff; }
-.btn:disabled { opacity:0.6; cursor:not-allowed; }
-.offer-breakdown { background:#1a2235; border-radius:8px; padding:10px; margin-top:10px; display:none; font-size:13px; }
-.toggle-offers { margin-top:10px; background:#4a90e2; color:#041018; }
-.loader { display:inline-block; width:18px; height:18px; border:3px solid #eef2f7; border-radius:50%; border-top-color:#4ade80; animation: spin 1s linear infinite; margin-left:10px; vertical-align:middle; }
-@keyframes spin { 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
-.offer-box { margin-bottom:10px; padding:8px; border-radius:6px; background:#1a2235; }
-.offer-box strong { display:block; margin-bottom:5px; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #0b0d17;
+    color: #eef2f7;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    background: linear-gradient(90deg, #4a90e2, #a3ff6e);
+    -webkit-background-clip: text;
+    color: transparent;
+    margin-bottom: 20px;
+  }
+
+  /* Notification */
+  .notif {
+    background: #1a2235;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    display: none;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .notif.show {
+    display: block;
+    opacity: 1;
+  }
+  .notif.success {
+    border-left: 4px solid #4ade80;
+    color: #a3ff6e;
+  }
+  .notif.error {
+    border-left: 4px solid #ef4444;
+    color: #ff8c8c;
+  }
+  .notif.info {
+    border-left: 4px solid #4a90e2;
+    color: #4a90e2;
+  }
+
+  .controls {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn {
+    background: #4ade80;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    color: #041018;
+    transition: opacity .2s, transform .1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn.danger {
+    background: #ef4444;
+    color: #fff;
+  }
+  .btn.secondary {
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .provider-card {
+    background: #0f1724;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    transition: opacity .3s, transform .2s;
+    position: relative;
+  }
+  .provider-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .provider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .provider-name {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .provider-totals {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .provider-totals div {
+    margin-bottom: 2px;
+  }
+
+  .offer-breakdown {
+    background: #1a2235;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 10px;
+    display: none;
+    font-size: 13px;
+  }
+
+  .toggle-offers {
+    margin-top: 6px;
+    background: #4a90e2;
+    color: #041018;
+  }
+
+  .loader {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #eef2f7;
+    border-radius: 50%;
+    border-top-color: #4ade80;
+    animation: spin 1s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin {
+    0%{ transform: rotate(0deg); }
+    100%{ transform: rotate(360deg); }
+  }
+
+  .offer-box {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    background: #1a2235;
+  }
+  .offer-box strong {
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .muted {
+    color: #9ca3af;
+    font-size: 13px;
+  }
+
+  /* Skeleton loading */
+  .skeleton-card {
+    background: #0f1724;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+  .skeleton-line {
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      #111827 0%,
+      #1f2937 50%,
+      #111827 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.3s infinite;
+    margin-bottom: 8px;
+  }
+  .skeleton-line.short {
+    width: 40%;
+  }
+  .skeleton-line.medium {
+    width: 70%;
+  }
+  .skeleton-line.long {
+    width: 100%;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .empty-state {
+    padding: 20px;
+    text-align: center;
+    background: #0f1724;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    background: #111827;
+    color: #9ca3af;
+    margin-left: 4px;
+  }
 </style>
 </head>
 <body>
 
 <h1>Admin Send Bills</h1>
-<div id="notif" class="notif"></div>
+<div id="notif" class="notif" role="alert" aria-live="polite"></div>
 
 <div class="controls">
-  <button id="sendAll" class="btn">📤 Send All Eligible Bills</button>
+  <button id="sendAll" class="btn" aria-label="Send all eligible bills">
+    📤 <span>Send All Eligible Bills</span>
+  </button>
+  <span class="muted" id="summaryText"></span>
 </div>
 
-<div id="providersContainer">Loading unbilled deals...</div>
+<div id="providersContainer"></div>
 
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -48,170 +247,369 @@ import {
 const notif = document.getElementById("notif");
 const providersContainer = document.getElementById("providersContainer");
 const sendAllBtn = document.getElementById("sendAll");
+const summaryText = document.getElementById("summaryText");
+
 const THRESHOLDS = { USD: 1, LRD: 300 }; 
 let grouped = {}; 
 let dealsCache = {}; 
+let unsubscribeDeals = null;
+let isInitialLoad = true;
 
-// --- Auth Check ---
-let userSession = localStorage.getItem("userSession");
-if(!userSession){ window.location.href="login.html"; throw new Error("No session"); }
-userSession = JSON.parse(userSession);
-
-onAuthStateChanged(auth, async (user) => {
-  if(!user || user.uid !== userSession.uid || !user.emailVerified){ 
-    localStorage.removeItem("userSession"); 
-    window.location.href="login.html"; 
-    return;
+// --- Utility: Skeleton loading ---
+function renderSkeleton(count = 3) {
+  let html = "";
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="skeleton-card">
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line long"></div>
+        <div class="skeleton-line medium"></div>
+      </div>
+    `;
   }
-  const adminDoc = await getDoc(doc(db, "admins", user.uid));
-  const data = adminDoc.exists() ? adminDoc.data() : null;
-  const role = data?.role || "admin";
+  providersContainer.innerHTML = html;
+  summaryText.textContent = "Fetching unbilled deals...";
+}
 
-  if (!["admin","super_admin"].includes(role)) { 
-    localStorage.removeItem("userSession"); 
-    window.location.href="login.html"; 
-    return;
-  }
-
-  userSession = { uid: user.uid, name: data.name || user.email, email: user.email, role: role };
-  localStorage.setItem("userSession", JSON.stringify(userSession));
-  loadDeals();
-});
-
-// --- Utility Functions ---
-const showNotif = (msg,type="success")=>{
+// --- Utility: Notifications ---
+const showNotif = (msg, type = "success") => {
   notif.textContent = msg;
   notif.className = `notif ${type} show`;
-  setTimeout(()=>{ notif.classList.remove("show"); },3000);
+  setTimeout(() => {
+    notif.classList.remove("show");
+  }, 3500);
 };
 
+// --- Utility: Button loading states ---
+function setButtonLoading(button, isLoading, loadingLabel = "Processing") {
+  if (!button) return;
+  const originalLabel = button.getAttribute("data-original-label") || button.textContent.trim();
+
+  if (!button.getAttribute("data-original-label")) {
+    button.setAttribute("data-original-label", originalLabel);
+  }
+
+  if (isLoading) {
+    button.disabled = true;
+    button.innerHTML = `
+      <span>${loadingLabel}</span>
+      <span class="loader" aria-hidden="true"></span>
+    `;
+  } else {
+    button.disabled = false;
+    const restored = button.getAttribute("data-original-label") || "Action";
+    button.innerHTML = restored;
+  }
+}
+
+// --- Notifications helper (Firestore) ---
 async function sendNotifications(uid, title, message) {
   try {
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
+    batch.set(doc(collection(db, \`notifications/\${uid}/items\`)), {
       title,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
     await batch.commit();
-  } catch(err) {
+  } catch (err) {
     console.error("Batch notification error:", err);
   }
 }
 
+// --- Auth Check ---
+let userSession = localStorage.getItem("userSession");
+if (!userSession) {
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
+userSession = JSON.parse(userSession);
+
+onAuthStateChanged(auth, async (user) => {
+  try {
+    if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    const adminDoc = await getDoc(doc(db, "admins", user.uid));
+    const data = adminDoc.exists() ? adminDoc.data() : null;
+    const role = data?.role || "admin";
+
+    if (!["admin", "super_admin"].includes(role)) {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    userSession = {
+      uid: user.uid,
+      name: data?.name || user.email,
+      email: user.email,
+      role: role
+    };
+    localStorage.setItem("userSession", JSON.stringify(userSession));
+
+    // Start loading deals
+    renderSkeleton();
+    loadDeals();
+  } catch (err) {
+    console.error("Auth error:", err);
+    showNotif("Authentication error. Please reload and log in again.", "error");
+  }
+});
+
 // --- Load unbilled completed deals ---
-function loadDeals(){
-  const dealsQuery = query(collection(db,"completed-deals"), where("billedBy","==",null));
-  
-  onSnapshot(dealsQuery, snapshot=>{
-    providersContainer.innerHTML="";
-    grouped={};
-    dealsCache={}; 
+function loadDeals() {
+  if (unsubscribeDeals) {
+    unsubscribeDeals();
+  }
 
-    if(snapshot.empty){ providersContainer.innerHTML="<p>No unbilled deals found.</p>"; return; }
+  const dealsQuery = query(
+    collection(db, "completed-deals"),
+    where("billedBy", "==", null)
+  );
 
-    snapshot.forEach(docSnap=>{
-      const d = docSnap.data();
-      const providerId = d.providerId;
-      const offerId = d.offerId;
-      
-      dealsCache[docSnap.id] = { ref: doc(db, "completed-deals", docSnap.id), data: d };
+  unsubscribeDeals = onSnapshot(
+    dealsQuery,
+    (snapshot) => {
+      grouped = {};
+      dealsCache = {};
 
-      if(!grouped[providerId]) grouped[providerId] = { name:d.providerName, offers:{} };
-
-      if(!grouped[providerId].offers[offerId]){
-        grouped[providerId].offers[offerId] = { 
-          offerTitle:d.offerTitle, 
-          currency:d.offerCurrency||"USD", 
-          total:0, 
-          deals:[] 
-        };
+      if (snapshot.empty) {
+        providersContainer.innerHTML = `
+          <div class="empty-state">
+            <p>No unbilled deals found.</p>
+            <p class="muted">New completed deals will automatically appear here in real-time.</p>
+          </div>
+        `;
+        summaryText.textContent = "";
+        isInitialLoad = false;
+        return;
       }
 
-      const offer = grouped[providerId].offers[offerId];
-      offer.total += parseFloat(d.commissionEarned);
-      offer.deals.push({ dealId: docSnap.id, clientName:d.clientName, commissionEarned:d.commissionEarned });
-    });
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data() || {};
+        const providerId = d.providerId;
+        const offerId = d.offerId;
 
-    renderProviders();
-  });
+        if (!providerId || !offerId) {
+          console.warn("Skipping deal with missing providerId/offerId", docSnap.id);
+          return;
+        }
+
+        const commission = parseFloat(d.commissionEarned ?? 0);
+        if (isNaN(commission)) {
+          console.warn("Skipping deal with invalid commissionEarned", docSnap.id);
+          continue;
+        }
+
+        dealsCache[docSnap.id] = {
+          ref: doc(db, "completed-deals", docSnap.id),
+          data: d
+        };
+
+        if (!grouped[providerId]) {
+          grouped[providerId] = {
+            name: d.providerName || "Unnamed Provider",
+            offers: {}
+          };
+        }
+
+        if (!grouped[providerId].offers[offerId]) {
+          grouped[providerId].offers[offerId] = {
+            offerTitle: d.offerTitle || "Untitled Offer",
+            currency: d.offerCurrency || "USD",
+            total: 0,
+            deals: []
+          };
+        }
+
+        const offer = grouped[providerId].offers[offerId];
+        offer.total += commission;
+        offer.deals.push({
+          dealId: docSnap.id,
+          clientName: d.clientName || "Unknown Client",
+          commissionEarned: commission
+        });
+      });
+
+      renderProviders();
+      isInitialLoad = false;
+    },
+    (error) => {
+      console.error("Snapshot error:", error);
+      showNotif("Failed to load deals. Please refresh the page.", "error");
+      providersContainer.innerHTML = `
+        <div class="empty-state">
+          <p>Unable to load unbilled deals at this time.</p>
+        </div>
+      `;
+      summaryText.textContent = "";
+    }
+  );
 }
 
-// --- Render provider cards---
-function renderProviders(){
-  providersContainer.innerHTML="";
-  Object.keys(grouped).forEach(providerId=>{
+// --- Render provider cards ---
+function renderProviders() {
+  providersContainer.innerHTML = "";
+
+  const providerIds = Object.keys(grouped);
+  if (providerIds.length === 0) {
+    providersContainer.innerHTML = `
+      <div class="empty-state">
+        <p>No unbilled deals found.</p>
+        <p class="muted">New completed deals will automatically appear here in real-time.</p>
+      </div>
+    `;
+    summaryText.textContent = "";
+    return;
+  }
+
+  let totalProviders = providerIds.length;
+  let totalOffers = 0;
+
+  providerIds.forEach((providerId) => {
     const p = grouped[providerId];
     const card = document.createElement("div");
-    card.className="provider-card";
+    card.className = "provider-card";
 
-    let totalsHTML="";
-    Object.values(p.offers).forEach(offer=>{
-      totalsHTML+=`<div><strong>${offer.offerTitle} (${offer.currency}):</strong> ${offer.total.toFixed(2)}</div>`;
+    const offersArray = Object.values(p.offers);
+    totalOffers += offersArray.length;
+
+    let totalsHTML = "";
+    offersArray.forEach((offer) => {
+      const formattedTotal = (offer.total || 0).toFixed(2);
+      totalsHTML += `
+        <div>
+          <strong>${offer.offerTitle} (${offer.currency}):</strong>
+          ${formattedTotal}
+        </div>
+      `;
     });
 
-    card.innerHTML=`
+    card.innerHTML = `
       <div class="provider-header">
-        <h2>${p.name}</h2>
+        <h2 class="provider-name">${p.name}</h2>
+        <span class="badge">${offersArray.length} offer(s)</span>
       </div>
-      ${totalsHTML}
-      <button class="btn toggle-offers">Show Details</button>
+      <div class="provider-totals">
+        ${totalsHTML}
+      </div>
+      <button class="btn toggle-offers" type="button" aria-expanded="false">
+        Show Details
+      </button>
       <div class="offer-breakdown"></div>
     `;
 
     const breakdown = card.querySelector(".offer-breakdown");
-    Object.entries(p.offers).forEach(([offerId,offer])=>{
-      const offerBox = document.createElement("div");
-      offerBox.className="offer-box";
-      offerBox.innerHTML=`<strong>${offer.offerTitle} — ${offer.currency} ${offer.total.toFixed(2)}</strong>`;
+    const toggleBtn = card.querySelector(".toggle-offers");
 
-      offer.deals.forEach(deal=>{
+    Object.entries(p.offers).forEach(([offerId, offer]) => {
+      const offerBox = document.createElement("div");
+      offerBox.className = "offer-box";
+      offerBox.setAttribute("data-offer-id", offerId);
+
+      const formattedTotal = (offer.total || 0).toFixed(2);
+      const threshold = THRESHOLDS[offer.currency] || 0;
+      const isEligible = offer.total >= threshold;
+
+      offerBox.innerHTML = `
+        <strong>${offer.offerTitle} — ${offer.currency} ${formattedTotal}</strong>
+        <div class="muted">
+          Threshold: ${threshold} ${offer.currency} · 
+          ${isEligible ? "Eligible" : "Below threshold"}
+        </div>
+      `;
+
+      offer.deals.forEach((deal) => {
         const d = document.createElement("div");
-        d.textContent=`Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
+        d.textContent = `Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
         offerBox.appendChild(d);
       });
 
       const sendBtn = document.createElement("button");
-      sendBtn.className="btn";
-      sendBtn.textContent="Send Bill";
-      sendBtn.onclick=()=>sendBill(providerId, offerId, offer, offerBox, sendBtn); 
-      offerBox.appendChild(sendBtn);
+      sendBtn.className = "btn";
+      sendBtn.textContent = isEligible ? "Send Bill" : "Below Threshold";
+      sendBtn.disabled = !isEligible;
+      sendBtn.type = "button";
 
+      sendBtn.onclick = () => {
+        sendBill(providerId, offerId, offer, offerBox, sendBtn);
+      };
+
+      offerBox.appendChild(sendBtn);
       breakdown.appendChild(offerBox);
     });
 
-    card.querySelector(".toggle-offers").onclick=()=>{ 
-      breakdown.style.display = breakdown.style.display==="none"?"block":"none"; 
+    toggleBtn.onclick = () => {
+      const isHidden = breakdown.style.display === "none" || !breakdown.style.display;
+      breakdown.style.display = isHidden ? "block" : "none";
+      toggleBtn.textContent = isHidden ? "Hide Details" : "Show Details";
+      toggleBtn.setAttribute("aria-expanded", String(isHidden));
     };
 
     providersContainer.appendChild(card);
   });
+
+  summaryText.textContent = `${totalProviders} provider(s), ${totalOffers} offer(s) loaded.`;
 }
 
 // --- Send Single Offer Bill ---
-async function sendBill(providerId, offerId, offer, offerBox, button){
-  if(offer.total < (THRESHOLDS[offer.currency]||0)) {
-    showNotif(`Below threshold of ${THRESHOLDS[offer.currency]} ${offer.currency}`, "error");
-    return;
-  }
-
-  button.disabled = true;
-  const loader = document.createElement("span");
-  loader.className="loader";
-  button.textContent="Processing";
-  button.appendChild(loader);
-
-  const billRef = doc(collection(db,"bills"));
-  const billId = billRef.id;
-  const dealIds = offer.deals.map(d=>d.dealId);
-
+async function sendBill(providerId, offerId, offer, offerBox, button) {
   try {
+    // Defensive checks
+    if (!grouped[providerId]) {
+      throw new Error("Provider data not found. Try refreshing the page.");
+    }
+    if (!grouped[providerId].offers[offerId]) {
+      throw new Error("Offer data not found. Try refreshing the page.");
+    }
+    if (!offerBox || !button) {
+      throw new Error("UI reference missing for this offer.");
+    }
+
+    const currency = offer.currency || "USD";
+    const total = parseFloat(offer.total ?? 0);
+    const threshold = THRESHOLDS[currency] || 0;
+
+    if (isNaN(total) || total <= 0) {
+      throw new Error("Invalid bill amount for this offer.");
+    }
+
+    if (total < threshold) {
+      showNotif(`Below threshold of ${threshold} ${currency}`, "error");
+      return;
+    }
+
+    const dealIds = (offer.deals || []).map(d => d.dealId).filter(Boolean);
+    if (dealIds.length === 0) {
+      throw new Error("No deals found to bill for this offer.");
+    }
+
+    setButtonLoading(button, true, "Sending Bill");
+
+    const billRef = doc(collection(db, "bills"));
+    const billId = billRef.id;
+
     await runTransaction(db, async (t) => {
       const offerRef = doc(db, "offers_all", offerId);
       const offerSnap = await t.get(offerRef);
-      if(!offerSnap.exists()) throw new Error("Offer not found.");
-      if(parseFloat((offerSnap.data().outstandingBalance || 0).toFixed(2)) < parseFloat(offer.total.toFixed(2))) {
+
+      if (!offerSnap.exists()) {
+        throw new Error("Offer not found in master record.");
+      }
+
+      const offerData = offerSnap.data() || {};
+      const currentOutstanding = parseFloat((offerData.outstandingBalance ?? 0).toFixed(2));
+      const currentBilled = parseFloat(offerData.amountBilled ?? 0);
+
+      const billAmount = parseFloat(total.toFixed(2));
+
+      if (isNaN(currentOutstanding) || currentOutstanding < billAmount) {
         throw new Error("Outstanding balance mismatch. Bill amount exceeds remaining balance.");
       }
 
@@ -221,43 +619,45 @@ async function sendBill(providerId, offerId, offer, offerBox, button){
         providerName: grouped[providerId].name,
         offerId,
         offerTitle: offer.offerTitle,
-        currency: offer.currency,
-        total: offer.total,
-        deals: dealIds, 
-        billedBy: userSession.uid, 
-        createdAt: serverTimestamp(), 
-        status:"sent",
+        currency: currency,
+        total: billAmount,
+        deals: dealIds,
+        billedBy: userSession.uid,
+        createdAt: serverTimestamp(),
+        status: "sent",
         adminRole: userSession.role,
-        paymentDate: null, 
-        paymentTxnId: null, 
+        paymentDate: null,
+        paymentTxnId: null
       };
 
       t.set(billRef, billData);
-      t.set(doc(db,`providers/${providerId}/bills/${billId}`), billData);
+      t.set(doc(db, `providers/${providerId}/bills/${billId}`), billData);
       t.update(offerRef, {
-        amountBilled: (offerSnap.data().amountBilled || 0) + offer.total,
-        outstandingBalance: (offerSnap.data().outstandingBalance || 0) - offer.total
+        amountBilled: currentBilled + billAmount,
+        outstandingBalance: currentOutstanding - billAmount
       });
     });
 
+    // Mark deals as billed
     const batch = writeBatch(db);
-    dealIds.forEach(dealId => {
+    dealIds.forEach((dealId) => {
       batch.update(doc(db, "completed-deals", dealId), {
-        billedBy: billId, 
-        billedAt: serverTimestamp(),
+        billedBy: billId,
+        billedAt: serverTimestamp()
       });
     });
     await batch.commit();
 
+    // Notify provider
     await sendNotifications(
-      providerId, 
-      `New Bill Ready 🧾`, 
-      `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated.`
+      providerId,
+      `New Bill Ready 🧾`,
+      `Bill ${billId} for ${offer.offerTitle} totaling ${total.toFixed(2)} ${currency} has been generated.`
     );
 
-    // ✅ FIXED DOM CLEANUP: get parent before removing, and guard against null
+    // UI cleanup
     const breakdown = offerBox.parentElement; // parent of this offer box
-    offerBox.remove(); // remove this offer from the UI
+    offerBox.remove();
 
     if (breakdown && breakdown.children.length === 0) {
       const card = breakdown.parentElement; // provider card
@@ -266,51 +666,76 @@ async function sendBill(providerId, offerId, offer, offerBox, button){
       }
     }
 
-    showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
-
-  } catch(err) {
+    showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`, "success");
+  } catch (err) {
     console.error("Billing Error:", err);
     showNotif(`Billing Failed: ${err.message}`, "error");
   } finally {
-    button.disabled=false;
+    setButtonLoading(button, false);
   }
 }
 
 // --- Send All Eligible Bills ---
-sendAllBtn.onclick = async ()=>{
-  const providers = Object.entries(grouped);
-  if(providers.length === 0){
-    showNotif("No eligible bills to send.", "error");
-    return;
-  }
-
-  const eligibleOffers = [];
-  for(const [providerId, p] of providers){
-    for(const [offerId, offer] of Object.entries(p.offers)){
-      if(offer.total >= (THRESHOLDS[offer.currency] || 0)){
-        const card = Array.from(document.querySelectorAll(".provider-card")).find(c=>c.querySelector("h2").textContent===p.name);
-        const breakdown = card.querySelector(".offer-breakdown");
-        const offerBox = Array.from(breakdown.children).find(b=>b.querySelector("strong").textContent.includes(offer.offerTitle));
-        const sendBtn = offerBox.querySelector(".btn");
-        eligibleOffers.push({ providerId, offerId, offer, offerBox, sendBtn });
-      }
+sendAllBtn.onclick = async () => {
+  try {
+    const providers = Object.entries(grouped || {});
+    if (providers.length === 0) {
+      showNotif("No providers with unbilled deals found.", "error");
+      return;
     }
+
+    const eligibleOffers = [];
+
+    providers.forEach(([providerId, p]) => {
+      Object.entries(p.offers || {}).forEach(([offerId, offer]) => {
+        const currency = offer.currency || "USD";
+        const total = parseFloat(offer.total ?? 0);
+        const threshold = THRESHOLDS[currency] || 0;
+
+        if (!isNaN(total) && total >= threshold) {
+          // Try to locate the corresponding card & offerBox in the DOM
+          const card = Array.from(document.querySelectorAll(".provider-card"))
+            .find(c => c.querySelector(".provider-name")?.textContent === p.name);
+
+          if (!card) return;
+
+          const breakdown = card.querySelector(".offer-breakdown");
+          if (!breakdown) return;
+
+          const offerBox = Array.from(breakdown.children).find(b => {
+            const strongEl = b.querySelector("strong");
+            return strongEl && strongEl.textContent.includes(offer.offerTitle);
+          });
+
+          if (!offerBox) return;
+
+          const sendBtn = offerBox.querySelector("button.btn");
+          if (!sendBtn || sendBtn.disabled) return;
+
+          eligibleOffers.push({ providerId, offerId, offer, offerBox, sendBtn });
+        }
+      });
+    });
+
+    if (eligibleOffers.length === 0) {
+      showNotif("No offers meet the minimum threshold to send bills.", "error");
+      return;
+    }
+
+    setButtonLoading(sendAllBtn, true, "Sending All Bills");
+    showNotif("Processing all eligible bills...", "info");
+
+    for (const { providerId, offerId, offer, offerBox, sendBtn } of eligibleOffers) {
+      await sendBill(providerId, offerId, offer, offerBox, sendBtn);
+    }
+
+    showNotif(`${eligibleOffers.length} eligible bill(s) processed.`, "success");
+  } catch (err) {
+    console.error("SendAll error:", err);
+    showNotif(`Failed to send all bills: ${err.message}`, "error");
+  } finally {
+    setButtonLoading(sendAllBtn, false);
   }
-
-  if(eligibleOffers.length === 0){
-    showNotif("No offers meet the minimum threshold to send bills.", "error");
-    return;
-  }
-
-  sendAllBtn.disabled=true;
-  showNotif("Processing all eligible bills...", "info");
-
-  for(const { providerId, offerId, offer, offerBox, sendBtn } of eligibleOffers){
-    await sendBill(providerId, offerId, offer, offerBox, sendBtn);
-  }
-
-  sendAllBtn.disabled=false;
-  showNotif(`${eligibleOffers.length} eligible bill(s) sent successfully!`);
 };
 </script>
 
