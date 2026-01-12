@@ -76,6 +76,61 @@ h1, h2 {
   background: var(--accent2); color: #041018; font-weight: 700; transition: 0.2s;  
 }  
 .btn-withdraw:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }  
+
+/* Inline withdrawal form */  
+.withdraw-form {  
+  margin-top: 10px;  
+  padding: 10px;  
+  background: #0b1220;  
+  border-radius: 10px;  
+  border: 1px solid rgba(148,163,184,0.35);  
+  display: none;  
+  font-size: 13px;  
+}  
+.withdraw-form label {  
+  display: block;  
+  margin-bottom: 4px;  
+  color: var(--muted);  
+  font-size: 11px;  
+  text-transform: uppercase;  
+  letter-spacing: 0.04em;  
+}  
+.withdraw-form input {  
+  width: 100%;  
+  padding: 8px 10px;  
+  border-radius: 8px;  
+  border: 1px solid #1f2937;  
+  background: #020617;  
+  color: #e5e7eb;  
+  outline: none;  
+  margin-bottom: 8px;  
+  box-sizing: border-box;  
+}  
+.withdraw-form input:focus {  
+  border-color: var(--accent1);  
+}  
+.withdraw-actions {  
+  display: flex;  
+  justify-content: flex-end;  
+  gap: 8px;  
+  margin-top: 4px;  
+}  
+.withdraw-actions button {  
+  border: none;  
+  border-radius: 8px;  
+  padding: 6px 12px;  
+  font-size: 12px;  
+  cursor: pointer;  
+  font-weight: 600;  
+}  
+.withdraw-actions .confirm {  
+  background: var(--accent2);  
+  color: #041018;  
+}  
+.withdraw-actions .cancel {  
+  background: #1f2937;  
+  color: #e5e7eb;  
+}  
   
 /* History Table */  
 .history-section { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }  
@@ -205,17 +260,105 @@ async function loadWallet(promoterId) {
         <h3>${currency}</h3>  
         <span>${withdrawable.toFixed(2)}</span>  
       </div>  
-      <div class="wallet-progress"><div style="width: ${(withdrawable/totalLifetime)*100}%"></div></div>  
+      <div class="wallet-progress">
+        <div style="width: ${(withdrawable/totalLifetime)*100}%"></div>
+      </div>  
       <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">  
         Lifetime: ${totalLifetime.toFixed(2)} | Withdrawn: ${totalWithdrawn.toFixed(2)}  
       </div>  
       <button class="btn-withdraw" ${withdrawable <= 0 ? 'disabled' : ''}>  
         ${withdrawable <= 0 ? 'Insufficient Balance' : 'Request Withdrawal'}  
       </button>  
+
+      <div class="withdraw-form">
+        <div>
+          <label>Recipient name / account name</label>
+          <input type="text" class="wf-input-name" placeholder="e.g. John Doe" />
+        </div>
+        <div>
+          <label>Phone or account number</label>
+          <input type="text" class="wf-input-number" placeholder="e.g. 0550 000 000" />
+        </div>
+        <div class="withdraw-actions">
+          <button type="button" class="cancel">Cancel</button>
+          <button type="button" class="confirm">Confirm request</button>
+        </div>
+      </div>
     `;  
+
     walletContainer.appendChild(box);  
-  
-    box.querySelector(".btn-withdraw").onclick = (e) => requestWithdrawal(promoterId, currency, withdrawable, e.target);  
+
+    const withdrawBtn = box.querySelector(".btn-withdraw");
+    const form = box.querySelector(".withdraw-form");
+    const nameInput = box.querySelector(".wf-input-name");
+    const numberInput = box.querySelector(".wf-input-number");
+    const confirmBtn = box.querySelector(".withdraw-actions .confirm");
+    const cancelBtn = box.querySelector(".withdraw-actions .cancel");
+
+    // Only attach handlers if there is balance
+    if (withdrawable > 0) {
+      withdrawBtn.onclick = () => {
+        const isVisible = form.style.display === "block";
+        form.style.display = isVisible ? "none" : "block";
+        if (!isVisible) {
+          nameInput.focus();
+        }
+      };
+
+      cancelBtn.onclick = () => {
+        form.style.display = "none";
+        nameInput.value = "";
+        numberInput.value = "";
+      };
+
+      confirmBtn.onclick = async () => {
+        const recipientName = nameInput.value.trim();
+        const recipientNumber = numberInput.value.trim();
+
+        if (!recipientName) {
+          showNotif("Please enter a recipient / account name.", "error");
+          nameInput.focus();
+          return;
+        }
+
+        if (!recipientNumber) {
+          showNotif("Please enter a phone or account number.", "error");
+          numberInput.focus();
+          return;
+        }
+
+        const originalText = withdrawBtn.textContent;
+        withdrawBtn.textContent = "Processing...";
+        withdrawBtn.disabled = true;
+        confirmBtn.disabled = true;
+
+        try {
+          await requestWithdrawal(
+            promoterId,
+            currency,
+            withdrawable,
+            recipientName,
+            recipientNumber
+          );
+
+          showNotif(
+            `Withdrawal request for ${withdrawable.toFixed(2)} ${currency} submitted successfully!`
+          );
+
+          form.style.display = "none";
+          nameInput.value = "";
+          numberInput.value = "";
+          await loadWallet(promoterId);
+        } catch (err) {
+          console.error(err);
+          showNotif(err.message || "Failed to submit withdrawal request.", "error");
+        } finally {
+          withdrawBtn.disabled = false;
+          withdrawBtn.textContent = originalText;
+          confirmBtn.disabled = false;
+        }
+      };
+    }
   }  
 }  
   
@@ -257,86 +400,76 @@ function loadHistory(promoterId) {
   });  
 }  
   
-// --- Request Withdrawal (Fixed Transaction + Name/Number) ---  
-async function requestWithdrawal(promoterId, currency, withdrawableAmount, btn) {  
+// --- Request Withdrawal (uses inline form data, no prompts) ---  
+async function requestWithdrawal(promoterId, currency, withdrawableAmount, recipientName, recipientNumber) {  
   if (withdrawableAmount <= 0) {  
-    btn.disabled = true;  
-    return showNotif("No withdrawable balance", "error");  
+    throw new Error("No withdrawable balance.");  
   }  
 
-  // Collect payout details from promoter
-  const recipientName = prompt("Enter the name/account name to receive this payout:");
-  if (!recipientName || !recipientName.trim()) {
-    showNotif("Withdrawal cancelled: name is required.", "error");
-    return;
-  }
+  const dealsRef = collection(db, "promoter-earnings", promoterId, "deals");  
+  const q = query(
+    dealsRef,
+    where("withdrawalRequestId", "==", null),
+    where("offerCurrency", "==", currency)
+  );  
 
-  const recipientNumber = prompt("Enter the phone / account number to receive payment on:");
-  if (!recipientNumber || !recipientNumber.trim()) {
-    showNotif("Withdrawal cancelled: number is required.", "error");
-    return;
-  }
-  
-  const originalText = btn.textContent;  
-  btn.textContent = "Processing...";  
-  btn.disabled = true;  
-  
-  try {  
-    const dealsRef = collection(db, "promoter-earnings", promoterId, "deals");  
-    const q = query(dealsRef, where("withdrawalRequestId", "==", null), where("offerCurrency", "==", currency));  
-    const dealSnap = await getDocs(q);  
-  
-    if (dealSnap.empty) throw new Error("No eligible deals found.");  
-    const dealRefs = dealSnap.docs.map(d => doc(db, "promoter-earnings", promoterId, "deals", d.id));  
-  
-    await runTransaction(db, async (t) => {  
-      const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
-      const metaSnap = await t.get(metaRef);  
-      if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");  
-  
-      const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;  
-      if (currentBalance < withdrawableAmount) throw new Error("Balance changed. Refresh page.");  
-  
-      // --- READ ALL DEALS FIRST ---  
-      const dealDocs = await Promise.all(dealRefs.map(ref => t.get(ref)));  
-      for (const d of dealDocs) if (!d.exists()) throw new Error("Deal missing during transaction.");  
-  
-      // --- NOW DO WRITES ---  
-      const reqRef = doc(collection(db, "withdrawal-requests"));  
-      const withdrawalRequestId = reqRef.id;  
-  
-      t.set(reqRef, {  
-        withdrawalRequestId,  
-        promoterId,  
-        currency,  
-        amount: withdrawableAmount,  
-        status: "pending",  
-        requestedAt: serverTimestamp(),  
-        dealIds: dealRefs.map(r => r.id),
+  const dealSnap = await getDocs(q);  
+  if (dealSnap.empty) {  
+    throw new Error("No eligible deals found for withdrawal.");  
+  }  
 
-        // NEW: store payout info
-        recipientName: recipientName.trim(),
-        recipientNumber: recipientNumber.trim(),
+  const dealRefs = dealSnap.docs.map(d =>
+    doc(db, "promoter-earnings", promoterId, "deals", d.id)
+  );  
 
-        // Optional: also store who is making the request from session
-        promoterName: userSession?.name || "",
-        promoterEmail: userSession?.email || "",
-        promoterPhone: userSession?.phone || "",
-      });  
-  
-      dealRefs.forEach(ref => t.update(ref, { withdrawalRequestId, withdrawalRequestedAt: serverTimestamp() }));  
-      t.update(metaRef, { [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount) });  
+  await runTransaction(db, async (t) => {  
+    const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
+    const metaSnap = await t.get(metaRef);  
+    if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");  
+
+    const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;  
+    if (currentBalance < withdrawableAmount) {  
+      throw new Error("Balance changed. Please refresh the page and try again.");  
+    }  
+
+    // Read all deals inside the transaction
+    const dealDocs = await Promise.all(dealRefs.map(ref => t.get(ref)));  
+    for (const d of dealDocs) {
+      if (!d.exists()) throw new Error("One of the deals was missing during the transaction.");
+    }  
+
+    const reqRef = doc(collection(db, "withdrawal-requests"));  
+    const withdrawalRequestId = reqRef.id;  
+
+    t.set(reqRef, {  
+      withdrawalRequestId,  
+      promoterId,  
+      currency,  
+      amount: withdrawableAmount,  
+      status: "pending",  
+      requestedAt: serverTimestamp(),  
+      dealIds: dealRefs.map(r => r.id),
+
+      // payout info from inline form
+      recipientName: recipientName.trim(),  
+      recipientNumber: recipientNumber.trim(),  
+
+      // optional promoter info from session
+      promoterName: userSession?.name || "",  
+      promoterEmail: userSession?.email || "",  
+      promoterPhone: userSession?.phone || "",  
     });  
-  
-    showNotif(`Withdrawal request for ${withdrawableAmount.toFixed(2)} ${currency} submitted successfully!`);  
-    loadWallet(promoterId);  
-  
-  } catch (err) {  
-    showNotif(err.message, "error");  
-    btn.disabled = false;  
-    btn.textContent = originalText;  
-  }  
+
+    dealRefs.forEach(ref => t.update(ref, {  
+      withdrawalRequestId,  
+      withdrawalRequestedAt: serverTimestamp()  
+    }));  
+
+    t.update(metaRef, {  
+      [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount)  
+    });  
+  });  
 }  
 </script> 
 </body>  
-</html>
+  </html>
