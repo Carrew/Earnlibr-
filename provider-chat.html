@@ -47,6 +47,19 @@ header {
 .message.system { align-self:center; font-size:12px; color:var(--muted); background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 10px; text-align: center; }
 .message.deleted { font-style: italic; opacity: 0.6; }
 
+.message img {
+  max-width: 220px;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 4px;
+}
+.message video {
+  max-width: 220px;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 4px;
+}
+
 .messageTime { font-size:10px; opacity: 0.7; margin-top:5px; text-align:right; }
 
 /* Action Buttons */
@@ -60,7 +73,15 @@ header {
 
 /* Input Area */
 #typingIndicator { font-size:12px; color:var(--accent2); padding:5px 20px; display:none; }
-#inputContainer { display:flex; gap:10px; padding:15px; background: var(--card); }
+#inputContainer { display:flex; gap:10px; padding:15px; background: var(--card); align-items: center; }
+#attachLabel {
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  padding:0 4px;
+}
 #messageInput { flex:1; padding:12px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; outline: none; }
 #sendBtn { padding:0 20px; border:none; border-radius:8px; background:var(--accent2); color: #041018; font-weight:700; cursor:pointer; }
 
@@ -91,6 +112,10 @@ header {
     </div>
     <div id="messages"></div>
     <div id="inputContainer">
+      <!-- 📎 Attach button + hidden file input -->
+      <label id="attachLabel" for="mediaInput">📎
+        <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;" />
+      </label>
       <input type="text" id="messageInput" placeholder="Type a message..." />
       <button id="sendBtn">Send</button>
     </div>
@@ -108,6 +133,25 @@ let currentChatId = null;
 let unsubscribeMessages = null;
 let providerId = null;
 let allChats = [];
+let isSending = false;
+
+// 🔹 Cloudinary config – 
+const CLOUD_NAME = "dye3bda08";
+const UPLOAD_PRESET = "earnlibrmedia"; 
+
+async function uploadToCloudinary(file) {
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const res = await fetch(url, { method: "POST", body: formData });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error("Cloudinary upload failed: " + err);
+  }
+  return await res.json(); // has secure_url, resource_type, etc.
+}
 
 const mainContainer = document.getElementById("mainContainer");
 const chatList = document.getElementById("chatList");
@@ -118,6 +162,7 @@ const sendBtn = document.getElementById("sendBtn");
 const backBtn = document.getElementById("backBtn");
 const chatTitle = document.getElementById("chatTitle");
 const typingIndicator = document.getElementById("typingIndicator");
+const mediaInput = document.getElementById("mediaInput");
 
 auth.onAuthStateChanged(user => {
   if (!user) location.href = "login.html";
@@ -126,7 +171,11 @@ auth.onAuthStateChanged(user => {
 });
 
 function loadChats() {
-  const q = query(collection(db,"chats"), where("providerId","==",providerId), orderBy("lastMessage.timestamp","desc"));
+  const q = query(
+    collection(db,"chats"),
+    where("providerId","==",providerId),
+    orderBy("lastMessage.timestamp","desc")
+  );
   onSnapshot(q, snap => {
     document.getElementById("loading")?.remove();
     allChats = [];
@@ -172,10 +221,36 @@ function openChat(chatId){
       const div = document.createElement("div");
       div.className = `message ${msg.sender} ${msg.text === "[Message deleted]" ? 'deleted' : ''}`;
       
-      const time = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
-      
-      div.innerHTML = `<div>${msg.text}</div>
-                       <div class="messageTime">${time} ${msg.sender === "provider" ? (msg.seen ? "✓✓" : "✓") : ""}</div>`;
+      const time = msg.timestamp
+        ? new Date(msg.timestamp.seconds * 1000)
+            .toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+        : "";
+
+      // 🔹 Build message content (text / image / video)
+      let inner = "";
+
+      if (msg.type === "image" && msg.mediaUrl) {
+        inner += `<div><img src="${msg.mediaUrl}" alt="image" /></div>`;
+        if (msg.text && msg.text !== "📷 Image") {
+          inner += `<div>${msg.text}</div>`;
+        }
+      } else if (msg.type === "video" && msg.mediaUrl) {
+        inner += `<video controls>
+                    <source src="${msg.mediaUrl}" type="${msg.mediaMime || "video/mp4"}" />
+                  </video>`;
+        if (msg.text && msg.text !== "🎥 Video") {
+          inner += `<div>${msg.text}</div>`;
+        }
+      } else {
+        inner += `<div>${msg.text || ""}</div>`;
+      }
+
+      inner += `<div class="messageTime">
+                  ${time}
+                  ${msg.sender === "provider" ? (msg.seen ? " ✓✓" : " ✓") : ""}
+                </div>`;
+
+      div.innerHTML = inner;
 
       if(msg.sender === "provider" && msg.editable && msg.text !== "[Message deleted]"){
         const controls = document.createElement("div");
@@ -203,25 +278,68 @@ function openChat(chatId){
 }
 
 async function sendMessage(){
-  if(!currentChatId) return;
+  if(!currentChatId || isSending) return;
+
   const text = messageInput.value.trim();
-  if(!text) return;
-  messageInput.value = "";
+  const file = mediaInput.files[0];
+
+  if (!text && !file) return;
+
+  isSending = true;
+  sendBtn.disabled = true;
 
   const msgRef = collection(db, "chats", currentChatId, "messages");
   const batch = writeBatch(db);
 
-  // Lock the previous message so it's no longer editable
+  // Lock the previous provider message so it's no longer editable
   const lastQ = query(msgRef, where("sender","==","provider"), orderBy("timestamp","desc"), limit(1));
   const lastSnap = await getDocs(lastQ);
   lastSnap.forEach(ld => batch.update(ld.ref, { editable: false }));
 
-  const newMsg = { text, sender: "provider", timestamp: serverTimestamp(), seen: false, editable: true };
-  const newDocRef = doc(msgRef); 
-  batch.set(newDocRef, newMsg);
-  batch.update(doc(db,"chats",currentChatId), { lastMessage: newMsg, providerTyping: false });
+  let newMsg = {
+    sender: "provider",
+    timestamp: serverTimestamp(),
+    seen: false,
+    editable: true
+  };
 
-  await batch.commit();
+  try {
+    if (file) {
+      // 🔹 Upload to Cloudinary
+      const uploadRes = await uploadToCloudinary(file);
+      const msgType = uploadRes.resource_type === "video" ? "video" : "image";
+
+      newMsg = {
+        ...newMsg,
+        type: msgType,
+        mediaUrl: uploadRes.secure_url,
+        mediaMime: file.type || null,
+        text: text || (msgType === "video" ? "🎥 Video" : "📷 Image")
+      };
+
+      mediaInput.value = ""; // reset file input
+    } else {
+      // Text only
+      newMsg = {
+        ...newMsg,
+        type: "text",
+        text
+      };
+    }
+
+    messageInput.value = "";
+
+    const newDocRef = doc(msgRef); 
+    batch.set(newDocRef, newMsg);
+    batch.update(doc(db,"chats",currentChatId), { lastMessage: newMsg, providerTyping: false });
+
+    await batch.commit();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isSending = false;
+    sendBtn.disabled = false;
+  }
 }
 
 messageInput.oninput = () => {
