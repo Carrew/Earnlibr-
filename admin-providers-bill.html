@@ -272,18 +272,21 @@ function renderSkeleton(count = 3) {
 }
 
 // --- Utility: Notifications ---
-const showNotif = (msg, type = "success") => {
+function showNotif(msg, type) {
+  if (!type) type = "success";
   notif.textContent = msg;
-  notif.className = \`notif \${type} show\`;
-  setTimeout(() => {
+  notif.className = "notif " + type + " show";
+  setTimeout(function () {
     notif.classList.remove("show");
   }, 3500);
-};
+}
 
 // --- Utility: Button loading states ---
-function setButtonLoading(button, isLoading, loadingLabel = "Processing") {
+function setButtonLoading(button, isLoading, loadingLabel) {
   if (!button) return;
-  const originalLabel = button.getAttribute("data-original-label") || button.textContent.trim();
+  if (!loadingLabel) loadingLabel = "Processing";
+
+  var originalLabel = button.getAttribute("data-original-label") || button.textContent.trim();
 
   if (!button.getAttribute("data-original-label")) {
     button.setAttribute("data-original-label", originalLabel);
@@ -291,13 +294,11 @@ function setButtonLoading(button, isLoading, loadingLabel = "Processing") {
 
   if (isLoading) {
     button.disabled = true;
-    button.innerHTML = `
-      <span>${loadingLabel}</span>
-      <span class="loader" aria-hidden="true"></span>
-    `;
+    button.innerHTML = "<span>" + loadingLabel + "</span>" +
+      '<span class="loader" aria-hidden="true"></span>';
   } else {
     button.disabled = false;
-    const restored = button.getAttribute("data-original-label") || "Action";
+    var restored = button.getAttribute("data-original-label") || "Action";
     button.innerHTML = restored;
   }
 }
@@ -306,9 +307,9 @@ function setButtonLoading(button, isLoading, loadingLabel = "Processing") {
 async function sendNotifications(uid, title, message) {
   try {
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
-      title,
-      message,
+    batch.set(doc(collection(db, "notifications/" + uid + "/items")), {
+      title: title,
+      message: message,
       createdAt: serverTimestamp(),
       read: false
     });
@@ -336,9 +337,9 @@ onAuthStateChanged(auth, async (user) => {
 
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
     const data = adminDoc.exists() ? adminDoc.data() : null;
-    const role = data?.role || "admin";
+    const role = data && data.role ? data.role : "admin";
 
-    if (!["admin", "super_admin"].includes(role)) {
+    if (["admin", "super_admin"].indexOf(role) === -1) {
       localStorage.removeItem("userSession");
       window.location.href = "login.html";
       return;
@@ -346,7 +347,7 @@ onAuthStateChanged(auth, async (user) => {
 
     userSession = {
       uid: user.uid,
-      name: data?.name || user.email,
+      name: (data && data.name) ? data.name : user.email,
       email: user.email,
       role: role
     };
@@ -399,7 +400,7 @@ function loadDeals() {
           return;
         }
 
-        const commission = parseFloat(d.commissionEarned ?? 0);
+        const commission = parseFloat(d.commissionEarned || 0);
         if (isNaN(commission)) {
           console.warn("Skipping deal with invalid commissionEarned", docSnap.id);
           return;
@@ -469,7 +470,7 @@ function renderProviders() {
   let totalProviders = providerIds.length;
   let totalOffers = 0;
 
-  providerIds.forEach((providerId) => {
+  providerIds.forEach(function (providerId) {
     const p = grouped[providerId];
     const card = document.createElement("div");
     card.className = "provider-card";
@@ -478,7 +479,7 @@ function renderProviders() {
     totalOffers += offersArray.length;
 
     let totalsHTML = "";
-    offersArray.forEach((offer) => {
+    offersArray.forEach(function (offer) {
       const formattedTotal = (offer.total || 0).toFixed(2);
       totalsHTML += `
         <div>
@@ -505,7 +506,9 @@ function renderProviders() {
     const breakdown = card.querySelector(".offer-breakdown");
     const toggleBtn = card.querySelector(".toggle-offers");
 
-    Object.entries(p.offers).forEach(([offerId, offer]) => {
+    Object.keys(p.offers).forEach(function (offerId) {
+      const offer = p.offers[offerId];
+
       const offerBox = document.createElement("div");
       offerBox.className = "offer-box";
       offerBox.setAttribute("data-offer-id", offerId);
@@ -522,9 +525,9 @@ function renderProviders() {
         </div>
       `;
 
-      offer.deals.forEach((deal) => {
+      offer.deals.forEach(function (deal) {
         const d = document.createElement("div");
-        d.textContent = \`Deal \${deal.dealId} | \${deal.clientName} | +\${deal.commissionEarned}\`;
+        d.textContent = "Deal " + deal.dealId + " | " + deal.clientName + " | +" + deal.commissionEarned;
         offerBox.appendChild(d);
       });
 
@@ -534,7 +537,7 @@ function renderProviders() {
       sendBtn.disabled = !isEligible;
       sendBtn.type = "button";
 
-      sendBtn.onclick = () => {
+      sendBtn.onclick = function () {
         sendBill(providerId, offerId, offer, offerBox, sendBtn);
       };
 
@@ -542,23 +545,22 @@ function renderProviders() {
       breakdown.appendChild(offerBox);
     });
 
-    toggleBtn.onclick = () => {
-      const isHidden = breakdown.style.display === "none" || !breakdown.style.display;
+    toggleBtn.onclick = function () {
+      const isHidden = breakdown.style.display === "none" || breakdown.style.display === "";
       breakdown.style.display = isHidden ? "block" : "none";
       toggleBtn.textContent = isHidden ? "Hide Details" : "Show Details";
-      toggleBtn.setAttribute("aria-expanded", String(isHidden));
+      toggleBtn.setAttribute("aria-expanded", isHidden ? "true" : "false");
     };
 
     providersContainer.appendChild(card);
   });
 
-  summaryText.textContent = `${totalProviders} provider(s), ${totalOffers} offer(s) loaded.`;
+  summaryText.textContent = totalProviders + " provider(s), " + totalOffers + " offer(s) loaded.";
 }
 
 // --- Send Single Offer Bill ---
 async function sendBill(providerId, offerId, offer, offerBox, button) {
   try {
-    // Defensive checks
     if (!grouped[providerId]) {
       throw new Error("Provider data not found. Try refreshing the page.");
     }
@@ -570,7 +572,7 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
     }
 
     const currency = offer.currency || "USD";
-    const total = parseFloat(offer.total ?? 0);
+    const total = parseFloat(offer.total || 0);
     const threshold = THRESHOLDS[currency] || 0;
 
     if (isNaN(total) || total <= 0) {
@@ -578,11 +580,11 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
     }
 
     if (total < threshold) {
-      showNotif(`Below threshold of ${threshold} ${currency}`, "error");
+      showNotif("Below threshold of " + threshold + " " + currency, "error");
       return;
     }
 
-    const dealIds = (offer.deals || []).map(d => d.dealId).filter(Boolean);
+    const dealIds = (offer.deals || []).map(function (d) { return d.dealId; }).filter(function (id) { return !!id; });
     if (dealIds.length === 0) {
       throw new Error("No deals found to bill for this offer.");
     }
@@ -601,8 +603,8 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
       }
 
       const offerData = offerSnap.data() || {};
-      const currentOutstanding = parseFloat((offerData.outstandingBalance ?? 0).toFixed(2));
-      const currentBilled = parseFloat(offerData.amountBilled ?? 0);
+      const currentOutstanding = parseFloat(Number(offerData.outstandingBalance || 0).toFixed(2));
+      const currentBilled = parseFloat(offerData.amountBilled || 0);
 
       const billAmount = parseFloat(total.toFixed(2));
 
@@ -611,10 +613,10 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
       }
 
       const billData = {
-        billId,
-        providerId,
+        billId: billId,
+        providerId: providerId,
         providerName: grouped[providerId].name,
-        offerId,
+        offerId: offerId,
         offerTitle: offer.offerTitle,
         currency: currency,
         total: billAmount,
@@ -628,7 +630,7 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
       };
 
       t.set(billRef, billData);
-      t.set(doc(db, `providers/${providerId}/bills/${billId}`), billData);
+      t.set(doc(db, "providers/" + providerId + "/bills/" + billId), billData);
       t.update(offerRef, {
         amountBilled: currentBilled + billAmount,
         outstandingBalance: currentOutstanding - billAmount
@@ -637,7 +639,7 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
 
     // Mark deals as billed
     const batch = writeBatch(db);
-    dealIds.forEach((dealId) => {
+    dealIds.forEach(function (dealId) {
       batch.update(doc(db, "completed-deals", dealId), {
         billedBy: billId,
         billedAt: serverTimestamp()
@@ -648,32 +650,32 @@ async function sendBill(providerId, offerId, offer, offerBox, button) {
     // Notify provider
     await sendNotifications(
       providerId,
-      `New Bill Ready 🧾`,
-      `Bill ${billId} for ${offer.offerTitle} totaling ${total.toFixed(2)} ${currency} has been generated.`
+      "New Bill Ready 🧾",
+      "Bill " + billId + " for " + offer.offerTitle + " totaling " + total.toFixed(2) + " " + currency + " has been generated."
     );
 
     // UI cleanup
-    const breakdown = offerBox.parentElement; // parent of this offer box
+    const breakdown = offerBox.parentElement;
     offerBox.remove();
 
     if (breakdown && breakdown.children.length === 0) {
-      const card = breakdown.parentElement; // provider card
+      const card = breakdown.parentElement;
       if (card) {
         card.remove();
       }
     }
 
-    showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`, "success");
+    showNotif("Bill " + billId + " sent successfully for " + offer.offerTitle, "success");
   } catch (err) {
     console.error("Billing Error:", err);
-    showNotif(`Billing Failed: ${err.message}`, "error");
+    showNotif("Billing Failed: " + err.message, "error");
   } finally {
     setButtonLoading(button, false);
   }
 }
 
 // --- Send All Eligible Bills ---
-sendAllBtn.onclick = async () => {
+sendAllBtn.onclick = async function () {
   try {
     const providers = Object.entries(grouped || {});
     if (providers.length === 0) {
@@ -683,25 +685,34 @@ sendAllBtn.onclick = async () => {
 
     const eligibleOffers = [];
 
-    providers.forEach(([providerId, p]) => {
-      Object.entries(p.offers || {}).forEach(([offerId, offer]) => {
+    providers.forEach(function (entry) {
+      const providerId = entry[0];
+      const p = entry[1];
+
+      Object.entries(p.offers || {}).forEach(function (offerEntry) {
+        const offerId = offerEntry[0];
+        const offer = offerEntry[1];
+
         const currency = offer.currency || "USD";
-        const total = parseFloat(offer.total ?? 0);
+        const total = parseFloat(offer.total || 0);
         const threshold = THRESHOLDS[currency] || 0;
 
         if (!isNaN(total) && total >= threshold) {
-          // Try to locate the corresponding card & offerBox in the DOM
-          const card = Array.from(document.querySelectorAll(".provider-card"))
-            .find(c => c.querySelector(".provider-name")?.textContent === p.name);
+          const cards = Array.from(document.querySelectorAll(".provider-card"));
+          const card = cards.find(function (c) {
+            const nameEl = c.querySelector(".provider-name");
+            return nameEl && nameEl.textContent === p.name;
+          });
 
           if (!card) return;
 
           const breakdown = card.querySelector(".offer-breakdown");
           if (!breakdown) return;
 
-          const offerBox = Array.from(breakdown.children).find(b => {
+          const offerBoxes = Array.from(breakdown.children);
+          const offerBox = offerBoxes.find(function (b) {
             const strongEl = b.querySelector("strong");
-            return strongEl && strongEl.textContent.includes(offer.offerTitle);
+            return strongEl && strongEl.textContent.indexOf(offer.offerTitle) !== -1;
           });
 
           if (!offerBox) return;
@@ -709,7 +720,7 @@ sendAllBtn.onclick = async () => {
           const sendBtn = offerBox.querySelector("button.btn");
           if (!sendBtn || sendBtn.disabled) return;
 
-          eligibleOffers.push({ providerId, offerId, offer, offerBox, sendBtn });
+          eligibleOffers.push({ providerId: providerId, offerId: offerId, offer: offer, offerBox: offerBox, sendBtn: sendBtn });
         }
       });
     });
@@ -722,14 +733,15 @@ sendAllBtn.onclick = async () => {
     setButtonLoading(sendAllBtn, true, "Sending All Bills");
     showNotif("Processing all eligible bills...", "info");
 
-    for (const { providerId, offerId, offer, offerBox, sendBtn } of eligibleOffers) {
-      await sendBill(providerId, offerId, offer, offerBox, sendBtn);
+    for (let i = 0; i < eligibleOffers.length; i++) {
+      const item = eligibleOffers[i];
+      await sendBill(item.providerId, item.offerId, item.offer, item.offerBox, item.sendBtn);
     }
 
-    showNotif(`${eligibleOffers.length} eligible bill(s) processed.`, "success");
+    showNotif(eligibleOffers.length + " eligible bill(s) processed.", "success");
   } catch (err) {
     console.error("SendAll error:", err);
-    showNotif(`Failed to send all bills: ${err.message}`, "error");
+    showNotif("Failed to send all bills: " + err.message, "error");
   } finally {
     setButtonLoading(sendAllBtn, false);
   }
