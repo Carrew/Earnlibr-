@@ -186,6 +186,53 @@ header {
 .editBtn:hover { background:rgba(0,0,0,0.2); }
 .delBtn:hover { background:#ef4444; color:#fff; }
 
+/* Inline edit / delete UI */
+.inlineEdit,
+.deleteConfirm {
+  margin-top:6px;
+  padding-top:6px;
+  border-top:1px solid rgba(0,0,0,0.12);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+}
+
+.inlineEditInput {
+  flex:1;
+  padding:4px 8px;
+  border-radius:6px;
+  border:1px solid #1a2235;
+  background:#0b1120;
+  color:#e2e8f0;
+  outline:none;
+  font-size:12px;
+}
+
+.inlineBtn {
+  border:none;
+  border-radius:6px;
+  padding:3px 8px;
+  font-size:11px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.inlineBtn.primary {
+  background:var(--accent2);
+  color:#041018;
+}
+
+.inlineBtn.ghost {
+  background:rgba(15,23,42,0.8);
+  color:#e2e8f0;
+}
+
+.inlineBtn.danger {
+  background:#ef4444;
+  color:#fff;
+}
+
 /* Input Area */
 #typingIndicator {
   font-size:12px;
@@ -511,27 +558,117 @@ function openChat(chatId) {
             <button class="delBtn">Delete</button>
           `;
 
+          // Inline editor instead of prompt
           controls.querySelector(".editBtn").onclick = () => {
-            const newT = prompt("Edit your message:", msg.text || "");
-            if (newT && newT !== msg.text) {
-              updateDoc(d.ref, { text:newT }).catch(() => {
+            // Avoid multiple editors on the same message
+            if (div.querySelector(".inlineEdit")) return;
+
+            const editWrapper = document.createElement("div");
+            editWrapper.className = "inlineEdit";
+
+            const input = document.createElement("input");
+            input.className = "inlineEditInput";
+            input.type = "text";
+            input.value = msg.text || "";
+
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "inlineBtn primary";
+            saveBtn.textContent = "Save";
+
+            const cancelBtn = document.createElement("button");
+            cancelBtn.className = "inlineBtn ghost";
+            cancelBtn.textContent = "Cancel";
+
+            editWrapper.appendChild(input);
+            editWrapper.appendChild(saveBtn);
+            editWrapper.appendChild(cancelBtn);
+            div.appendChild(editWrapper);
+
+            input.focus();
+            input.select();
+
+            const cleanup = () => {
+              if (editWrapper.parentNode) {
+                editWrapper.parentNode.removeChild(editWrapper);
+              }
+            };
+
+            cancelBtn.onclick = cleanup;
+
+            saveBtn.onclick = async () => {
+              const newT = input.value.trim();
+              if (!newT || newT === msg.text) {
+                cleanup();
+                return;
+              }
+              try {
+                await updateDoc(d.ref, { text: newT });
+                showToast("Message updated", 2000);
+              } catch (e) {
+                console.error(e);
                 showToast("Could not edit message.");
-              });
-            }
+              } finally {
+                cleanup();
+              }
+            };
+
+            // Enter to save, Escape to cancel
+            input.onkeydown = e => {
+              if (e.key === "Enter") {
+                saveBtn.click();
+              } else if (e.key === "Escape") {
+                cleanup();
+              }
+            };
           };
 
-          controls.querySelector(".delBtn").onclick = async () => {
-            if (!confirm("Delete this message?")) return;
-            try {
-              await updateDoc(d.ref, {
-                deleted:true,
-                text:"[Message deleted]",
-                editable:false
-              });
-            } catch (e) {
-              console.error(e);
-              showToast("Could not delete message.");
-            }
+          // Inline delete confirmation instead of confirm()
+          controls.querySelector(".delBtn").onclick = () => {
+            // Avoid stacking multiple confirmations
+            if (div.querySelector(".deleteConfirm")) return;
+
+            const confirmRow = document.createElement("div");
+            confirmRow.className = "deleteConfirm";
+
+            const label = document.createElement("span");
+            label.textContent = "Delete this message?";
+
+            const yesBtn = document.createElement("button");
+            yesBtn.className = "inlineBtn danger";
+            yesBtn.textContent = "Delete";
+
+            const noBtn = document.createElement("button");
+            noBtn.className = "inlineBtn ghost";
+            noBtn.textContent = "Cancel";
+
+            confirmRow.appendChild(label);
+            confirmRow.appendChild(yesBtn);
+            confirmRow.appendChild(noBtn);
+            div.appendChild(confirmRow);
+
+            const cleanup = () => {
+              if (confirmRow.parentNode) {
+                confirmRow.parentNode.removeChild(confirmRow);
+              }
+            };
+
+            noBtn.onclick = cleanup;
+
+            yesBtn.onclick = async () => {
+              try {
+                await updateDoc(d.ref, {
+                  deleted:true,
+                  text:"[Message deleted]",
+                  editable:false
+                });
+                showToast("Message deleted", 2000);
+              } catch (e) {
+                console.error(e);
+                showToast("Could not delete message.");
+              } finally {
+                cleanup();
+              }
+            };
           };
 
           div.appendChild(controls);
@@ -671,7 +808,6 @@ async function sendMessage() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 }
-
 /* Typing indicator for provider */
 messageInput.oninput = () => {
   if (!currentChatId) return;
