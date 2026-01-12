@@ -253,7 +253,6 @@ const THRESHOLDS = { USD: 1, LRD: 300 };
 let grouped = {}; 
 let dealsCache = {}; 
 let unsubscribeDeals = null;
-let isInitialLoad = true;
 
 // --- Utility: Skeleton loading ---
 function renderSkeleton(count = 3) {
@@ -275,7 +274,7 @@ function renderSkeleton(count = 3) {
 // --- Utility: Notifications ---
 const showNotif = (msg, type = "success") => {
   notif.textContent = msg;
-  notif.className = `notif ${type} show`;
+  notif.className = \`notif \${type} show\`;
   setTimeout(() => {
     notif.classList.remove("show");
   }, 3500);
@@ -307,7 +306,7 @@ function setButtonLoading(button, isLoading, loadingLabel = "Processing") {
 async function sendNotifications(uid, title, message) {
   try {
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, \`notifications/\${uid}/items\`)), {
+    batch.set(doc(collection(db, `notifications/${uid}/items`)), {
       title,
       message,
       createdAt: serverTimestamp(),
@@ -387,7 +386,6 @@ function loadDeals() {
           </div>
         `;
         summaryText.textContent = "";
-        isInitialLoad = false;
         return;
       }
 
@@ -404,7 +402,7 @@ function loadDeals() {
         const commission = parseFloat(d.commissionEarned ?? 0);
         if (isNaN(commission)) {
           console.warn("Skipping deal with invalid commissionEarned", docSnap.id);
-          continue;
+          return;
         }
 
         dealsCache[docSnap.id] = {
@@ -438,7 +436,6 @@ function loadDeals() {
       });
 
       renderProviders();
-      isInitialLoad = false;
     },
     (error) => {
       console.error("Snapshot error:", error);
@@ -527,7 +524,7 @@ function renderProviders() {
 
       offer.deals.forEach((deal) => {
         const d = document.createElement("div");
-        d.textContent = `Deal ${deal.dealId} | ${deal.clientName} | +${deal.commissionEarned}`;
+        d.textContent = \`Deal \${deal.dealId} | \${deal.clientName} | +\${deal.commissionEarned}\`;
         offerBox.appendChild(d);
       });
 
