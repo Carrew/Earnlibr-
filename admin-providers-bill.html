@@ -249,12 +249,21 @@ async function sendBill(providerId, offerId, offer, offerBox, button){
     });
     await batch.commit();
 
-    await sendNotifications(providerId, `New Bill Ready 🧾`, `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated.`);
+    await sendNotifications(
+      providerId, 
+      `New Bill Ready 🧾`, 
+      `Bill ${billId} for ${offer.offerTitle} totaling ${offer.total.toFixed(2)} ${offer.currency} has been generated.`
+    );
 
-    offerBox.remove();
-    const breakdown = offerBox.parentElement;
-    if(breakdown.children.length === 0){
-      breakdown.parentElement.remove();
+    // ✅ FIXED DOM CLEANUP: get parent before removing, and guard against null
+    const breakdown = offerBox.parentElement; // parent of this offer box
+    offerBox.remove(); // remove this offer from the UI
+
+    if (breakdown && breakdown.children.length === 0) {
+      const card = breakdown.parentElement; // provider card
+      if (card) {
+        card.remove();
+      }
     }
 
     showNotif(`Bill ${billId} sent successfully for ${offer.offerTitle}`);
