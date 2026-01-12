@@ -7,50 +7,137 @@
 
 <style>
 :root {
-  --bg:#0b0d17; --card:#0f1724; --accent1:#4a90e2; --accent2:#a3ff6e; --muted:#94a3b8; --radius:14px;
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#94a3b8;
+  --radius:14px;
 }
+
 body {
-  margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; height:100vh; display:flex; flex-direction:column;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:#fff;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
 }
+
 header {
-  background:var(--card); padding:16px; font-size:18px; font-weight:700; text-align:center; border-bottom:1px solid #1a2235;
+  background:var(--card);
+  padding:16px;
+  font-size:18px;
+  font-weight:700;
+  text-align:center;
+  border-bottom:1px solid #1a2235;
 }
+
+/* Messages area */
 #messagesContainer {
-  flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+  flex:1;
+  padding:16px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
-.message { max-width:80%; padding:10px 14px; border-radius:var(--radius); line-height:1.4; font-size:14px; position: relative; }
+
+.message {
+  max-width:80%;
+  padding:10px 14px;
+  border-radius:var(--radius);
+  line-height:1.4;
+  font-size:14px;
+  position:relative;
+}
 
 /* Client is left (Blue), Provider is right (Green) */
-.message.client { align-self:flex-start; background:rgba(74,144,226,0.2); color:#cfe7ff; border-bottom-left-radius:4px; }
-.message.provider { align-self:flex-end; background:var(--accent2); color:#041018; border-bottom-right-radius:4px; font-weight: 500; }
-.message.system { align-self:center; max-width:90%; background:rgba(148,163,184,0.12); color:var(--muted); font-size:12px; text-align:center; border-radius:10px; padding: 8px 12px; }
+.message.client {
+  align-self:flex-start;
+  background:rgba(74,144,226,0.2);
+  color:#cfe7ff;
+  border-bottom-left-radius:4px;
+}
+.message.provider {
+  align-self:flex-end;
+  background:var(--accent2);
+  color:#041018;
+  border-bottom-right-radius:4px;
+  font-weight:500;
+}
+.message.system {
+  align-self:center;
+  max-width:90%;
+  background:rgba(148,163,184,0.12);
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+  border-radius:10px;
+  padding:8px 12px;
+}
 
-.message.deleted { font-style: italic; opacity:0.6; }
-.messageTime { font-size:10px; opacity:0.7; margin-top:5px; text-align:right; }
+.message.deleted {
+  font-style:italic;
+  opacity:0.6;
+}
+
+.messageTime {
+  font-size:10px;
+  opacity:0.7;
+  margin-top:5px;
+  text-align:right;
+}
 
 /* Media inside message */
-.message img {
-  max-width: 220px;
-  border-radius: 10px;
-  display: block;
-  margin-bottom: 4px;
-}
+.message img,
 .message video {
-  max-width: 220px;
-  border-radius: 10px;
-  display: block;
-  margin-bottom: 4px;
+  max-width:240px;
+  border-radius:10px;
+  display:block;
+  margin-bottom:4px;
 }
 
 /* Action Buttons */
-.controls { display:flex; gap:8px; margin-top:8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
-.editBtn, .delBtn {
-  background: rgba(255,255,255,0.1); border:none; font-size:10px; padding:3px 8px; border-radius:4px; cursor:pointer; color:#fff;
+.controls {
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding-top:5px;
 }
-.delBtn:hover { background:#ef4444; }
+.editBtn, .delBtn {
+  background:rgba(255,255,255,0.1);
+  border:none;
+  font-size:10px;
+  padding:3px 8px;
+  border-radius:4px;
+  cursor:pointer;
+  color:#fff;
+}
+.delBtn:hover {
+  background:#ef4444;
+}
 
-#typingIndicator { font-size:12px; color:var(--accent2); padding:5px 16px; font-style:italic; display:none; }
-#inputContainer { display:flex; gap:10px; padding:14px; background:var(--card); border-top:1px solid #1a2235; align-items:center; }
+/* Typing indicator */
+#typingIndicator {
+  font-size:12px;
+  color:var(--accent2);
+  padding:5px 16px;
+  font-style:italic;
+  display:none;
+}
+
+/* Input bar */
+#inputContainer {
+  display:flex;
+  gap:10px;
+  padding:14px;
+  background:var(--card);
+  border-top:1px solid #1a2235;
+  align-items:center;
+}
 
 #attachLabel {
   cursor:pointer;
@@ -61,8 +148,60 @@ header {
   padding:0 4px;
 }
 
-#messageInput { flex:1; padding:12px; border-radius:8px; border:1px solid #1a2235; background:#141f33; color:#fff; outline:none; }
-#sendBtn { padding:0 20px; border:none; border-radius:8px; background:var(--accent2); color:#041018; font-weight:600; cursor:pointer; }
+/* hidden file input, we use label as the button */
+#mediaInput {
+  display:none;
+}
+
+/* Media preview (before sending) */
+#mediaPreview {
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  max-width:100px;
+  gap:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+#mediaPreview img,
+#mediaPreview video {
+  max-width:100px;
+  border-radius:8px;
+}
+
+#messageInput {
+  flex:1;
+  padding:12px;
+  border-radius:8px;
+  border:1px solid #1a2235;
+  background:#141f33;
+  color:#fff;
+  outline:none;
+}
+#sendBtn {
+  padding:0 20px;
+  border:none;
+  border-radius:8px;
+  background:var(--accent2);
+  color:#041018;
+  font-weight:600;
+  cursor:pointer;
+}
+
+/* Toast Message */
+#toast {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#0f1724;
+  padding:10px 14px;
+  border-radius:8px;
+  font-size:13px;
+  display:none;
+  color:#fff;
+  box-shadow:0 5px 20px rgba(0,0,0,0.4);
+  z-index:200;
+}
 </style>
 </head>
 
@@ -71,50 +210,93 @@ header {
 <header>Secure Chat</header>
 
 <div id="messagesContainer">
-  <div id="loading">Loading messages…</div>
+  <div id="loading">Loading chat…</div>
 </div>
 
 <div id="typingIndicator">Provider is typing...</div>
 
 <div id="inputContainer">
-  <!-- 📎 Attach button + hidden file input -->
-  <label id="attachLabel" for="mediaInput">📎
-    <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;" />
-  </label>
-  <input id="messageInput" placeholder="Type a message…" autocomplete="off" />
+  <!-- Attach button + hidden file input -->
+  <label id="attachLabel" for="mediaInput">📎</label>
+  <input type="file" id="mediaInput" accept="image/*,video/*" />
+  <div id="mediaPreview"></div>
+
+  <input
+    id="messageInput"
+    placeholder="Type a message…"
+    autocomplete="off"
+  />
   <button id="sendBtn">Send</button>
 </div>
+
+<div id="toast"></div>
 
 <script type="module">
 import { db } from "./firebase.js";
 import {
-  doc, getDoc, collection, addDoc, onSnapshot,
-  query, orderBy, serverTimestamp, updateDoc, getDocs, writeBatch, limit, where
+  doc,
+  getDoc,
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
+  getDocs,
+  limit
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+/* ─────────────────────────
+   URL param / chat validation
+   ───────────────────────── */
 const params = new URLSearchParams(window.location.search);
 const dealId = params.get("deal");
 
-if(!dealId){
-  document.body.innerHTML="<p style='padding:20px;color:red'>Invalid chat link.</p>";
+if (!dealId) {
+  document.body.innerHTML = "<p style='padding:20px;color:red;'>Invalid chat link.</p>";
   throw new Error("Missing deal ID");
 }
 
+/* ─────────────────────────
+   Cloudinary config
+   ───────────────────────── */
+const CLOUD_NAME = "dye3bda08";        
+const UPLOAD_PRESET = "earnlibrmedia";
+
+/* ─────────────────────────
+   DOM refs
+   ───────────────────────── */
 const messagesContainer = document.getElementById("messagesContainer");
-const input = document.getElementById("messageInput");
+const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const typingIndicator = document.getElementById("typingIndicator");
 const mediaInput = document.getElementById("mediaInput");
+const mediaPreview = document.getElementById("mediaPreview");
+const toastEl = document.getElementById("toast");
 
-const chatRef = doc(db,"chats",dealId);
-const messagesRef = collection(chatRef,"messages");
+/* Firestore refs */
+const chatRef = doc(db, "chats", dealId);
+const messagesRef = collection(chatRef, "messages");
 
 let isSending = false;
 
-// 🔹 Cloudinary config 
-const CLOUD_NAME = "dye3bda08";
-const UPLOAD_PRESET = "earnlibrmedia"; 
+/* ─────────────────────────
+   Toast helper
+   ───────────────────────── */
+function showToast(msg, time = 2600) {
+  toastEl.innerText = msg;
+  toastEl.style.display = "block";
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => {
+    toastEl.style.display = "none";
+  }, time);
+}
 
+/* ─────────────────────────
+   Cloudinary upload
+   ───────────────────────── */
 async function uploadToCloudinary(file) {
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
   const formData = new FormData();
@@ -123,106 +305,163 @@ async function uploadToCloudinary(file) {
 
   const res = await fetch(url, { method: "POST", body: formData });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error("Cloudinary upload failed: " + err);
+    const errText = await res.text();
+    throw new Error("Cloudinary upload failed: " + errText);
   }
-  return await res.json(); // secure_url, resource_type, etc
+  return await res.json(); // { secure_url, resource_type, ... }
 }
 
-// 1. Initial Load check
+/* ─────────────────────────
+   Initial chat existence check
+   ───────────────────────── */
 const chatSnap = await getDoc(chatRef);
-if(!chatSnap.exists()){
-  document.body.innerHTML="<p style='padding:20px;color:red'>Chat not found.</p>";
+if (!chatSnap.exists()) {
+  document.body.innerHTML = "<p style='padding:20px;color:red;'>Chat not found.</p>";
   throw new Error("Chat not found");
 }
 
-// 2. Real-time Message Listener
-onSnapshot(query(messagesRef, orderBy("timestamp","asc")), snap => {
+/* ─────────────────────────
+   Real-time messages listener
+   ───────────────────────── */
+onSnapshot(query(messagesRef, orderBy("timestamp", "asc")), snap => {
   document.getElementById("loading")?.remove();
-  messagesContainer.innerHTML="";
-  snap.forEach(d => {
-    const m = d.data();
-    const div = document.createElement("div");
-    div.className = `message ${m.sender} ${m.text==="[Message deleted]"?"deleted":""}`;
+  messagesContainer.innerHTML = "";
 
-    const time = m.timestamp
-      ? new Date(m.timestamp.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+  snap.forEach(docSnap => {
+    const m = docSnap.data();
+
+    const isDeleted = !!m.deleted || m.text === "[Message deleted]";
+
+    const div = document.createElement("div");
+    div.className = `message ${m.sender} ${isDeleted ? "deleted" : ""}`;
+
+    const timeStr = m.timestamp
+      ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
       : "";
 
-    // 🔹 Build message body (media + optional text)
     let inner = "";
 
-    if (m.type === "image" && m.mediaUrl) {
-      inner += `<div><img src="${m.mediaUrl}" alt="image" /></div>`;
+    if (isDeleted) {
+      // Always show a placeholder bubble when deleted
+      inner += `<div>[Message deleted]</div>`;
+    } else if (m.type === "image" && m.mediaUrl) {
+      inner += `<img src="${m.mediaUrl}" alt="image" />`;
       if (m.text && m.text !== "📷 Image") {
         inner += `<div>${m.text}</div>`;
       }
     } else if (m.type === "video" && m.mediaUrl) {
-      inner += `<video controls>
-                  <source src="${m.mediaUrl}" type="${m.mediaMime || "video/mp4"}" />
-                </video>`;
+      inner += `
+        <video controls>
+          <source src="${m.mediaUrl}" type="${m.mediaMime || "video/mp4"}" />
+        </video>`;
       if (m.text && m.text !== "🎥 Video") {
         inner += `<div>${m.text}</div>`;
       }
     } else {
-      inner += `<div>${m.text}</div>`;
+      inner += `<div>${m.text || ""}</div>`;
     }
 
-    inner += `<div class="messageTime">${time}</div>`;
+    inner += `<div class="messageTime">${timeStr}</div>`;
     div.innerHTML = inner;
 
-    // Only allow edit/delete for client's own messages that are still 'editable'
-    if(m.sender==="client" && m.editable && m.text!=="[Message deleted]"){
+    // Edit/delete controls only for client's own non-deleted messages that are still editable
+    if (m.sender === "client" && m.editable && !isDeleted) {
       const controls = document.createElement("div");
-      controls.className="controls";
-      controls.innerHTML=`<button class="editBtn">Edit</button><button class="delBtn">Delete</button>`;
+      controls.className = "controls";
+      controls.innerHTML = `
+        <button class="editBtn">Edit</button>
+        <button class="delBtn">Delete</button>
+      `;
 
       controls.querySelector(".editBtn").onclick = () => {
-        const newT = prompt("Edit your message:", m.text);
-        if(newT && newT!==m.text) updateDoc(d.ref,{text:newT});
+        const newText = prompt("Edit your message:", m.text || "");
+        if (newText && newText !== m.text) {
+          updateDoc(docSnap.ref, { text: newText });
+        }
       };
+
       controls.querySelector(".delBtn").onclick = async () => {
-        if(confirm("Delete this message?")) await updateDoc(d.ref,{text:"[Message deleted]", editable:false});
+        if (confirm("Delete this message?")) {
+          await updateDoc(docSnap.ref, {
+            deleted: true,
+            text: "[Message deleted]",
+            editable: false
+          });
+        }
       };
+
       div.appendChild(controls);
     }
+
     messagesContainer.appendChild(div);
   });
+
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 });
 
-// 3. Provider Typing Listener
+/* ─────────────────────────
+   Provider typing listener
+   ───────────────────────── */
 onSnapshot(chatRef, snap => {
-  if(snap.exists()){
-    typingIndicator.style.display = snap.data().providerTyping ? "block" : "none";
+  if (!snap.exists()) return;
+  typingIndicator.style.display = snap.data().providerTyping ? "block" : "none";
+});
+
+/* ─────────────────────────
+   Media preview logic
+   ───────────────────────── */
+mediaInput.addEventListener("change", () => {
+  const file = mediaInput.files[0];
+
+  if (!file) {
+    mediaPreview.style.display = "none";
+    mediaPreview.innerHTML = "";
+    return;
+  }
+
+  mediaPreview.style.display = "flex";
+  mediaPreview.innerHTML = "";
+
+  if (file.type.startsWith("image/")) {
+    const img = document.createElement("img");
+    const reader = new FileReader();
+    reader.onload = e => (img.src = e.target.result);
+    reader.readAsDataURL(file);
+    mediaPreview.appendChild(img);
+  } else if (file.type.startsWith("video/")) {
+    mediaPreview.innerHTML = `<span>📹 ${file.name}</span>`;
   }
 });
 
-// 4. Send Message Logic (text + optional media)
-async function sendMessage(){
+/* ─────────────────────────
+   Send message (text + optional media)
+   ───────────────────────── */
+async function sendMessage() {
   if (isSending) return;
 
-  const text = input.value.trim();
+  const text = messageInput.value.trim();
   const file = mediaInput.files[0];
 
-  if(!text && !file) return;
+  if (!text && !file) return;
 
-  input.value = "";
-  sendBtn.disabled = true;
   isSending = true;
+  sendBtn.disabled = true;
 
   try {
     const batch = writeBatch(db);
 
-    // Lock the previous client message
+    // Lock previous client message
     const lastQ = query(
       messagesRef,
-      where("sender","==","client"),
-      orderBy("timestamp","desc"),
+      where("sender", "==", "client"),
+      orderBy("timestamp", "desc"),
       limit(1)
     );
     const lastSnap = await getDocs(lastQ);
-    lastSnap.forEach(d => batch.update(d.ref, {editable: false}));
+    lastSnap.forEach(d => batch.update(d.ref, { editable: false }));
 
     let newMsg = {
       sender: "client",
@@ -231,21 +470,17 @@ async function sendMessage(){
     };
 
     if (file) {
-      // Upload to Cloudinary
       const uploadRes = await uploadToCloudinary(file);
-      const msgType = uploadRes.resource_type === "video" ? "video" : "image";
+      const isVideo = uploadRes.resource_type === "video";
 
       newMsg = {
         ...newMsg,
-        type: msgType,
+        type: isVideo ? "video" : "image",
         mediaUrl: uploadRes.secure_url,
         mediaMime: file.type || null,
-        text: text || (msgType === "video" ? "🎥 Video" : "📷 Image")
+        text: text || (isVideo ? "🎥 Video" : "📷 Image")
       };
-
-      mediaInput.value = ""; // reset file input
     } else {
-      // Text-only message
       newMsg = {
         ...newMsg,
         type: "text",
@@ -253,31 +488,47 @@ async function sendMessage(){
       };
     }
 
-    const newDoc = doc(messagesRef);
-    batch.set(newDoc, newMsg);
-    
+    const newDocRef = doc(messagesRef);
+    batch.set(newDocRef, newMsg);
+
     // Update chat head
-    batch.update(chatRef, { lastMessage: newMsg, clientTyping: false });
+    batch.update(chatRef, {
+      lastMessage: newMsg,
+      clientTyping: false
+    });
 
     await batch.commit();
+
+    // Reset input + media preview
+    messageInput.value = "";
+    mediaInput.value = "";
+    mediaPreview.style.display = "none";
+    mediaPreview.innerHTML = "";
   } catch (err) {
-    console.error("Chat error:", err);
+    console.error("Chat send error:", err);
+    showToast("Failed to send message");
   } finally {
-    sendBtn.disabled=false;
+    sendBtn.disabled = false;
     isSending = false;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 }
 
-// 5. Typing Indicator
-input.addEventListener("input", ()=>{
+/* ─────────────────────────
+   Typing indicator (clientTyping)
+   ───────────────────────── */
+messageInput.addEventListener("input", () => {
   updateDoc(chatRef, { clientTyping: true });
   clearTimeout(window.typingTimer);
-  window.typingTimer = setTimeout(() => updateDoc(chatRef, { clientTyping: false }), 2000);
+  window.typingTimer = setTimeout(() => {
+    updateDoc(chatRef, { clientTyping: false });
+  }, 2000);
 });
 
 sendBtn.onclick = sendMessage;
-input.onkeydown = e => { if(e.key==="Enter") sendMessage(); };
+messageInput.onkeydown = e => {
+  if (e.key === "Enter") sendMessage();
+};
 </script>
 </body>
 </html>
