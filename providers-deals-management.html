@@ -1,77 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EarnLibr — Provider Deals Management</title>
-  <style>
-    :root {
-      --bg: #0b0d17;
-      --card: #0f1724;
-      --accent1: #4a90e2;
-      --accent2: #a3ff6e;
-      --muted: #bfc7d6;
-      --danger: #ef4444;
-      --success: #4ade80;
-      --radius: 12px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — Provider Deals Management</title>
+<style>
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #ef4444;
+  --success: #4ade80;
+  --radius: 12px;
+}
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
-      color: #eef2f7;
-      margin: 0;
-      padding: 20px;
-    }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+  color: #eef2f7;
+  margin: 0;
+  padding: 20px;
+}
 
-    .page-wrap { max-width: 900px; margin: 0 auto; }
-    h1 { font-size: 24px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; color: transparent; margin: 0 0 6px 0; }
-    .page-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+/* Page Layout */
+.page-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
 
-    /* Notification bar */
-    .notif { background: #111827; padding: 10px 12px; border-radius: 10px; margin: 15px 0; font-size: 14px; display: none; border: 1px solid rgba(148, 163, 184, 0.4); }
-    .notif.success { border-left: 4px solid var(--success); color: #bbf7d0; }
-    .notif.error { border-left: 4px solid var(--danger); color: #fecaca; }
+.page-header {
+  margin-bottom: 20px;
+}
 
-    /* Deal card */
-    .deal-card {
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
-      border-radius: var(--radius);
-      padding: 15px 14px 12px;
-      margin-bottom: 14px;
-      position: relative;
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      transition: transform .25s ease;
-    }
-    .deal-card:hover { transform: translateY(-3px); }
-    
-    .deal-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .deal-pill { padding: 3px 8px; border-radius: 999px; font-size: 11px; text-transform: uppercase; border: 1px solid rgba(148, 163, 184, 0.5); }
-    .deal-pill.pending { border-color: #facc15; color: #facc15; }
+h1 {
+  font-size: 24px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0 0 6px 0;
+}
 
-    .deal-info { margin-bottom: 8px; font-size: 13px; color: #e5e7eb; }
-    .deal-actions { margin-top: 12px; display: flex; gap: 10px; }
-    
-    button { padding: 6px 12px; border: none; border-radius: 999px; cursor: pointer; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-    .complete { background: var(--success); color: #022c22; }
-    .cancel { background: var(--danger); color: #fef2f2; }
-    
-    button:disabled { opacity: 0.5; pointer-events: none; }
+.page-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+}
 
-    /* Undo Toast */
-    .card-notif {
-      position: absolute; top: 10px; right: 10px; background: #020617;
-      padding: 6px 12px; border-radius: 999px; font-size: 11px;
-      border: 1px solid var(--accent2); display: flex; align-items: center; gap: 8px;
-    }
-    .card-notif button { background: transparent; color: var(--accent2); padding: 0; box-shadow: none; }
+/* Notification bar */
+.notif {
+  background: #111827;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 15px 0;
+  font-size: 14px;
+  display: none;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.notif.success {
+  border-left: 4px solid var(--success);
+  color: #bbf7d0;
+}
+.notif.error {
+  border-left: 4px solid var(--danger);
+  color: #fecaca;
+}
 
-    /* Skeleton */
-    .skeleton-card { background: #0f1724; height: 120px; border-radius: 12px; margin-bottom: 15px; opacity: 0.5; }
-  </style>
+/* Deals container */
+#dealsContainer {
+  min-height: 120px;
+}
+
+/* Deal card */
+.deal-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  border-radius: var(--radius);
+  padding: 15px 14px 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  position: relative;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.deal-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9);
+}
+.deal-card.completed { border-left: 3px solid var(--success); }
+.deal-card.cancelled { border-left: 3px solid var(--danger); }
+
+.deal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.deal-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  color: var(--muted);
+}
+.deal-pill.pending { border-color: #facc15; color: #facc15; }
+.deal-pill.completed { border-color: var(--success); color: var(--success); }
+.deal-pill.cancelled { border-color: var(--danger); color: var(--danger); }
+
+.deal-info {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+.deal-info strong {
+  color: #e5e7eb;
+}
+
+.deal-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+/* Action buttons */
+.deal-actions {
+  margin-top: 8px;
+}
+.deal-actions button {
+  margin-right: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+}
+.deal-actions button span.icon {
+  font-size: 13px;
+}
+.complete {
+  background: var(--success);
+  color: #022c22;
+}
+.cancel {
+  background: var(--danger);
+  color: #fef2f2;
+}
+button.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+button.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid rgba(248, 250, 252, 0.9);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.timestamp {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Card mini toast */
+.card-notif {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #020617;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.card-notif button {
+  background: transparent;
+  border: none;
+  color: var(--accent2);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 11px;
+}
+.card-notif button:hover { color: var(--success); }
+
+/* Load more */
+.load-more {
+  text-align: center;
+  margin-top: 20px;
+}
+.load-more button {
+  padding: 9px 20px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.6);
+}
+.load-more button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Skeleton loading */
+.skeleton-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
+  border-radius: var(--radius);
+  padding: 14px 14px 10px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(30, 64, 175, 0.4);
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.long { width: 90%; }
+
+.skeleton-line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(31, 41, 55, 0) 0%,
+    rgba(55, 65, 81, 0.9) 50%,
+    rgba(31, 41, 55, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Empty state */
+.empty-state {
+  padding: 22px 18px;
+  border-radius: var(--radius);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  font-size: 13px;
+  color: var(--muted);
+}
+.empty-state strong {
+  color: #e5e7eb;
+  display: block;
+  margin-bottom: 4px;
+}
+</style>
 </head>
 <body>
-
 <div class="page-wrap">
   <header class="page-header">
     <h1>Your Deals</h1>
@@ -79,10 +295,13 @@
   </header>
 
   <div id="notif" class="notif"></div>
-  <div id="dealsContainer"></div>
 
-  <div id="loadMoreContainer" class="load-more" style="text-align:center; margin-top:20px; display:none;">
-    <button id="loadMoreBtn" style="background:#3b82f6; color:white; padding:10px 20px;">Load More Deals</button>
+  <div id="dealsContainer">
+    <!-- Skeletons will be injected here on load -->
+  </div>
+
+  <div id="loadMoreContainer" class="load-more" style="display: none;">
+    <button id="loadMoreBtn">Load More Deals</button>
   </div>
 </div>
 
@@ -94,7 +313,6 @@ import {
   writeBatch, query, orderBy, limit, startAfter, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-/* --- UTILS --- */
 const dealsContainer = document.getElementById("dealsContainer");
 const notif = document.getElementById("notif");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
@@ -109,149 +327,540 @@ const showNotif = (msg, type = "success") => {
 
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-/* --- CORE LOGIC (THE "ENGINE") --- */
+/* --- Skeleton helpers --- */
+let skeletonContainer = null;
 
+function createSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "skeleton-card";
+  card.innerHTML = `
+    <div class="skeleton-line medium"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line short"></div>
+  `;
+  return card;
+}
+
+function showSkeleton(count = 3, mode = "replace") {
+  hideSkeleton();
+  skeletonContainer = document.createElement("div");
+
+  for (let i = 0; i < count; i++) {
+    skeletonContainer.appendChild(createSkeletonCard());
+  }
+
+  if (mode === "replace") {
+    dealsContainer.innerHTML = "";
+    dealsContainer.appendChild(skeletonContainer);
+  } else {
+    dealsContainer.appendChild(skeletonContainer);
+  }
+}
+
+function hideSkeleton() {
+  if (skeletonContainer && skeletonContainer.parentNode) {
+    skeletonContainer.parentNode.removeChild(skeletonContainer);
+  }
+  skeletonContainer = null;
+}
+
+/* --- Notification Batching --- */
+async function sendNotifications(deal, title, message) {
+  const batch = writeBatch(db);
+  const data = { title, message, read: false, createdAt: serverTimestamp() };
+
+  if (deal.providerId) {
+    batch.set(doc(collection(db, `notifications/${deal.providerId}/items`)), data);
+  }
+  if (deal.promoterId && deal.promoterId !== "direct") {
+    batch.set(doc(collection(db, `notifications/${deal.promoterId}/items`)), data);
+  }
+
+  await batch.commit();
+}
+
+/* --- Session & Auth Check --- */
+let rawSession = localStorage.getItem("userSession");
+let userSession = null;
+
+if (!rawSession) {
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
+
+try {
+  userSession = JSON.parse(rawSession);
+  if (!userSession || userSession.role !== "provider") {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    throw new Error("Invalid session");
+  }
+} catch (e) {
+  localStorage.removeItem("userSession");
+  window.location.href = "login.html";
+  throw e;
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    return;
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+
+    let uData = userDoc.exists() ? userDoc.data() : null;
+    let role = uData?.role;
+
+    if (adminDoc.exists() && adminDoc.data().role === 'provider') {
+      uData = adminDoc.data();
+      role = 'provider';
+    } else if (!userDoc.exists() || role !== 'provider') {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+      return;
+    }
+
+    userSession = {
+      uid: user.uid,
+      name: uData.name || "Provider",
+      email: uData.email || "",
+      role
+    };
+    localStorage.setItem('userSession', JSON.stringify(userSession));
+
+    loadDeals(true);
+  } catch (err) {
+    console.error("Auth data load error:", err);
+    showNotif("Failed to load user profile. Please reload.", "error");
+  }
+});
+
+/* ===== CORE ACTIONS (Complete / Cancel) – REUSABLE ===== */
+
+/* --- Complete Deal --- */
 async function processCompleteDeal(dealId, deal, card) {
   const dealRef = doc(db, "deals", dealId);
+
+  // allow card to be optional (for external triggers)
   const cardEl = card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
 
-  // 1. Lock the deal
+  // Locking: set status to 'processing' atomically
   try {
     await runTransaction(db, async (t) => {
       const snap = await t.get(dealRef);
       if (!snap.exists()) throw new Error("Deal not found.");
-      if (snap.data().status === "processing") throw new Error("Deal is being processed.");
+      if (snap.data().status === "processing") {
+        throw new Error("Deal is being processed.");
+      }
       t.update(dealRef, { status: "processing" });
     });
   } catch (err) {
-    showNotif(err.message, "error");
+    if (err.message.includes("being processed")) {
+      showNotif("⚠️ Deal is already processing. Please wait.", "error");
+    } else {
+      showNotif(`Lock Error: ${err.message}`, "error");
+    }
     return;
   }
 
-  // 2. Financial Transaction
   try {
     const offerRef = doc(db, "offers_all", deal.offerId);
+
     await runTransaction(db, async (t) => {
       const offerSnap = await t.get(offerRef);
       if (!offerSnap.exists()) throw new Error("Offer not found");
       const offer = offerSnap.data();
 
-      // Commission Logic
-      const platformSettingsSnap = await t.get(doc(db, "platform-settings", "commission"));
-      const platformPercentage = platformSettingsSnap.exists() ? parseFloat(platformSettingsSnap.data().percentage) : 20;
-      
+      const platformSettingsRef = doc(db, "platform-settings", "commission");
+      const platformSettingsSnap = await t.get(platformSettingsRef);
+      const platformPercentage = platformSettingsSnap.exists()
+        ? parseFloat(platformSettingsSnap.data().percentage)
+        : 20;
+
       const currency = deal.offerCurrency || "USD";
+      const platformRef = doc(db, `platform-earnings/${currency}`);
+      const platformSnap = await t.get(platformRef);
+      const platformData = platformSnap.exists()
+        ? platformSnap.data()
+        : { totalRevenue: 0, dealsCount: 0, dailyRevenue: {} };
+
+      platformData.dailyRevenue = platformData.dailyRevenue || {};
+
+      let metaSnap = null;
+      if (deal.promoterId && deal.promoterId !== "direct") {
+        const metaRef =
+          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
+        metaSnap = await t.get(metaRef);
+      }
+
       const dealQuantity = deal.quantity || 1;
-      
-      let commissionEarned = offer.commissionType === "percentage" 
-        ? (offer.price * dealQuantity * offer.commissionValue) / 100 
-        : (offer.commissionValue * dealQuantity);
-      
+
+      let commissionEarned = 0;
+      if (offer.commissionType === "percentage") {
+        commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
+      } else if (offer.commissionType === "fixed") {
+        commissionEarned = offer.commissionValue * dealQuantity;
+      } else {
+        commissionEarned = (deal.commissionValue || 0) * dealQuantity;
+      }
+
       commissionEarned = round(commissionEarned);
       const platformShare = round(commissionEarned * platformPercentage / 100);
       const promoterNet = round(commissionEarned - platformShare);
+      const todayUTC = new Date().toISOString().split("T")[0];
 
-      // Update Offer, Platform, and Promoter
-      t.update(offerRef, { 
+      platformData.totalRevenue = (platformData.totalRevenue || 0) + platformShare;
+      platformData.dealsCount = (platformData.dealsCount || 0) + 1;
+      platformData.dailyRevenue[todayUTC] =
+        (platformData.dailyRevenue[todayUTC] || 0) + platformShare;
+
+      const updatedOfferData = {
         promoSpent: round((offer.promoSpent || 0) + commissionEarned),
-        amountOwed: round((offer.amountOwed || 0) + commissionEarned)
-      });
+        amountOwed: round((offer.amountOwed || 0) + commissionEarned),
+        outstandingBalance: round(
+          (offer.amountOwed || 0) + commissionEarned - (offer.amountPaid || 0)
+        )
+      };
+
+      let meta = metaSnap?.exists()
+        ? metaSnap.data()
+        : { totalLifetimeEarnings: {}, currentBalance: {}, totalWithdrawn: {} };
 
       if (deal.promoterId && deal.promoterId !== "direct") {
-        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        t.set(metaRef, { lastUpdated: serverTimestamp() }, { merge: true });
-        // (Simplified for brevity, matches your full logic)
+        meta.totalLifetimeEarnings[currency] =
+          (meta.totalLifetimeEarnings[currency] || 0) + promoterNet;
+        meta.currentBalance[currency] =
+          meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency] || 0);
+        meta.lastUpdated = serverTimestamp();
       }
 
-      // Move to Completed
-      t.set(doc(db, "completed-deals", dealId), { ...deal, status: "completed", completedAt: serverTimestamp(), promoterNet });
+      t.update(offerRef, updatedOfferData);
+
+      if (deal.promoterId && deal.promoterId !== "direct") {
+        const promoterDealRef =
+          doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
+        const metaRef =
+          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
+        t.set(promoterDealRef, {
+          ...deal,
+          commissionAmount: promoterNet,
+          fullCommission: commissionEarned,
+          platformTax: platformShare,
+          completedAt: serverTimestamp(),
+          withdrawn: false,
+          withdrawalRequestId: null
+        });
+        t.set(metaRef, meta, { merge: true });
+      }
+
+      t.set(platformRef, platformData, { merge: true });
+
+      const completedRef = doc(db, "completed-deals", dealId);
+      t.set(completedRef, {
+        ...deal,
+        status: "completed",
+        completedAt: serverTimestamp(),
+        completedBy: "provider",
+        commissionEarned,
+        platformShare,
+        promoterNet,
+        providerPaid: false
+      });
+
+      t.update(completedRef, {
+        billedBy: null,
+        billedAt: null
+      });
+
       t.delete(dealRef);
     });
 
+    await sendNotifications(deal, "Deal Completed ✅", `Deal ${dealId} marked complete.`);
+
     if (cardEl) cardEl.remove();
+
     showNotif("Deal completed successfully", "success");
   } catch (err) {
     console.error(err);
-    setDoc(dealRef, { status: "pending" }, { merge: true });
-    showNotif("Financial Error: " + err.message, "error");
+    setDoc(dealRef, { status: "pending" }, { merge: true }).catch((e) =>
+      console.error("Failed to reset status:", e)
+    );
+    showNotif(`Financial Error: ${err.message}`, "error");
   }
 }
 
+/* --- Cancel Deal --- */
 async function processCancelDeal(dealId, deal, card) {
+  const dealRef = doc(db, "deals", dealId);
+  const cancelledRef = doc(db, "cancelled-deals", dealId);
   const cardEl = card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
+
   try {
     await runTransaction(db, async (t) => {
-      t.set(doc(db, "cancelled-deals", dealId), { ...deal, status: "cancelled", cancelledAt: serverTimestamp() });
-      t.delete(doc(db, "deals", dealId));
+      const snap = await t.get(dealRef);
+      if (!snap.exists()) throw new Error("Deal not found.");
+
+      t.set(cancelledRef, {
+        ...snap.data(),
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
+        cancelledBy: "provider"
+      });
+      t.delete(dealRef);
     });
+
+    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} has been cancelled.`);
+
     if (cardEl) cardEl.remove();
+
     showNotif("Deal cancelled", "error");
   } catch (err) {
-    showNotif("Cancel Error: " + err.message, "error");
+    console.error(err);
+    showNotif(`Cancel Error: ${err.message}`, "error");
   }
 }
 
-/* --- GLOBAL API --- */
-window.dealActions = {
-  execute: async (type, dealId, deal, card) => {
-    if (type === 'complete') await processCompleteDeal(dealId, deal, card);
-    else await processCancelDeal(dealId, deal, card);
-  },
-  schedule: (type, dealId, deal, card, delay = 5000) => {
-    if (!card) { window.dealActions.execute(type, dealId, deal); return; }
+/* --- Execute Action Reusable --- */
+async function executeDealAction(type, dealId, deal, card) {
+  const actionMap = {
+    complete: processCompleteDeal,
+    cancel: processCancelDeal
+  };
+  if (!actionMap[type]) throw new Error(`Unknown action type: ${type}`);
+  await actionMap[type](dealId, deal, card);
+}
 
-    const box = document.createElement("div");
-    box.className = "card-notif";
-    box.innerHTML = `${type === "complete" ? "Completing" : "Cancelling"}... <button id="undoBtn">Undo</button>`;
-    card.appendChild(box);
-
-    let cancelled = false;
-    box.querySelector("#undoBtn").onclick = () => { 
-        cancelled = true; 
-        box.remove(); 
-        card.querySelectorAll("button").forEach(b => b.disabled = false);
-    };
-
-    card.querySelectorAll("button").forEach(b => b.disabled = true);
-
-    setTimeout(() => {
-      if (!cancelled) {
-        box.remove();
-        window.dealActions.execute(type, dealId, deal, card);
-      }
-    }, delay);
+/* --- Schedule Actions (with Undo) --- */
+function scheduleAction(type, dealId, deal, card, delayMs = 5000) {
+  // If no card is passed (e.g. triggered from somewhere else), just execute immediately
+  if (!card) {
+    executeDealAction(type, dealId, deal, null).catch((e) =>
+      console.error("Scheduled (no-card) action failed:", e)
+    );
+    return;
   }
+
+  const box = document.createElement("div");
+  box.className = "card-notif";
+  box.innerHTML =
+    `${type === "complete" ? "Completing" : "Cancelling"} in ${delayMs / 1000}s <button>Undo</button>`;
+  card.appendChild(box);
+
+  const buttons = card.querySelectorAll(".deal-actions button");
+  buttons.forEach((btn) => { btn.disabled = true; btn.classList.add("loading"); });
+
+  let cancelled = false;
+  box.querySelector("button").onclick = () => {
+    cancelled = true;
+    box.remove();
+    buttons.forEach((btn) => { btn.disabled = false; btn.classList.remove("loading"); });
+    showNotif("Action cancelled", "error");
+  };
+
+  setTimeout(async () => {
+    box.remove();
+    if (!cancelled) {
+      try {
+        await executeDealAction(type, dealId, deal, card);
+      } catch (e) {
+        console.error("Scheduled action failed:", e);
+      } finally {
+        buttons.forEach((btn) => { btn.disabled = false; btn.classList.remove("loading"); });
+      }
+    }
+  }, delayMs);
+}
+
+/* --- PUBLIC API so you can trigger from elsewhere --- */
+window.dealActions = {
+  /**
+   * Immediate action (no undo UI).
+   * type: 'complete' | 'cancel'
+   * dealId: string
+   * deal: deal data object (if you already have it)
+   * card: optional DOM element for this deal
+   */
+  execute: (type, dealId, deal, card) => executeDealAction(type, dealId, deal, card),
+
+  /**
+   * Scheduled action with optional undo (if card is passed).
+   * If card is null/undefined, it runs immediately without the mini-toast.
+   */
+  schedule: (type, dealId, deal, card, delayMs) =>
+    scheduleAction(type, dealId, deal, card, delayMs)
 };
 
-/* --- LOADING & RENDERING (Standard) --- */
-onAuthStateChanged(auth, (user) => {
-  if (user) loadDeals(true);
-  else window.location.href = "login.html";
-});
+/* --- Load Deals --- */
+let lastDeal = null;
 
-function loadDeals(isInitial) {
-  const q = query(collection(db, "deals"), where("providerId", "==", auth.currentUser.uid), limit(25));
-  getDocs(q).then(snap => {
-    dealsContainer.innerHTML = "";
-    snap.forEach(d => renderDealCard(d.id, d.data()));
-  });
+function loadDeals(isInitialLoad = true) {
+  if (isInitialLoad) {
+    showSkeleton(3, "replace");
+    lastDeal = null;
+    loadMoreContainer.style.display = "none";
+  } else {
+    showSkeleton(2, "append");
+  }
+
+  let dealsQuery = query(
+    collection(db, "deals"),
+    where("providerId", "==", userSession.uid),
+    where("status", "!=", "processing"),
+    orderBy("status"),
+    orderBy("createdAt", "desc"),
+    limit(25)
+  );
+
+  if (lastDeal) {
+    dealsQuery = query(dealsQuery, startAfter(lastDeal));
+  }
+
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.textContent = "Loading...";
+  }
+
+  getDocs(dealsQuery)
+    .then((snapshot) => {
+      hideSkeleton();
+
+      if (snapshot.empty && isInitialLoad) {
+        dealsContainer.innerHTML = `
+          <div class="empty-state">
+            <strong>No active deals yet.</strong>
+            Once promoters start driving clients to your offers, deals will show up here for you to confirm or cancel.
+          </div>
+        `;
+        loadMoreContainer.style.display = "none";
+        return;
+      }
+      if (snapshot.empty) {
+        if (loadMoreBtn) {
+          loadMoreBtn.textContent = "No More Deals";
+          loadMoreBtn.disabled = true;
+        }
+        return;
+      }
+
+      snapshot.docs.forEach((docSnap) =>
+        renderDealCard(docSnap.id, docSnap.data())
+      );
+      lastDeal = snapshot.docs[snapshot.docs.length - 1];
+      loadMoreContainer.style.display = "block";
+
+      if (loadMoreBtn) {
+        if (snapshot.docs.length < 25) {
+          loadMoreBtn.textContent = "No More Deals";
+          loadMoreBtn.disabled = true;
+        } else {
+          loadMoreBtn.textContent = "Load More Deals";
+          loadMoreBtn.disabled = false;
+        }
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      hideSkeleton();
+      dealsContainer.innerHTML =
+        `<p style="color:#fecaca;font-size:13px;">Failed to load deals: ${err.code || "Unknown error"}. Check console.</p>`;
+      showNotif("Failed to load deals", "error");
+      if (loadMoreBtn) {
+        loadMoreBtn.textContent = "Failed to Load";
+      }
+    });
 }
 
+if (loadMoreBtn) {
+  loadMoreBtn.onclick = () => loadDeals(false);
+}
+
+/* --- Render Deal Card --- */
 function renderDealCard(dealId, deal) {
   const card = document.createElement("div");
-  card.className = "deal-card";
-  card.dataset.dealId = dealId;
+  card.className = "deal-card " + (deal.status || "");
+  card.dataset.dealId = dealId; // so actions can find this card by id if needed
+
+  let createdDate = "N/A";
+  if (deal.createdAt) {
+    if (typeof deal.createdAt.toDate === "function") {
+      createdDate = deal.createdAt.toDate().toLocaleString();
+    } else if (deal.createdAt instanceof Date) {
+      createdDate = deal.createdAt.toLocaleString();
+    } else if (typeof deal.createdAt === "string") {
+      try {
+        createdDate = new Date(deal.createdAt).toLocaleString();
+      } catch (e) {
+        createdDate = "Invalid Date";
+      }
+    }
+  }
+
+  const dealQuantity = deal.quantity || 1;
+  const isDirect = deal.promoterId === "direct";
+  const promoterLabel = !deal.promoterId
+    ? "N/A"
+    : isDirect
+      ? "Direct"
+      : (deal.promoterName || "Unknown");
+  const promoterIdText = deal.promoterId ? ` (${deal.promoterId})` : "";
+  const statusLabel = (deal.status || "pending").toLowerCase();
+
   card.innerHTML = `
-    <div class="deal-header-row"><strong>ID: ${dealId}</strong> <span class="deal-pill pending">Pending</span></div>
-    <div class="deal-info">Offer: ${deal.offerTitle}</div>
+    <div class="deal-header-row">
+      <div style="font-size:12px; color:var(--muted);">
+        <strong style="color:#e5e7eb;">Deal ID:</strong> ${dealId}
+      </div>
+      <div class="deal-pill ${statusLabel}">
+        ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}
+      </div>
+    </div>
+
+    <div class="deal-info">
+      <strong>Offer:</strong> ${deal.offerTitle || "N/A"}
+      <span style="font-weight:700; color:var(--accent2); margin-left:4px;">
+        (QTY: ${dealQuantity})
+      </span>
+    </div>
+
+    <div class="deal-info">
+      <strong>Promoter:</strong> ${promoterLabel}${promoterIdText}
+    </div>
+
+    <div class="deal-info">
+      <strong>Client:</strong> ${deal.clientName || "N/A"} | ${deal.clientContact || "N/A"}
+    </div>
+
+    <div class="deal-info">
+      <strong>Note:</strong> ${deal.note || "None"}
+    </div>
+
     <div class="deal-actions">
-      <button class="complete">✅ Complete</button>
-      <button class="cancel">✖ Cancel</button>
+      <button class="complete">
+        <span class="icon">✅</span>
+        <span>Mark Completed</span>
+      </button>
+      <button class="cancel">
+        <span class="icon">✖</span>
+        <span>Mark Cancelled</span>
+      </button>
+    </div>
+
+    <div class="deal-meta-row">
+      <div class="timestamp">Created: ${createdDate}</div>
+      <div>${deal.offerCurrency || "USD"}</div>
     </div>
   `;
 
-  card.querySelector(".complete").onclick = () => window.dealActions.schedule("complete", dealId, deal, card);
-  card.querySelector(".cancel").onclick = () => window.dealActions.schedule("cancel", dealId, deal, card);
+  card.querySelector(".complete").onclick = () =>
+    scheduleAction("complete", dealId, deal, card);
+  card.querySelector(".cancel").onclick = () =>
+    scheduleAction("cancel", dealId, deal, card);
+
   dealsContainer.appendChild(card);
 }
 </script>
