@@ -541,14 +541,14 @@ function renderBillCard(id, data) {
 
 /* --- 3. Atomic verification for a single bill (Approve) --- */
 async function verifySinglePayment(billId, billData, btn, card) {
-  if (btn.disabled) return;
+  if (btn.disabled) return false;
 
   // Extra safety: only allow if still provider_marked_paid
   if (billData.status && billData.status !== "provider_marked_paid") {
     showNotif(`Bill ${billId} is no longer pending verification.`, "error");
     card.classList.add("verified");
     btn.disabled = true;
-    return;
+    return false;
   }
 
   btn.disabled = true;
@@ -596,11 +596,13 @@ async function verifySinglePayment(billId, billData, btn, card) {
     card.classList.add("verified");
     btn.innerHTML = `<span class="icon">✅</span><span>Verified</span>`;
     showNotif(`Verified bill ${billId}`, "success");
+    return true;
   } catch (err) {
     console.error("Verification error:", err);
     showNotif(`Failed to verify ${billId}: ${err.message}`, "error");
     btn.disabled = false;
     btn.innerHTML = originalText;
+    return false;
   }
 }
 
@@ -671,7 +673,7 @@ async function rejectSinglePayment(billId, billData, btn, card) {
     }
 
     showNotif(`Rejected bill ${billId} and reset to pending.`, "success");
-    // This card will disappear on next snapshot (status != provider_marked_paid anymore)
+    // The snapshot listener will automatically remove this card (status!=provider_marked_paid)
   } catch (err) {
     console.error("Rejection error:", err);
     showNotif(`Failed to reject ${billId}: ${err.message}`, "error");
@@ -699,7 +701,7 @@ async function sendNotification(uid, title, message) {
 
 /* --- 6. Verify All --- */
 verifyAllBtn.onclick = async () => {
-  const activeCards = billCards.filter(b => !b.btn.disabled);
+  const activeCards = billCards.filter(b => !b.btn.disabled && !b.card.classList.contains("verified"));
   if (activeCards.length === 0) {
     showNotif("No pending payments to verify.", "error");
     return;
@@ -709,4 +711,29 @@ verifyAllBtn.onclick = async () => {
   if (!confirmed) return;
 
   verifyAllBtn.disabled = true;
-  verifyAllBtn.innerHTML = `<span class="icon">⏳</span><span>P
+  const originalText = verifyAllBtn.innerHTML;
+  verifyAllBtn.innerHTML = `<span class="icon">⏳</span><span>Processing...</span>`;
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const { id, data, btn, card } of activeCards) {
+    const ok = await verifySinglePayment(id, data, btn, card);
+    if (ok) successCount++;
+    else failCount++;
+  }
+
+  verifyAllBtn.disabled = false;
+  verifyAllBtn.innerHTML = originalText;
+
+  if (successCount && !failCount) {
+    showNotif(`Successfully verified ${successCount} payment${successCount === 1 ? "" : "s"}.`, "success");
+  } else if (successCount && failCount) {
+    showNotif(`Verified ${successCount}, but ${failCount} failed. Check console for details.`, "error");
+  } else {
+    showNotif("No payments were verified. Please check errors in the console.", "error");
+  }
+};
+</script>
+</body>
+</html>
