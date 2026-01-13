@@ -120,6 +120,11 @@
       cursor: pointer;  
     }  
   
+    header nav {  
+      display: flex;  
+      align-items: center;  
+    }  
+  
     nav a {  
       color: #f1f1f1;  
       margin: 0 15px;  
@@ -129,6 +134,45 @@
   
     nav a:hover {  
       color: #7fff00;  
+    }  
+  
+    /* Hamburger button */  
+    .menu-toggle {  
+      display: none;               /* shown only on mobile */  
+      background: none;  
+      border: 1px solid rgba(255, 255, 255, 0.3);  
+      border-radius: 6px;  
+      padding: 6px 8px;  
+      cursor: pointer;  
+      align-items: center;  
+      justify-content: center;  
+    }  
+  
+    .menu-toggle span {  
+      display: block;  
+      width: 20px;  
+      height: 2px;  
+      background: #f1f1f1;  
+      margin: 3px 0;  
+      border-radius: 999px;  
+      transition: transform 0.25s ease, opacity 0.25s ease;  
+    }  
+  
+    .menu-toggle:hover {  
+      background: rgba(255, 255, 255, 0.06);  
+    }  
+  
+    /* Hamburger to X animation */  
+    .menu-toggle.open span:nth-child(1) {  
+      transform: translateY(5px) rotate(45deg);  
+    }  
+  
+    .menu-toggle.open span:nth-child(2) {  
+      opacity: 0;  
+    }  
+  
+    .menu-toggle.open span:nth-child(3) {  
+      transform: translateY(-5px) rotate(-45deg);  
     }  
   
     .hero {  
@@ -326,21 +370,50 @@
       filter: brightness(1.1);  
     }  
 
+    /* ===== Mobile Styles ===== */  
     @media (max-width: 768px) {  
       header {  
+        padding: 12px 18px;  
+      }  
+
+      /* show hamburger on mobile */  
+      .menu-toggle {  
+        display: flex;  
         flex-direction: column;  
-        padding: 20px;  
       }  
-      nav {  
-        margin-top: 10px;  
+
+      /* turn nav into dropdown below header */  
+      header nav {  
+        position: absolute;  
+        top: 100%;            /* directly under header */  
+        left: 0;  
+        right: 0;  
+        background: #111;  
+        border-top: 1px solid rgba(255, 255, 255, 0.08);  
+        display: none;        /* hidden until .open */  
+        flex-direction: column;  
+        padding: 10px 20px 15px;  
+        gap: 8px;  
       }  
+
+      header nav a {  
+        padding: 8px 0;  
+        text-align: left;  
+      }  
+
+      header nav.open {  
+        display: flex;  
+      }  
+
       .hero h2 {  
         font-size: 2rem;  
       }  
+
       .cookie-banner {  
         flex-direction: column;  
         align-items: flex-start;  
       }  
+
       .cookie-banner button {  
         align-self: flex-end;  
       }  
@@ -351,7 +424,15 @@
   
   <header>  
     <h1 onclick="window.location.href='#home'">EarnLibr</h1>  
-    <nav>  
+
+    <!-- Hamburger button (mobile) -->  
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <nav id="mainNav">  
       <a href="#home">Home</a>  
       <a href="#about">How It Works</a>  
       <a href="make-money-online-liberia.html">Guides</a>  
@@ -497,6 +578,29 @@
       localStorage.setItem('earnlibr_cookies_accepted', 'yes');  
       cookieBanner.style.display = 'none';  
     });  
+
+    // ===== Mobile hamburger menu =====
+    const menuToggle = document.getElementById('menuToggle');
+    const mainNav = document.getElementById('mainNav');
+
+    if (menuToggle && mainNav) {
+      menuToggle.addEventListener('click', () => {
+        const isOpen = mainNav.classList.toggle('open');
+        menuToggle.classList.toggle('open', isOpen);
+        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      // Close menu when a nav link is clicked on mobile
+      mainNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth <= 768 && mainNav.classList.contains('open')) {
+            mainNav.classList.remove('open');
+            menuToggle.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', 'false');
+          }
+        });
+      });
+    }
   </script>  
 </body>  
 </html>
