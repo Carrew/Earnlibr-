@@ -3,370 +3,506 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EarnLibr — Provider Deals Management</title>
+<title>EarnLibr — Provider Portal</title>
+
 <style>
 :root {
-  --bg: #0b0d17;
-  --card: #0f1724;
-  --accent1: #4a90e2;
-  --accent2: #a3ff6e;
-  --muted: #bfc7d6;
-  --danger: #ef4444;
-  --success: #4ade80;
-  --radius: 12px;
+  --bg:#0b0d17;
+  --card:#0f1724;
+  --accent1:#4a90e2;
+  --accent2:#a3ff6e;
+  --muted:#cbd5e1;
+  --radius:14px;
 }
-
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
-  color: #eef2f7;
-  margin: 0;
-  padding: 20px;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:#fff;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+header {
+  background:var(--card);
+  padding:20px;
+  font-size:20px;
+  font-weight:700;
+  text-align:center;
+  border-bottom:1px solid #1a2235;
+}
+#mainContainer {
+  flex:1;
+  display:flex;
+  overflow:hidden;
+  position:relative;
 }
 
-/* Page Layout */
-.page-wrap {
-  max-width: 900px;
-  margin: 0 auto;
+/* Sidebar */
+#chatList {
+  width:350px;
+  border-right:1px solid #1a2235;
+  overflow-y:auto;
+  background:var(--card);
+  display:flex;
+  flex-direction:column;
+}
+#searchBar {
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  margin:15px;
+  background:#141f33;
+  color:#fff;
+  outline:none;
+  border:1px solid #1a2235;
+}
+.chatItem {
+  padding:15px;
+  border-bottom:1px solid #0b0d17;
+  cursor:pointer;
+  transition:background 0.2s;
+}
+.chatItem:hover { background:rgba(74,144,226,0.05); }
+.chatItem.active {
+  background:rgba(163,255,110,0.1);
+  border-left:4px solid var(--accent2);
+}
+.chatTitle { font-weight:600; font-size:15px; }
+.chatLastMsg {
+  font-size:13px;
+  color:var(--muted);
+  margin-top:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.page-header {
-  margin-bottom: 20px;
+/* Chat Window */
+#chatContainer {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+}
+#chatHeader {
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:15px;
+  background:var(--card);
+  border-bottom:1px solid #1a2235;
+}
+#chatHeaderMain {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+#backBtn {
+  display:none;
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:24px;
+  cursor:pointer;
+}
+#messages {
+  flex:1;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:20px;
 }
 
-h1 {
-  font-size: 24px;
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  -webkit-background-clip: text;
-  color: transparent;
-  margin: 0 0 6px 0;
+/* Messages */
+.message {
+  max-width:75%;
+  padding:12px 16px;
+  border-radius:18px;
+  line-height:1.4;
+  font-size:14px;
+  position:relative;
+}
+.message.client {
+  align-self:flex-start;
+  background:rgba(74,144,226,0.15);
+  border-bottom-left-radius:4px;
+}
+.message.provider {
+  align-self:flex-end;
+  background:var(--accent2);
+  color:#041018;
+  border-bottom-right-radius:4px;
+  font-weight:500;
+}
+.message.system {
+  align-self:center;
+  font-size:12px;
+  color:var(--muted);
+  background:rgba(255,255,255,0.05);
+  padding:8px 15px;
+  border-radius:10px;
+  text-align:center;
+}
+.message.deleted {
+  font-style:italic;
+  opacity:0.6;
 }
 
-.page-subtitle {
-  font-size: 13px;
-  color: var(--muted);
+.message img {
+  max-width:240px;
+  border-radius:10px;
+  display:block;
+  margin-bottom:4px;
+}
+.message video {
+  max-width:240px;
+  border-radius:10px;
+  display:block;
+  margin-bottom:4px;
 }
 
-/* Notification bar */
-.notif {
-  background: #111827;
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin: 15px 0;
-  font-size: 14px;
-  display: none;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-}
-.notif.success {
-  border-left: 4px solid var(--success);
-  color: #bbf7d0;
-}
-.notif.error {
-  border-left: 4px solid var(--danger);
-  color: #fecaca;
+.messageTime {
+  font-size:10px;
+  opacity:0.7;
+  margin-top:5px;
+  text-align:right;
 }
 
-/* Deals container */
-#dealsContainer {
-  min-height: 120px;
+/* Action Buttons under each provider message */
+.controls {
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+  border-top:1px solid rgba(0,0,0,0.1);
+  padding-top:5px;
+}
+.editBtn, .delBtn {
+  background:rgba(0,0,0,0.1);
+  border:none;
+  font-size:10px;
+  padding:3px 8px;
+  border-radius:4px;
+  cursor:pointer;
+  font-weight:bold;
+  color:#041018;
+}
+.editBtn:hover { background:rgba(0,0,0,0.2); }
+.delBtn:hover { background:#ef4444; color:#fff; }
+
+/* Inline edit / delete UI */
+.inlineEdit,
+.deleteConfirm {
+  margin-top:6px;
+  padding-top:6px;
+  border-top:1px solid rgba(0,0,0,0.12);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
 }
 
-/* Deal card */
-.deal-card {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
-  border-radius: var(--radius);
-  padding: 15px 14px 12px;
-  margin-bottom: 14px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
-  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
-  position: relative;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-}
-.deal-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9);
-}
-.deal-card.completed { border-left: 3px solid var(--success); }
-.deal-card.cancelled { border-left: 3px solid var(--danger); }
-
-.deal-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-.deal-pill {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  color: var(--muted);
-}
-.deal-pill.pending { border-color: #facc15; color: #facc15; }
-.deal-pill.completed { border-color: var(--success); color: var(--success); }
-.deal-pill.cancelled { border-color: var(--danger); color: var(--danger); }
-
-.deal-info {
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: #e5e7eb;
-}
-.deal-info strong {
-  color: #e5e7eb;
+.inlineEditInput {
+  flex:1;
+  padding:4px 8px;
+  border-radius:6px;
+  border:1px solid #1a2235;
+  background:#0b1120;
+  color:#e2e8f0;
+  outline:none;
+  font-size:12px;
 }
 
-.deal-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--muted);
-  flex-wrap: wrap;
+.inlineBtn {
+  border:none;
+  border-radius:6px;
+  padding:3px 8px;
+  font-size:11px;
+  cursor:pointer;
+  font-weight:600;
 }
 
-/* Action buttons */
-.deal-actions {
-  margin-top: 8px;
-}
-.deal-actions button {
-  margin-right: 8px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 12px;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-}
-.deal-actions button span.icon {
-  font-size: 13px;
-}
-.complete {
-  background: var(--success);
-  color: #022c22;
-}
-.cancel {
-  background: var(--danger);
-  color: #fef2f2;
-}
-button.loading {
-  pointer-events: none;
-  opacity: 0.7;
-}
-button.loading::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  width: 14px;
-  height: 14px;
-  margin-top: -7px;
-  border: 2px solid rgba(248, 250, 252, 0.9);
-  border-top: 2px solid transparent;
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.timestamp {
-  font-size: 11px;
-  color: var(--muted);
+.inlineBtn.primary {
+  background:var(--accent2);
+  color:#041018;
 }
 
-/* Card mini toast */
-.card-notif {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #020617;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
-  border: 1px solid rgba(148, 163, 184, 0.4);
-}
-.card-notif button {
-  background: transparent;
-  border: none;
-  color: var(--accent2);
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 11px;
-}
-.card-notif button:hover { color: var(--success); }
-
-/* Load more */
-.load-more {
-  text-align: center;
-  margin-top: 20px;
-}
-.load-more button {
-  padding: 9px 20px;
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.6);
-}
-.load-more button:disabled {
-  opacity: 0.6;
-  cursor: default;
-  box-shadow: none;
+.inlineBtn.ghost {
+  background:rgba(15,23,42,0.8);
+  color:#e2e8f0;
 }
 
-/* Skeleton loading */
-.skeleton-card {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
-  border-radius: var(--radius);
-  padding: 14px 14px 10px;
-  margin-bottom: 12px;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(30, 64, 175, 0.4);
+.inlineBtn.danger {
+  background:#ef4444;
+  color:#fff;
 }
-.skeleton-line {
-  height: 10px;
-  border-radius: 999px;
-  background: #1f2937;
-  margin-bottom: 8px;
-  position: relative;
-  overflow: hidden;
-}
-.skeleton-line.short { width: 40%; }
-.skeleton-line.medium { width: 65%; }
-.skeleton-line.long { width: 90%; }
 
-.skeleton-line::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg,
-    rgba(31, 41, 55, 0) 0%,
-    rgba(55, 65, 81, 0.9) 50%,
-    rgba(31, 41, 55, 0) 100%
-  );
-  transform: translateX(-100%);
-  animation: shimmer 1.2s infinite;
+/* Input Area */
+#typingIndicator {
+  font-size:12px;
+  color:var(--accent2);
+  display:none;
 }
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
+#inputContainer {
+  display:flex;
+  gap:10px;
+  padding:15px;
+  background:var(--card);
+  align-items:center;
+}
+
+#attachLabel {
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  padding:0 4px;
+}
+#mediaInput {
+  display:none;
+}
+
+/* Preview of selected media */
+#mediaPreview {
+  font-size:12px;
+  color:var(--muted);
+  max-width:120px;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+}
+#mediaPreview img,
+#mediaPreview video {
+  max-width:120px;
+  border-radius:8px;
+}
+
+#messageInput {
+  flex:1;
+  padding:12px;
+  border-radius:8px;
+  border:1px solid #1a2235;
+  background:#141f33;
+  color:#fff;
+  outline:none;
+}
+#sendBtn {
+  padding:0 20px;
+  border:none;
+  border-radius:8px;
+  background:var(--accent2);
+  color:#041018;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* Toast (in-app notification) */
+#toast {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#0f1724;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:8px;
+  font-size:13px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.4);
+  display:none;
+  z-index:100;
+}
+
+/* 🔹 Deal action buttons in header */
+#dealActionsBar {
+  margin-top:4px;
+  display:none;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+#dealBadge {
+  font-size:11px;
+  color:var(--muted);
+}
+.dealActionBtn {
+  border:none;
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+}
+.dealActionBtn.completeBtn {
+  background:var(--accent2);
+  color:#041018;
+}
+.dealActionBtn.cancelBtn {
+  background:#ef4444;
+  color:#fff;
+}
+
+/* Inline confirm row for deal actions */
+#dealConfirmRow {
+  margin-top:2px;
+  display:none;
+  align-items:center;
+  gap:8px;
+  font-size:11px;
+  color:var(--muted);
+}
+
+@media(max-width:768px){
+  #chatContainer {
+    position:fixed;
+    inset:0;
+    transform:translateX(100%);
+    transition:transform .3s ease;
+    z-index:10;
   }
-}
-
-/* Empty state */
-.empty-state {
-  padding: 22px 18px;
-  border-radius: var(--radius);
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px dashed rgba(148, 163, 184, 0.5);
-  font-size: 13px;
-  color: var(--muted);
-}
-.empty-state strong {
-  color: #e5e7eb;
-  display: block;
-  margin-bottom: 4px;
+  #mainContainer.chat-open #chatContainer {
+    transform:translateX(0);
+  }
+  #backBtn { display:block; }
 }
 </style>
 </head>
+
 <body>
-<div class="page-wrap">
-  <header class="page-header">
-    <h1>Your Deals</h1>
-    <div class="page-subtitle">Manage and confirm deals generated from your offers.</div>
-  </header>
+<header>EarnLibr — Provider Portal</header>
 
-  <div id="notif" class="notif"></div>
-
-  <div id="dealsContainer">
-    <!-- Skeletons will be injected here on load -->
+<div id="mainContainer">
+  <div id="chatList">
+    <input type="text" id="searchBar" placeholder="Search clients..." />
+    <div id="loading" style="padding:20px; text-align:center; color:var(--muted);">
+      Loading chats...
+    </div>
   </div>
 
-  <div id="loadMoreContainer" class="load-more" style="display: none;">
-    <button id="loadMoreBtn">Load More Deals</button>
+  <div id="chatContainer">
+    <div id="chatHeader">
+      <button id="backBtn">←</button>
+      <div id="chatHeaderMain">
+        <div id="chatTitle" style="font-weight:700;">Select a chat</div>
+        <div id="typingIndicator">Client is typing...</div>
+
+        <!-- 🔹 Deal actions for this conversation -->
+        <div id="dealActionsBar">
+          <span id="dealBadge"></span>
+          <button id="completeDealBtn" class="dealActionBtn completeBtn">Mark Completed</button>
+          <button id="cancelDealBtn" class="dealActionBtn cancelBtn">Mark Cancelled</button>
+        </div>
+
+        <!-- 🔹 Inline confirm row (no browser alert) -->
+        <div id="dealConfirmRow">
+          <span id="dealConfirmText"></span>
+          <button id="dealConfirmYes" class="inlineBtn primary">Yes</button>
+          <button id="dealConfirmNo" class="inlineBtn ghost">No</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="messages"></div>
+
+    <div id="inputContainer">
+      <!-- 📎 media picker -->
+      <label id="attachLabel" for="mediaInput">📎
+        <input type="file" id="mediaInput" accept="image/*,video/*" />
+      </label>
+      <div id="mediaPreview"></div>
+      <input type="text" id="messageInput" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
   </div>
 </div>
 
+<!-- In-app toast -->
+<div id="toast"></div>
+
 <script type="module">
-import { auth, db } from './firebase.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { auth, db } from "./firebase.js";
 import {
-  collection, doc, getDoc, getDocs, setDoc, runTransaction,
-  writeBatch, query, orderBy, limit, startAfter, where, serverTimestamp
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  serverTimestamp,
+  updateDoc,
+  getDocs,
+  writeBatch,
+  limit,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const dealsContainer = document.getElementById("dealsContainer");
-const notif = document.getElementById("notif");
-const loadMoreBtn = document.getElementById("loadMoreBtn");
-const loadMoreContainer = document.getElementById("loadMoreContainer");
+let currentChatId = null;
+let unsubscribeMessages = null;
+let providerId = null;
+let allChats = [];
+let isSending = false;
 
-const showNotif = (msg, type = "success") => {
-  notif.textContent = msg;
-  notif.className = `notif ${type}`;
-  notif.style.display = "block";
-  setTimeout(() => { notif.style.display = "none"; }, 8000);
-};
+const mainContainer = document.getElementById("mainContainer");
+const chatList = document.getElementById("chatList");
+const searchBar = document.getElementById("searchBar");
+const messagesContainer = document.getElementById("messages");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const backBtn = document.getElementById("backBtn");
+const chatTitle = document.getElementById("chatTitle");
+const typingIndicator = document.getElementById("typingIndicator");
+
+const mediaInput = document.getElementById("mediaInput");
+const mediaPreview = document.getElementById("mediaPreview");
+const toast = document.getElementById("toast");
+
+/* 🔹 Deal actions UI elements */
+const dealActionsBar = document.getElementById("dealActionsBar");
+const dealBadge = document.getElementById("dealBadge");
+const completeDealBtn = document.getElementById("completeDealBtn");
+const cancelDealBtn = document.getElementById("cancelDealBtn");
+const dealConfirmRow = document.getElementById("dealConfirmRow");
+const dealConfirmText = document.getElementById("dealConfirmText");
+const dealConfirmYes = document.getElementById("dealConfirmYes");
+const dealConfirmNo = document.getElementById("dealConfirmNo");
+
+let currentDealId = null;
+let pendingDealAction = null;
+
+/* 🔹 Cloudinary config – replace with your own */
+const CLOUD_NAME = "dye3bda08";       // e.g. "your_cloud_name"
+const UPLOAD_PRESET = "earnlibrmedia"; // e.g. "your_unsigned_preset"
 
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-/* --- Skeleton helpers --- */
-let skeletonContainer = null;
-
-function createSkeletonCard() {
-  const card = document.createElement("div");
-  card.className = "skeleton-card";
-  card.innerHTML = `
-    <div class="skeleton-line medium"></div>
-    <div class="skeleton-line long"></div>
-    <div class="skeleton-line long"></div>
-    <div class="skeleton-line short"></div>
-  `;
-  return card;
+/* Small toast helper */
+function showToast(message, duration = 3000) {
+  toast.textContent = message;
+  toast.style.display = "block";
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => {
+    toast.style.display = "none";
+  }, duration);
 }
 
-function showSkeleton(count = 3, mode = "replace") {
-  hideSkeleton();
-  skeletonContainer = document.createElement("div");
+async function uploadToCloudinary(file) {
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
 
-  for (let i = 0; i < count; i++) {
-    skeletonContainer.appendChild(createSkeletonCard());
+  const res = await fetch(url, { method: "POST", body: formData });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("Upload failed: " + errText);
   }
-
-  if (mode === "replace") {
-    dealsContainer.innerHTML = "";
-    dealsContainer.appendChild(skeletonContainer);
-  } else {
-    dealsContainer.appendChild(skeletonContainer);
-  }
+  return await res.json();
 }
 
-function hideSkeleton() {
-  if (skeletonContainer && skeletonContainer.parentNode) {
-    skeletonContainer.parentNode.removeChild(skeletonContainer);
-  }
-  skeletonContainer = null;
-}
-
-/* --- Notification Batching --- */
-async function sendNotifications(deal, title, message) {
+/* 🔹 Notifications for deals (provider & promoter) */
+async function sendDealNotifications(deal, title, message) {
   const batch = writeBatch(db);
   const data = { title, message, read: false, createdAt: serverTimestamp() };
 
@@ -380,100 +516,35 @@ async function sendNotifications(deal, title, message) {
   await batch.commit();
 }
 
-/* --- Session & Auth Check --- */
-let rawSession = localStorage.getItem("userSession");
-let userSession = null;
-
-if (!rawSession) {
-  window.location.href = "login.html";
-  throw new Error("No session");
-}
-
-try {
-  userSession = JSON.parse(rawSession);
-  if (!userSession || userSession.role !== "provider") {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
-    throw new Error("Invalid session");
-  }
-} catch (e) {
-  localStorage.removeItem("userSession");
-  window.location.href = "login.html";
-  throw e;
-}
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
-    localStorage.removeItem("userSession");
-    window.location.href = "login.html";
+/* 🔹 Complete deal directly from chat */
+async function completeDealFromChat(dealId) {
+  if (!dealId) {
+    showToast("No linked deal for this chat.");
     return;
   }
 
-  try {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+  let dealForNotif = null;
 
-    let uData = userDoc.exists() ? userDoc.data() : null;
-    let role = uData?.role;
-
-    if (adminDoc.exists() && adminDoc.data().role === 'provider') {
-      uData = adminDoc.data();
-      role = 'provider';
-    } else if (!userDoc.exists() || role !== 'provider') {
-      localStorage.removeItem("userSession");
-      window.location.href = "login.html";
-      return;
-    }
-
-    userSession = {
-      uid: user.uid,
-      name: uData.name || "Provider",
-      email: uData.email || "",
-      role
-    };
-    localStorage.setItem('userSession', JSON.stringify(userSession));
-
-    loadDeals(true);
-  } catch (err) {
-    console.error("Auth data load error:", err);
-    showNotif("Failed to load user profile. Please reload.", "error");
-  }
-});
-
-/* ===== CORE ACTIONS (Complete / Cancel) – REUSABLE ===== */
-
-/* --- Complete Deal --- */
-async function processCompleteDeal(dealId, deal, card) {
-  const dealRef = doc(db, "deals", dealId);
-
-  // allow card to be optional (for external triggers)
-  const cardEl = card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
-
-  // Locking: set status to 'processing' atomically
   try {
     await runTransaction(db, async (t) => {
-      const snap = await t.get(dealRef);
-      if (!snap.exists()) throw new Error("Deal not found.");
-      if (snap.data().status === "processing") {
-        throw new Error("Deal is being processed.");
+      const dealRef = doc(db, "deals", dealId);
+      const dealSnap = await t.get(dealRef);
+      if (!dealSnap.exists()) throw new Error("Deal not found.");
+
+      const deal = dealSnap.data();
+      dealForNotif = { ...deal, id: dealId };
+
+      if (deal.status === "processing") {
+        throw new Error("Deal is already being processed.");
       }
+
+      // Lock as processing inside transaction
       t.update(dealRef, { status: "processing" });
-    });
-  } catch (err) {
-    if (err.message.includes("being processed")) {
-      showNotif("⚠️ Deal is already processing. Please wait.", "error");
-    } else {
-      showNotif(`Lock Error: ${err.message}`, "error");
-    }
-    return;
-  }
 
-  try {
-    const offerRef = doc(db, "offers_all", deal.offerId);
-
-    await runTransaction(db, async (t) => {
+      const offerRef = doc(db, "offers_all", deal.offerId);
       const offerSnap = await t.get(offerRef);
-      if (!offerSnap.exists()) throw new Error("Offer not found");
+      if (!offerSnap.exists()) throw new Error("Offer not found.");
+
       const offer = offerSnap.data();
 
       const platformSettingsRef = doc(db, "platform-settings", "commission");
@@ -569,10 +640,7 @@ async function processCompleteDeal(dealId, deal, card) {
         commissionEarned,
         platformShare,
         promoterNet,
-        providerPaid: false
-      });
-
-      t.update(completedRef, {
+        providerPaid: false,
         billedBy: null,
         billedAt: null
       });
@@ -580,33 +648,45 @@ async function processCompleteDeal(dealId, deal, card) {
       t.delete(dealRef);
     });
 
-    await sendNotifications(deal, "Deal Completed ✅", `Deal ${dealId} marked complete.`);
+    if (dealForNotif) {
+      await sendDealNotifications(
+        dealForNotif,
+        "Deal Completed ✅",
+        `Deal ${dealId} marked complete.`
+      );
+    }
 
-    if (cardEl) cardEl.remove();
-
-    showNotif("Deal completed successfully", "success");
+    showToast("Deal completed successfully");
+    // You could also hide buttons after completion:
+    // dealActionsBar.style.display = "none";
   } catch (err) {
     console.error(err);
-    setDoc(dealRef, { status: "pending" }, { merge: true }).catch((e) =>
-      console.error("Failed to reset status:", e)
-    );
-    showNotif(`Financial Error: ${err.message}`, "error");
+    showToast("Error completing deal: " + err.message);
   }
 }
 
-/* --- Cancel Deal --- */
-async function processCancelDeal(dealId, deal, card) {
-  const dealRef = doc(db, "deals", dealId);
-  const cancelledRef = doc(db, "cancelled-deals", dealId);
-  const cardEl = card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
+/* 🔹 Cancel deal directly from chat */
+async function cancelDealFromChat(dealId) {
+  if (!dealId) {
+    showToast("No linked deal for this chat.");
+    return;
+  }
+
+  let dealForNotif = null;
 
   try {
     await runTransaction(db, async (t) => {
-      const snap = await t.get(dealRef);
-      if (!snap.exists()) throw new Error("Deal not found.");
+      const dealRef = doc(db, "deals", dealId);
+      const dealSnap = await t.get(dealRef);
+      if (!dealSnap.exists()) throw new Error("Deal not found.");
+
+      const deal = dealSnap.data();
+      dealForNotif = { ...deal, id: dealId };
+
+      const cancelledRef = doc(db, "cancelled-deals", dealId);
 
       t.set(cancelledRef, {
-        ...snap.data(),
+        ...deal,
         status: "cancelled",
         cancelledAt: serverTimestamp(),
         cancelledBy: "provider"
@@ -614,254 +694,467 @@ async function processCancelDeal(dealId, deal, card) {
       t.delete(dealRef);
     });
 
-    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} has been cancelled.`);
+    if (dealForNotif) {
+      await sendDealNotifications(
+        dealForNotif,
+        "Deal Cancelled ❌",
+        `Deal ${dealId} has been cancelled.`
+      );
+    }
 
-    if (cardEl) cardEl.remove();
-
-    showNotif("Deal cancelled", "error");
+    showToast("Deal cancelled");
+    // Optionally hide buttons:
+    // dealActionsBar.style.display = "none";
   } catch (err) {
     console.error(err);
-    showNotif(`Cancel Error: ${err.message}`, "error");
+    showToast("Error cancelling deal: " + err.message);
   }
 }
 
-/* --- Execute Action Reusable --- */
-async function executeDealAction(type, dealId, deal, card) {
-  const actionMap = {
-    complete: processCompleteDeal,
-    cancel: processCancelDeal
-  };
-  if (!actionMap[type]) throw new Error(`Unknown action type: ${type}`);
-  await actionMap[type](dealId, deal, card);
+/* 🔹 Deal action confirm helpers */
+function hideDealConfirm() {
+  pendingDealAction = null;
+  dealConfirmRow.style.display = "none";
 }
 
-/* --- Schedule Actions (with Undo) --- */
-function scheduleAction(type, dealId, deal, card, delayMs = 5000) {
-  // If no card is passed (e.g. triggered from somewhere else), just execute immediately
-  if (!card) {
-    executeDealAction(type, dealId, deal, null).catch((e) =>
-      console.error("Scheduled (no-card) action failed:", e)
-    );
+function showDealConfirm(action) {
+  if (!currentDealId) {
+    showToast("No linked deal for this chat.");
+    return;
+  }
+  pendingDealAction = action;
+  dealConfirmText.textContent =
+    action === "complete"
+      ? "Mark this deal as completed?"
+      : "Mark this deal as cancelled?";
+  dealConfirmRow.style.display = "flex";
+}
+
+/* 🔹 Wire buttons */
+completeDealBtn.onclick = () => showDealConfirm("complete");
+cancelDealBtn.onclick = () => showDealConfirm("cancel");
+
+dealConfirmYes.onclick = async () => {
+  const action = pendingDealAction;
+  hideDealConfirm();
+  if (!action || !currentDealId) return;
+
+  if (action === "complete") {
+    await completeDealFromChat(currentDealId);
+  } else {
+    await cancelDealFromChat(currentDealId);
+  }
+};
+
+dealConfirmNo.onclick = hideDealConfirm;
+
+/* 🔹 Auth & chat logic */
+auth.onAuthStateChanged(user => {
+  if (!user) location.href = "login.html";
+  providerId = user.uid;
+  loadChats();
+});
+
+function loadChats() {
+  const q = query(
+    collection(db,"chats"),
+    where("providerId","==",providerId),
+    orderBy("lastMessage.timestamp","desc")
+  );
+  onSnapshot(
+    q,
+    snap => {
+      document.getElementById("loading")?.remove();
+      allChats = [];
+      chatList.querySelectorAll(".chatItem").forEach(e => e.remove());
+
+      snap.forEach(d => {
+        const chat = { id:d.id, ...d.data() };
+        allChats.push(chat);
+        const div = document.createElement("div");
+        div.className = `chatItem ${currentChatId === chat.id ? "active" : ""}`;
+        div.innerHTML = `
+          <div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
+          <div class="chatLastMsg">${chat.lastMessage?.text || "No messages"}</div>
+        `;
+        div.onclick = () => openChat(chat.id);
+        chatList.appendChild(div);
+      });
+    },
+    err => {
+      console.error(err);
+      showToast("Failed to load chats. Please refresh.");
+    }
+  );
+}
+
+searchBar.addEventListener("input", e => {
+  const term = e.target.value.toLowerCase();
+  chatList.querySelectorAll(".chatItem").forEach(item => {
+    const name = item.querySelector(".chatTitle").textContent.toLowerCase();
+    item.style.display = name.includes(term) ? "block" : "none";
+  });
+});
+
+function openChat(chatId) {
+  currentChatId = chatId;
+  mainContainer.classList.add("chat-open");
+
+  updateDoc(doc(db,"chats",chatId), { unreadCount:0 }).catch(()=>{});
+
+  const chat = allChats.find(c => c.id === chatId);
+  chatTitle.textContent = chat?.clientInfo?.name || "Client Chat";
+
+  // 🔗 get linked dealId from chat
+  currentDealId = chat?.dealId || null;
+  if (currentDealId) {
+    dealActionsBar.style.display = "flex";
+    dealBadge.textContent = `Linked deal: ${currentDealId}`;
+  } else {
+    dealActionsBar.style.display = "none";
+    dealBadge.textContent = "";
+  }
+  hideDealConfirm();
+
+  if (unsubscribeMessages) unsubscribeMessages();
+
+  const q = query(
+    collection(db,"chats",chatId,"messages"),
+    orderBy("timestamp","asc")
+  );
+
+  unsubscribeMessages = onSnapshot(
+    q,
+    snap => {
+      messagesContainer.innerHTML = "";
+      snap.forEach(d => {
+        const msg = d.data();
+
+        const isDeleted = !!msg.deleted || msg.text === "[Message deleted]";
+
+        if (msg.sender === "client" && !msg.seen) {
+          updateDoc(d.ref, { seen:true }).catch(()=>{});
+        }
+
+        const div = document.createElement("div");
+        div.className = `message ${msg.sender} ${isDeleted ? "deleted" : ""}`;
+
+        const time = msg.timestamp
+          ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {
+              hour:"2-digit",
+              minute:"2-digit"
+            })
+          : "";
+
+        let inner = "";
+
+        if (isDeleted) {
+          inner += `<div>[Message deleted]</div>`;
+        } else if (msg.type === "image" && msg.mediaUrl) {
+          inner += `<div><img src="${msg.mediaUrl}" alt="image" /></div>`;
+          if (msg.text && msg.text !== "📷 Image") {
+            inner += `<div>${msg.text}</div>`;
+          }
+        } else if (msg.type === "video" && msg.mediaUrl) {
+          inner += `
+            <video controls>
+              <source src="${msg.mediaUrl}" type="${msg.mediaMime || "video/mp4"}" />
+            </video>
+          `;
+          if (msg.text && msg.text !== "🎥 Video") {
+            inner += `<div>${msg.text}</div>`;
+          }
+        } else {
+          inner += `<div>${msg.text || ""}</div>`;
+        }
+
+        inner += `<div class="messageTime">
+          ${time}
+          ${
+            msg.sender === "provider"
+              ? (msg.seen ? " ✓✓" : " ✓")
+              : ""
+          }
+        </div>`;
+
+        div.innerHTML = inner;
+
+        // Edit/delete controls for provider's own non-deleted messages
+        if (
+          msg.sender === "provider" &&
+          msg.editable &&
+          !isDeleted
+        ) {
+          const controls = document.createElement("div");
+          controls.className = "controls";
+          controls.innerHTML = `
+            <button class="editBtn">Edit</button>
+            <button class="delBtn">Delete</button>
+          `;
+
+          // Inline editor instead of prompt
+          controls.querySelector(".editBtn").onclick = () => {
+            if (div.querySelector(".inlineEdit")) return;
+
+            const editWrapper = document.createElement("div");
+            editWrapper.className = "inlineEdit";
+
+            const input = document.createElement("input");
+            input.className = "inlineEditInput";
+            input.type = "text";
+            input.value = msg.text || "";
+
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "inlineBtn primary";
+            saveBtn.textContent = "Save";
+
+            const cancelBtn = document.createElement("button");
+            cancelBtn.className = "inlineBtn ghost";
+            cancelBtn.textContent = "Cancel";
+
+            editWrapper.appendChild(input);
+            editWrapper.appendChild(saveBtn);
+            editWrapper.appendChild(cancelBtn);
+            div.appendChild(editWrapper);
+
+            input.focus();
+            input.select();
+
+            const cleanup = () => {
+              if (editWrapper.parentNode) {
+                editWrapper.parentNode.removeChild(editWrapper);
+              }
+            };
+
+            cancelBtn.onclick = cleanup;
+
+            saveBtn.onclick = async () => {
+              const newT = input.value.trim();
+              if (!newT || newT === msg.text) {
+                cleanup();
+                return;
+              }
+              try {
+                await updateDoc(d.ref, { text: newT });
+                showToast("Message updated", 2000);
+              } catch (e) {
+                console.error(e);
+                showToast("Could not edit message.");
+              } finally {
+                cleanup();
+              }
+            };
+
+            input.onkeydown = e => {
+              if (e.key === "Enter") {
+                saveBtn.click();
+              } else if (e.key === "Escape") {
+                cleanup();
+              }
+            };
+          };
+
+          // Inline delete confirmation instead of confirm()
+          controls.querySelector(".delBtn").onclick = () => {
+            if (div.querySelector(".deleteConfirm")) return;
+
+            const confirmRow = document.createElement("div");
+            confirmRow.className = "deleteConfirm";
+
+            const label = document.createElement("span");
+            label.textContent = "Delete this message?";
+
+            const yesBtn = document.createElement("button");
+            yesBtn.className = "inlineBtn danger";
+            yesBtn.textContent = "Delete";
+
+            const noBtn = document.createElement("button");
+            noBtn.className = "inlineBtn ghost";
+            noBtn.textContent = "Cancel";
+
+            confirmRow.appendChild(label);
+            confirmRow.appendChild(yesBtn);
+            confirmRow.appendChild(noBtn);
+            div.appendChild(confirmRow);
+
+            const cleanup = () => {
+              if (confirmRow.parentNode) {
+                confirmRow.parentNode.removeChild(confirmRow);
+              }
+            };
+
+            noBtn.onclick = cleanup;
+
+            yesBtn.onclick = async () => {
+              try {
+                await updateDoc(d.ref, {
+                  deleted:true,
+                  text:"[Message deleted]",
+                  editable:false
+                });
+                showToast("Message deleted", 2000);
+              } catch (e) {
+                console.error(e);
+                showToast("Could not delete message.");
+              } finally {
+                cleanup();
+              }
+            };
+          };
+
+          div.appendChild(controls);
+        }
+
+        messagesContainer.appendChild(div);
+      });
+
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    },
+    err => {
+      console.error(err);
+      showToast("Failed to load messages.");
+    }
+  );
+
+  onSnapshot(doc(db,"chats",chatId), s => {
+    typingIndicator.style.display = s.data()?.clientTyping ? "block" : "none";
+  });
+}
+
+/* Media preview when selecting file */
+mediaInput.addEventListener("change", () => {
+  const file = mediaInput.files[0];
+  if (!file) {
+    mediaPreview.style.display = "none";
+    mediaPreview.innerHTML = "";
     return;
   }
 
-  const box = document.createElement("div");
-  box.className = "card-notif";
-  box.innerHTML =
-    `${type === "complete" ? "Completing" : "Cancelling"} in ${delayMs / 1000}s <button>Undo</button>`;
-  card.appendChild(box);
+  mediaPreview.style.display = "flex";
+  mediaPreview.innerHTML = "";
 
-  const buttons = card.querySelectorAll(".deal-actions button");
-  buttons.forEach((btn) => { btn.disabled = true; btn.classList.add("loading"); });
-
-  let cancelled = false;
-  box.querySelector("button").onclick = () => {
-    cancelled = true;
-    box.remove();
-    buttons.forEach((btn) => { btn.disabled = false; btn.classList.remove("loading"); });
-    showNotif("Action cancelled", "error");
-  };
-
-  setTimeout(async () => {
-    box.remove();
-    if (!cancelled) {
-      try {
-        await executeDealAction(type, dealId, deal, card);
-      } catch (e) {
-        console.error("Scheduled action failed:", e);
-      } finally {
-        buttons.forEach((btn) => { btn.disabled = false; btn.classList.remove("loading"); });
-      }
-    }
-  }, delayMs);
-}
-
-/* --- PUBLIC API so you can trigger from elsewhere --- */
-window.dealActions = {
-  /**
-   * Immediate action (no undo UI).
-   * type: 'complete' | 'cancel'
-   * dealId: string
-   * deal: deal data object (if you already have it)
-   * card: optional DOM element for this deal
-   */
-  execute: (type, dealId, deal, card) => executeDealAction(type, dealId, deal, card),
-
-  /**
-   * Scheduled action with optional undo (if card is passed).
-   * If card is null/undefined, it runs immediately without the mini-toast.
-   */
-  schedule: (type, dealId, deal, card, delayMs) =>
-    scheduleAction(type, dealId, deal, card, delayMs)
-};
-/* --- Load Deals --- */
-let lastDeal = null;
-
-function loadDeals(isInitialLoad = true) {
-  if (isInitialLoad) {
-    showSkeleton(3, "replace");
-    lastDeal = null;
-    loadMoreContainer.style.display = "none";
+  if (file.type.startsWith("image/")) {
+    const img = document.createElement("img");
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.readAsDataURL(file);
+    mediaPreview.appendChild(img);
+  } else if (file.type.startsWith("video/")) {
+    const span = document.createElement("span");
+    span.textContent = "📹 " + (file.name || "Video selected");
+    mediaPreview.appendChild(span);
   } else {
-    showSkeleton(2, "append");
+    const span = document.createElement("span");
+    span.textContent = "📎 " + (file.name || "File selected");
+    mediaPreview.appendChild(span);
   }
+});
 
-  let dealsQuery = query(
-    collection(db, "deals"),
-    where("providerId", "==", userSession.uid),
-    where("status", "!=", "processing"),
-    orderBy("status"),
-    orderBy("createdAt", "desc"),
-    limit(25)
-  );
-
-  if (lastDeal) {
-    dealsQuery = query(dealsQuery, startAfter(lastDeal));
+/* Send message (text + optional media) */
+async function sendMessage() {
+  if (!currentChatId) {
+    showToast("Select a chat first.");
+    return;
   }
+  if (isSending) return;
 
-  if (loadMoreBtn) {
-    loadMoreBtn.disabled = true;
-    loadMoreBtn.textContent = "Loading...";
-  }
+  const text = messageInput.value.trim();
+  const file = mediaInput.files[0];
 
-  getDocs(dealsQuery)
-    .then((snapshot) => {
-      hideSkeleton();
+  if (!text && !file) return;
 
-      if (snapshot.empty && isInitialLoad) {
-        dealsContainer.innerHTML = `
-          <div class="empty-state">
-            <strong>No active deals yet.</strong>
-            Once promoters start driving clients to your offers, deals will show up here for you to confirm or cancel.
-          </div>
-        `;
-        loadMoreContainer.style.display = "none";
-        return;
-      }
-      if (snapshot.empty) {
-        if (loadMoreBtn) {
-          loadMoreBtn.textContent = "No More Deals";
-          loadMoreBtn.disabled = true;
-        }
-        return;
-      }
+  isSending = true;
+  sendBtn.disabled = true;
 
-      snapshot.docs.forEach((docSnap) =>
-        renderDealCard(docSnap.id, docSnap.data())
-      );
-      lastDeal = snapshot.docs[snapshot.docs.length - 1];
-      loadMoreContainer.style.display = "block";
+  const chatDoc = doc(db,"chats",currentChatId);
+  const msgRef = collection(db,"chats",currentChatId,"messages");
 
-      if (loadMoreBtn) {
-        if (snapshot.docs.length < 25) {
-          loadMoreBtn.textContent = "No More Deals";
-          loadMoreBtn.disabled = true;
-        } else {
-          loadMoreBtn.textContent = "Load More Deals";
-          loadMoreBtn.disabled = false;
-        }
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-      hideSkeleton();
-      dealsContainer.innerHTML =
-        `<p style="color:#fecaca;font-size:13px;">Failed to load deals: ${err.code || "Unknown error"}. Check console.</p>`;
-      showNotif("Failed to load deals", "error");
-      if (loadMoreBtn) {
-        loadMoreBtn.textContent = "Failed to Load";
-      }
-    });
-}
+  try {
+    const batch = writeBatch(db);
 
-if (loadMoreBtn) {
-  loadMoreBtn.onclick = () => loadDeals(false);
-}
+    // Lock previous provider message
+    const lastQ = query(
+      msgRef,
+      where("sender","==","provider"),
+      orderBy("timestamp","desc"),
+      limit(1)
+    );
+    const lastSnap = await getDocs(lastQ);
+    lastSnap.forEach(ld => batch.update(ld.ref, { editable:false }));
 
-/* --- Render Deal Card --- */
-function renderDealCard(dealId, deal) {
-  const card = document.createElement("div");
-  card.className = "deal-card " + (deal.status || "");
-  card.dataset.dealId = dealId; // so actions can find this card by id if needed
+    let newMsg = {
+      sender:"provider",
+      timestamp:serverTimestamp(),
+      seen:false,
+      editable:true
+    };
 
-  let createdDate = "N/A";
-  if (deal.createdAt) {
-    if (typeof deal.createdAt.toDate === "function") {
-      createdDate = deal.createdAt.toDate().toLocaleString();
-    } else if (deal.createdAt instanceof Date) {
-      createdDate = deal.createdAt.toLocaleString();
-    } else if (typeof deal.createdAt === "string") {
+    if (file) {
+      let uploadRes;
       try {
-        createdDate = new Date(deal.createdAt).toLocaleString();
-      } catch (e) {
-        createdDate = "Invalid Date";
+        uploadRes = await uploadToCloudinary(file);
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to upload media. Try again.");
+        throw err;
       }
+
+      const msgType = uploadRes.resource_type === "video" ? "video" : "image";
+
+      newMsg = {
+        ...newMsg,
+        type:msgType,
+        mediaUrl:uploadRes.secure_url,
+        mediaMime:file.type || null,
+        text:text || (msgType === "video" ? "🎥 Video" : "📷 Image")
+      };
+    } else {
+      newMsg = {
+        ...newMsg,
+        type:"text",
+        text
+      };
     }
+
+    const newDocRef = doc(msgRef);
+    batch.set(newDocRef, newMsg);
+    batch.update(chatDoc, {
+      lastMessage:newMsg,
+      providerTyping:false
+    });
+
+    await batch.commit();
+
+    // Clear inputs & preview
+    messageInput.value = "";
+    mediaInput.value = "";
+    mediaPreview.style.display = "none";
+    mediaPreview.innerHTML = "";
+  } catch (err) {
+    console.error(err);
+    showToast("Error sending message. Please try again.");
+  } finally {
+    isSending = false;
+    sendBtn.disabled = false;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
-
-  const dealQuantity = deal.quantity || 1;
-  const isDirect = deal.promoterId === "direct";
-  const promoterLabel = !deal.promoterId
-    ? "N/A"
-    : isDirect
-      ? "Direct"
-      : (deal.promoterName || "Unknown");
-  const promoterIdText = deal.promoterId ? ` (${deal.promoterId})` : "";
-  const statusLabel = (deal.status || "pending").toLowerCase();
-
-  card.innerHTML = `
-    <div class="deal-header-row">
-      <div style="font-size:12px; color:var(--muted);">
-        <strong style="color:#e5e7eb;">Deal ID:</strong> ${dealId}
-      </div>
-      <div class="deal-pill ${statusLabel}">
-        ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}
-      </div>
-    </div>
-
-    <div class="deal-info">
-      <strong>Offer:</strong> ${deal.offerTitle || "N/A"}
-      <span style="font-weight:700; color:var(--accent2); margin-left:4px;">
-        (QTY: ${dealQuantity})
-      </span>
-    </div>
-
-    <div class="deal-info">
-      <strong>Promoter:</strong> ${promoterLabel}${promoterIdText}
-    </div>
-
-    <div class="deal-info">
-      <strong>Client:</strong> ${deal.clientName || "N/A"} | ${deal.clientContact || "N/A"}
-    </div>
-
-    <div class="deal-info">
-      <strong>Note:</strong> ${deal.note || "None"}
-    </div>
-
-    <div class="deal-actions">
-      <button class="complete">
-        <span class="icon">✅</span>
-        <span>Mark Completed</span>
-      </button>
-      <button class="cancel">
-        <span class="icon">✖</span>
-        <span>Mark Cancelled</span>
-      </button>
-    </div>
-
-    <div class="deal-meta-row">
-      <div class="timestamp">Created: ${createdDate}</div>
-      <div>${deal.offerCurrency || "USD"}</div>
-    </div>
-  `;
-
-  card.querySelector(".complete").onclick = () =>
-    scheduleAction("complete", dealId, deal, card);
-  card.querySelector(".cancel").onclick = () =>
-    scheduleAction("cancel", dealId, deal, card);
-
-  dealsContainer.appendChild(card);
 }
+
+/* Typing indicator for provider */
+messageInput.oninput = () => {
+  if (!currentChatId) return;
+  updateDoc(doc(db,"chats",currentChatId), { providerTyping:true }).catch(()=>{});
+  clearTimeout(window.t);
+  window.t = setTimeout(() => {
+    updateDoc(doc(db,"chats",currentChatId), { providerTyping:false }).catch(()=>{});
+  }, 2000);
+};
+
+sendBtn.onclick = sendMessage;
+messageInput.onkeydown = e => {
+  if (e.key === "Enter") sendMessage();
+};
+backBtn.onclick = () => mainContainer.classList.remove("chat-open");
 </script>
 </body>
 </html>
