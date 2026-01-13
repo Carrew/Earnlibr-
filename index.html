@@ -138,7 +138,7 @@
   
     /* Hamburger button */  
     .menu-toggle {  
-      display: none;               /* shown only on mobile */  
+      display: none;  
       background: none;  
       border: 1px solid rgba(255, 255, 255, 0.3);  
       border-radius: 6px;  
@@ -158,19 +158,12 @@
       transition: transform 0.25s ease, opacity 0.25s ease;  
     }  
   
-    .menu-toggle:hover {  
-      background: rgba(255, 255, 255, 0.06);  
-    }  
-  
-    /* Hamburger to X animation */  
     .menu-toggle.open span:nth-child(1) {  
       transform: translateY(5px) rotate(45deg);  
     }  
-  
     .menu-toggle.open span:nth-child(2) {  
       opacity: 0;  
     }  
-  
     .menu-toggle.open span:nth-child(3) {  
       transform: translateY(-5px) rotate(-45deg);  
     }  
@@ -294,7 +287,26 @@
       left: 0;  
       right: 0;  
     }  
-  
+
+    /* PAYMENT METHODS SECTION */
+    .payment-methods {
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+      color: #ddd;
+    }
+    .payment-methods img {
+      height: 26px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(1.1);
+      border-radius: 4px;
+    }
+
     footer a {  
       color: #7fff00;  
       text-decoration: none;  
@@ -326,8 +338,7 @@
       background: #7fff00;  
       color: #000;  
     }  
-
-    /* Cookie banner */  
+  
     .cookie-banner {  
       position: fixed;  
       bottom: 0;  
@@ -370,27 +381,24 @@
       filter: brightness(1.1);  
     }  
 
-    /* ===== Mobile Styles ===== */  
     @media (max-width: 768px) {  
       header {  
         padding: 12px 18px;  
       }  
 
-      /* show hamburger on mobile */  
       .menu-toggle {  
         display: flex;  
         flex-direction: column;  
       }  
 
-      /* turn nav into dropdown below header */  
       header nav {  
         position: absolute;  
-        top: 100%;            /* directly under header */  
+        top: 100%;  
         left: 0;  
         right: 0;  
         background: #111;  
         border-top: 1px solid rgba(255, 255, 255, 0.08);  
-        display: none;        /* hidden until .open */  
+        display: none;  
         flex-direction: column;  
         padding: 10px 20px 15px;  
         gap: 8px;  
@@ -425,7 +433,6 @@
   <header>  
     <h1 onclick="window.location.href='#home'">EarnLibr</h1>  
 
-    <!-- Hamburger button (mobile) -->  
     <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">
       <span></span>
       <span></span>
@@ -536,7 +543,22 @@
   </section>  
   
   <!-- Footer -->  
-  <footer>  
+  <footer>
+
+    <div class="payment-methods">
+      <span>Payments & payouts via:</span>
+      <img 
+        src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1768303975324.jpg" 
+        alt="Lonestar Cell MTN Mobile Money" 
+        loading="lazy"
+      >
+      <img 
+        src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1768303941139.jpg" 
+        alt="Orange Money Liberia" 
+        loading="lazy"
+      >
+    </div>
+
     <p>© 2025 EarnLibr. All Rights Reserved.<br>Professional. Trusted. Culturally-rooted in Liberia, built for Africa.</p>  
     <p style="margin-top:10px;">  
       <a href="/policies/terms.html">Terms of Service</a> ·  
@@ -565,11 +587,10 @@
     };  
     btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });  
 
-    // Cookie banner logic  
     const cookieBanner = document.getElementById('cookieBanner');  
     const acceptCookiesBtn = document.getElementById('acceptCookiesBtn');  
-
     const cookiesAccepted = localStorage.getItem('earnlibr_cookies_accepted');  
+
     if (!cookiesAccepted) {  
       cookieBanner.style.display = 'flex';  
     }  
@@ -579,7 +600,6 @@
       cookieBanner.style.display = 'none';  
     });  
 
-    // ===== Mobile hamburger menu =====
     const menuToggle = document.getElementById('menuToggle');
     const mainNav = document.getElementById('mainNav');
 
@@ -590,7 +610,6 @@
         menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
       });
 
-      // Close menu when a nav link is clicked on mobile
       mainNav.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', () => {
           if (window.innerWidth <= 768 && mainNav.classList.contains('open')) {
@@ -603,4 +622,4 @@
     }
   </script>  
 </body>  
-</html>
+  </html>
