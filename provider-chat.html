@@ -171,7 +171,7 @@ header {
   text-align:right;
 }
 
-/* Action Buttons under each provider message */
+/* Action Buttons under provider messages */
 .controls {
   display:flex;
   gap:8px;
@@ -435,7 +435,8 @@ import {
   getDocs,
   writeBatch,
   limit,
-  runTransaction
+  runTransaction,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 let currentChatId = null;
@@ -472,12 +473,12 @@ let currentDealId = null;
 let pendingDealAction = null;
 
 /* 🔹 Cloudinary config – replace with your own */
-const CLOUD_NAME = "dye3bda08";       // e.g. "your_cloud_name"
-const UPLOAD_PRESET = "earnlibrmedia"; // e.g. "your_unsigned_preset"
+const CLOUD_NAME = "dye3bda08";
+const UPLOAD_PRESET = "earnlibrmedia";
 
 const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-/* Small toast helper */
+/* Toast helper */
 function showToast(message, duration = 3000) {
   toast.textContent = message;
   toast.style.display = "block";
@@ -501,7 +502,7 @@ async function uploadToCloudinary(file) {
   return await res.json();
 }
 
-/* 🔹 Notifications for deals (provider & promoter) */
+/* 🔹 Deal notifications */
 async function sendDealNotifications(deal, title, message) {
   const batch = writeBatch(db);
   const data = { title, message, read: false, createdAt: serverTimestamp() };
@@ -516,7 +517,42 @@ async function sendDealNotifications(deal, title, message) {
   await batch.commit();
 }
 
-/* 🔹 Complete deal directly from chat */
+/* 🔹 Helper: show buttons only when deal is pending */
+async function updateDealActionBar(dealId) {
+  hideDealConfirm();
+  if (!dealId) {
+    dealActionsBar.style.display = "none";
+    dealBadge.textContent = "";
+    return;
+  }
+
+  try {
+    const dealRef = doc(db, "deals", dealId);
+    const dealSnap = await getDoc(dealRef);
+    if (!dealSnap.exists()) {
+      // deal not in active deals (maybe completed/cancelled) -> hide
+      dealActionsBar.style.display = "none";
+      dealBadge.textContent = "";
+      return;
+    }
+    const deal = dealSnap.data();
+    const status = (deal.status || "pending").toLowerCase();
+
+    if (status === "pending") {
+      dealActionsBar.style.display = "flex";
+      dealBadge.textContent = `Linked deal: ${dealId} · Status: Pending`;
+    } else {
+      dealActionsBar.style.display = "none";
+      dealBadge.textContent = "";
+    }
+  } catch (e) {
+    console.error(e);
+    dealActionsBar.style.display = "none";
+    dealBadge.textContent = "";
+  }
+}
+
+/* 🔹 Complete deal from chat (reads then writes) */
 async function completeDealFromChat(dealId) {
   if (!dealId) {
     showToast("No linked deal for this chat.");
@@ -537,14 +573,9 @@ async function completeDealFromChat(dealId) {
       if (deal.status === "processing") {
         throw new Error("Deal is already being processed.");
       }
-
-      // Lock as processing inside transaction
-      t.update(dealRef, { status: "processing" });
-
       const offerRef = doc(db, "offers_all", deal.offerId);
       const offerSnap = await t.get(offerRef);
       if (!offerSnap.exists()) throw new Error("Offer not found.");
-
       const offer = offerSnap.data();
 
       const platformSettingsRef = doc(db, "platform-settings", "commission");
@@ -569,6 +600,7 @@ async function completeDealFromChat(dealId) {
         metaSnap = await t.get(metaRef);
       }
 
+      // 🔢 calculations (still inside transaction, but only using data already read)
       const dealQuantity = deal.quantity || 1;
 
       let commissionEarned = 0;
@@ -610,6 +642,8 @@ async function completeDealFromChat(dealId) {
         meta.lastUpdated = serverTimestamp();
       }
 
+      // ✅ WRITES (all after the reads)
+      t.update(dealRef, { status: "processing" });
       t.update(offerRef, updatedOfferData);
 
       if (deal.promoterId && deal.promoterId !== "direct") {
@@ -657,15 +691,14 @@ async function completeDealFromChat(dealId) {
     }
 
     showToast("Deal completed successfully");
-    // You could also hide buttons after completion:
-    // dealActionsBar.style.display = "none";
+    dealActionsBar.style.display = "none"; // hide buttons after completion
   } catch (err) {
     console.error(err);
     showToast("Error completing deal: " + err.message);
   }
 }
 
-/* 🔹 Cancel deal directly from chat */
+/* 🔹 Cancel deal from chat (already reads before writes) */
 async function cancelDealFromChat(dealId) {
   if (!dealId) {
     showToast("No linked deal for this chat.");
@@ -703,15 +736,14 @@ async function cancelDealFromChat(dealId) {
     }
 
     showToast("Deal cancelled");
-    // Optionally hide buttons:
-    // dealActionsBar.style.display = "none";
+    dealActionsBar.style.display = "none"; // hide buttons after cancel
   } catch (err) {
     console.error(err);
     showToast("Error cancelling deal: " + err.message);
   }
 }
 
-/* 🔹 Deal action confirm helpers */
+/* 🔹 Deal confirm helpers */
 function hideDealConfirm() {
   pendingDealAction = null;
   dealConfirmRow.style.display = "none";
@@ -730,7 +762,7 @@ function showDealConfirm(action) {
   dealConfirmRow.style.display = "flex";
 }
 
-/* 🔹 Wire buttons */
+/* Wire header buttons */
 completeDealBtn.onclick = () => showDealConfirm("complete");
 cancelDealBtn.onclick = () => showDealConfirm("cancel");
 
@@ -807,14 +839,7 @@ function openChat(chatId) {
 
   // 🔗 get linked dealId from chat
   currentDealId = chat?.dealId || null;
-  if (currentDealId) {
-    dealActionsBar.style.display = "flex";
-    dealBadge.textContent = `Linked deal: ${currentDealId}`;
-  } else {
-    dealActionsBar.style.display = "none";
-    dealBadge.textContent = "";
-  }
-  hideDealConfirm();
+  updateDealActionBar(currentDealId);
 
   if (unsubscribeMessages) unsubscribeMessages();
 
@@ -829,7 +854,6 @@ function openChat(chatId) {
       messagesContainer.innerHTML = "";
       snap.forEach(d => {
         const msg = d.data();
-
         const isDeleted = !!msg.deleted || msg.text === "[Message deleted]";
 
         if (msg.sender === "client" && !msg.seen) {
@@ -879,7 +903,7 @@ function openChat(chatId) {
 
         div.innerHTML = inner;
 
-        // Edit/delete controls for provider's own non-deleted messages
+        // Edit/delete controls for provider's non-deleted messages
         if (
           msg.sender === "provider" &&
           msg.editable &&
@@ -892,7 +916,6 @@ function openChat(chatId) {
             <button class="delBtn">Delete</button>
           `;
 
-          // Inline editor instead of prompt
           controls.querySelector(".editBtn").onclick = () => {
             if (div.querySelector(".inlineEdit")) return;
 
@@ -954,7 +977,6 @@ function openChat(chatId) {
             };
           };
 
-          // Inline delete confirmation instead of confirm()
           controls.querySelector(".delBtn").onclick = () => {
             if (div.querySelector(".deleteConfirm")) return;
 
@@ -1050,7 +1072,7 @@ mediaInput.addEventListener("change", () => {
   }
 });
 
-/* Send message (text + optional media) */
+/* Send message */
 async function sendMessage() {
   if (!currentChatId) {
     showToast("Select a chat first.");
@@ -1125,7 +1147,6 @@ async function sendMessage() {
 
     await batch.commit();
 
-    // Clear inputs & preview
     messageInput.value = "";
     mediaInput.value = "";
     mediaPreview.style.display = "none";
