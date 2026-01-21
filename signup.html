@@ -323,7 +323,7 @@
 
         await sendEmailVerification(userCred.user);
 
-        // Send to Apps Script (optional tracking)
+        // Send to Apps Script
         const scriptURL = "https://script.google.com/macros/s/AKfycbyiwhjgMxdhm6IOWoIyy_jBjZiNts9qEAZHNBInhu3fmvcKv2ochVDuX4jBP1FSobbJ/exec";
         const formData = new URLSearchParams();
         formData.append("name", name);
