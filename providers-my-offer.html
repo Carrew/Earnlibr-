@@ -1,1 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EarnLibr — My Offers</title>
 
+<style>
+:root {
+  --bg: #0b0d17;
+  --card: #0f1724;
+  --accent1: #4a90e2;
+  --accent2: #a3ff6e;
+  --muted: #bfc7d6;
+  --danger: #ef4444;
+  --success: #4ade80;
+  --warn: #facc15;
+  --radius: 12px;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+  color: #eef2f7;
+  margin: 0;
+  padding: 20px;
+}
+
+.page-wrap { max-width: 980px; margin: 0 auto; }
+
+h1 {
+  font-size: 24px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0 0 6px 0;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+/* Global notification */
+.notif {
+  background:#111827;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:15px;
+  display:none;
+  font-size:14px;
+  border:1px solid rgba(148,163,184,0.4);
+}
+.notif.success { border-left:4px solid var(--success); color:#bbf7d0; }
+.notif.error { border-left:4px solid var(--danger); color:#fecaca; }
+.notif.info { border-left:4px solid var(--accent1); color:#cfe2ff; }
+
+/* Section header */
+.section-title {
+  margin: 18px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Offer card */
+.offer-card {
+  background: linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+  padding: 14px 14px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  box-shadow: 0 10px 25px rgba(15,23,42,0.7);
+  border: 1px solid rgba(148,163,184,0.25);
+  transition: transform .2s ease, box-shadow .2s ease;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.offer-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 35px rgba(15,23,42,0.9);
+}
+
+.offer-img {
+  width: 132px;
+  height: 88px;
+  border-radius: 10px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 1px solid rgba(148,163,184,0.25);
+  transition: transform .15s ease;
+}
+.offer-img:hover { transform: scale(1.06); }
+
+.offer-body { flex: 1; }
+
+.offer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.offer-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: #e5e7eb;
+}
+
+.status-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(148,163,184,0.5);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.status-pill.pending { border-color: var(--accent1); color: #cfe2ff; }
+.status-pill.processing { border-color: var(--warn); color: var(--warn); }
+.status-pill.active { border-color: var(--success); color: var(--success); }
+.status-pill.rejected { border-color: var(--danger); color: var(--danger); }
+
+.offer-line {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #e5e7eb;
+}
+.offer-line strong { color: #e5e7eb; }
+
+.offer-meta {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Buttons */
+.toolbar {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-bottom: 10px;
+}
+.btn {
+  background: var(--success);
+  border:none;
+  padding:7px 14px;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:600;
+  color:#041018;
+  font-size:12px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  box-shadow:0 8px 20px rgba(22,163,74,0.6);
+}
+.btn.secondary {
+  background: #111827;
+  color: #e5e7eb;
+  border: 1px solid rgba(148,163,184,0.4);
+  box-shadow: none;
+}
+.btn:disabled { opacity:0.6; cursor:not-allowed; box-shadow:none; }
+
+/* Skeletons */
+.skeleton-card {
+  background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
+  border-radius: var(--radius);
+  padding: 14px 14px 10px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(30,64,175,0.4);
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.long { width: 90%; }
+.skeleton-line::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background: linear-gradient(90deg,
+    rgba(31,41,55,0) 0%,
+    rgba(55,65,81,0.9) 50%,
+    rgba(31,41,55,0) 100%
+  );
+  transform:translateX(-100%);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* Empty state */
+.empty-state {
+  padding: 20px 18px;
+  border-radius: var(--radius);
+  background: rgba(15,23,42,0.9);
+  border: 1px dashed rgba(148,163,184,0.5);
+  font-size: 13px;
+  color: var(--muted);
+}
+.empty-state strong {
+  color: #e5e7eb;
+  display: block;
+  margin-bottom: 4px;
+}
+</style>
+</head>
+
+<body>
+<div class="page-wrap">
+  <h1>My Offers</h1>
+  <div class="page-subtitle">View your pending offers and approved/live offers.</div>
+
+  <div class="toolbar">
+    <button id="refreshBtn" class="btn secondary"><span>🔄</span><span>Refresh</span></button>
+  </div>
+
+  <div id="notif" class="notif"></div>
+
+  <div class="section-title">Pending Offers</div>
+  <div id="pendingContainer"></div>
+
+  <div class="section-title">Approved / Live Offers</div>
+  <div id="approvedContainer"></div>
+</div>
+
+<script type="module">
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import {
+  collection, query, where, orderBy, getDocs
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const pendingContainer = document.getElementById("pendingContainer");
+const approvedContainer = document.getElementById("approvedContainer");
+const notif = document.getElementById("notif");
+const refreshBtn = document.getElementById("refreshBtn");
+
+const showNotif = (msg, type="info")=>{
+  notif.textContent = msg;
+  notif.className = `notif ${type}`;
+  notif.style.display = "block";
+  setTimeout(()=>{ notif.style.display="none"; }, 4000);
+};
+
+// Skeleton helpers
+function createSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "skeleton-card";
+  card.innerHTML = `
+    <div class="skeleton-line medium"></div>
+    <div class="skeleton-line long"></div>
+    <div class="skeleton-line short"></div>
+  `;
+  return card;
+}
+
+function showSkeleton(container, count = 3) {
+  container.innerHTML = "";
+  for (let i = 0; i < count; i++) container.appendChild(createSkeletonCard());
+}
+
+function formatTS(ts) {
+  try {
+    return ts && typeof ts.toDate === "function" ? ts.toDate().toLocaleString() : "";
+  } catch { return ""; }
+}
+
+// --------- AUTH CHECK (same pattern as your provider pages) ----------
+let rawSession = localStorage.getItem("userSession");
+let userSession = null;
+
+if (!rawSession) {
+  window.location.href = "login.html";
+  throw new Error("No session");
+}
+
+try {
+  userSession = JSON.parse(rawSession);
+  if (!userSession || userSession.role !== "provider") {
+    localStorage.removeItem("userSession");
+    window.location.href = "login.html";
+    throw new Error("Invalid session");
+  }
+} catch (e) {
+  localStorage.removeItem("userSession");
+  window.location.href = "login.html";
+  throw e;
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if (!user || user.uid !== userSession.uid || !user.emailVerified) {
+    localStorage.removeItem("userSession");
+    window.location.href="login.html";
+    return;
+  }
+  await loadOffersOnce();
+});
+
+refreshBtn.onclick = async ()=>{
+  await loadOffersOnce(true);
+};
+
+// ------------------ LOAD OFFERS (one-time) ------------------
+async function loadOffersOnce(showToast=false){
+  refreshBtn.disabled = true;
+
+  showSkeleton(pendingContainer, 3);
+  showSkeleton(approvedContainer, 3);
+
+  try {
+    const [pendingSnap, approvedSnap] = await Promise.all([
+      getPendingOffers(),
+      getApprovedOffers()
+    ]);
+
+    renderPending(pendingSnap);
+    renderApproved(approvedSnap);
+
+    if (showToast) showNotif("Offers refreshed.", "success");
+  } catch (err) {
+    console.error("Load offers error:", err);
+    showNotif("Failed to load offers. Please refresh.", "error");
+  } finally {
+    refreshBtn.disabled = false;
+  }
+}
+
+async function getPendingOffers(){
+  // NOTE: orderBy + where may require a composite index (Firebase will prompt link)
+  const q = query(
+    collection(db, "offers_pending"),
+    where("providerId", "==", userSession.uid),
+    orderBy("createdAt", "desc")
+  );
+  return await getDocs(q);
+}
+
+async function getApprovedOffers(){
+  const q = query(
+    collection(db, `providers/${userSession.uid}/offers`),
+    orderBy("approvedAt", "desc")
+  );
+  return await getDocs(q);
+}
+
+// ------------------ RENDER ------------------
+function renderPending(snapshot){
+  pendingContainer.innerHTML = "";
+
+  if (snapshot.empty) {
+    pendingContainer.innerHTML = `
+      <div class="empty-state">
+        <strong>No pending offers.</strong>
+        When you submit offers for review, they will appear here until an admin approves them.
+      </div>
+    `;
+    return;
+  }
+
+  snapshot.docs.forEach(d=>{
+    pendingContainer.appendChild(renderOfferCard(d.data(), "pending"));
+  });
+}
+
+function renderApproved(snapshot){
+  approvedContainer.innerHTML = "";
+
+  if (snapshot.empty) {
+    approvedContainer.innerHTML = `
+      <div class="empty-state">
+        <strong>No approved offers yet.</strong>
+        Once your offers are approved, they will show up here and become live.
+      </div>
+    `;
+    return;
+  }
+
+  snapshot.docs.forEach(d=>{
+    approvedContainer.appendChild(renderOfferCard(d.data(), "approved"));
+  });
+}
+
+function renderOfferCard(offer, mode){
+  const card = document.createElement("div");
+  card.className = "offer-card";
+
+  const statusRaw = (offer.status || (mode === "pending" ? "pending" : "active")).toLowerCase();
+  const pillClass = ["pending","processing","active","rejected"].includes(statusRaw)
+    ? statusRaw
+    : (mode === "pending" ? "pending" : "active");
+
+  const pillText = statusRaw.replace(/_/g," ").toUpperCase();
+
+  const imgSrc = offer.imageUrl || offer.imageTemp || "https://via.placeholder.com/132x88?text=No+Image";
+  const currency = offer.currency || "$";
+  const title = offer.title || "Untitled Offer";
+  const desc = offer.description || "";
+  const priceNum = Number(offer.price ?? 0);
+  const price = isNaN(priceNum) ? (offer.price ?? 0) : priceNum.toFixed(2);
+
+  const createdAt = formatTS(offer.createdAt);
+  const approvedAt = formatTS(offer.approvedAt);
+
+  const dateLabel = mode === "pending" ? "Submitted" : "Approved";
+  const dateValue = mode === "pending"
+    ? (createdAt || "N/A")
+    : (approvedAt || createdAt || "N/A");
+
+  const commissionType = offer.commissionType || "";
+  const commissionValue = offer.commissionValue ?? 0;
+
+  const totalProducts = offer.totalProducts ?? 0;
+  const promotionBudget = offer.promotionBudget ?? 0;
+  const promoSpent = offer.promoSpent ?? 0;
+  const category = offer.category || "Uncategorized";
+
+  card.innerHTML = `
+    <img class="offer-img" src="${imgSrc}" alt="Offer Image" />
+    <div class="offer-body">
+      <div class="offer-top">
+        <div class="offer-title">${title}</div>
+        <div class="status-pill ${pillClass}">${pillText}</div>
+      </div>
+
+      ${desc ? `<div class="offer-line">${desc}</div>` : ""}
+
+      <div class="offer-line"><strong>Price:</strong> ${currency} ${price}</div>
+      <div class="offer-line"><strong>Commission:</strong> ${commissionType} ${commissionValue}</div>
+      <div class="offer-line"><strong>Total Products:</strong> ${totalProducts}</div>
+      <div class="offer-line"><strong>Promo Budget:</strong> ${promotionBudget}</div>
+      <div class="offer-line"><strong>Promo Spent:</strong> ${promoSpent}</div>
+
+      <div class="offer-meta">
+        <div>Category: ${category}</div>
+        <div>${dateLabel}: ${dateValue}</div>
+        ${offer.verifiedBy ? `<div>Verified By: ${offer.verifiedBy}</div>` : ""}
+      </div>
+    </div>
+  `;
+
+  card.querySelector(".offer-img").onclick = ()=> window.open(imgSrc, "_blank");
+
+  return card;
+}
+</script>
+</body>
+</html>
