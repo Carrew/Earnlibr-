@@ -154,6 +154,24 @@ const termsConfirm = document.getElementById("termsConfirm");
 let offerData, providerId, providerInfo, promoterInfo;
 
 /**
+ * ✅ UPGRADE: Increment GLOBAL offer clicks in offers_all/{offerId}
+ * - increments clicks
+ * - updates lastClickAt
+ */
+async function incrementGlobalOfferClicks() {
+  if (!offerId) return;
+
+  try {
+    await updateDoc(doc(db, "offers_all", offerId), {
+      clicks: increment(1),
+      lastClickAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error("Failed to increment global clicks:", err);
+  }
+}
+
+/**
  * 🔄 Update promoter_offers stats when a visitor lands on this page
  * - increments clicks
  * - updates lastClickAt
@@ -235,7 +253,10 @@ async function loadOffer() {
     document.getElementById("offerDescription").textContent = offerData.description || "No description available.";
     document.getElementById("offerCategory").textContent = offerData.category || "Uncategorized";
 
-    // ✅ Once offer & promoter are known and valid, track the view/click
+    // ✅ UPGRADE: Increment global clicks once the offer is valid/loaded
+    await incrementGlobalOfferClicks();
+
+    // ✅ Existing: track promoter view/click
     await updatePromoterStatsOnView();
 
   } catch(err) {
