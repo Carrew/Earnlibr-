@@ -322,6 +322,7 @@ createdAt: serverTimestamp()
         });
 
         await batch.commit();
+      localStorage.setItem("userRole", role);  
 
         await sendEmailVerification(userCred.user);
 
