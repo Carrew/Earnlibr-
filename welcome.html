@@ -8,7 +8,7 @@
 <style>
   body {
     margin:0;
-    font-family:Arial, sans-serif;
+    font-family: Arial, sans-serif;
     background:#0b0d17;
     color:#fff;
     display:flex;
@@ -16,19 +16,18 @@
     justify-content:center;
     height:100vh;
     text-align:center;
-    padding:20px;
   }
 
   .box {
     max-width:420px;
-    width:100%;
+    padding:25px;
   }
 
   h1 {
+    font-size:24px;
     background:linear-gradient(90deg,#4a90e2,#a3ff6e);
     -webkit-background-clip:text;
     color:transparent;
-    font-size:26px;
     margin-bottom:10px;
   }
 
@@ -40,15 +39,13 @@
 
   .btn {
     display:block;
-    padding:14px;
-    border-radius:10px;
+    margin:10px 0;
+    padding:12px;
+    border-radius:8px;
     text-decoration:none;
     font-weight:bold;
-    margin:10px 0;
-    transition:0.2s;
+    font-size:14px;
   }
-
-  .btn:hover { opacity:0.9; }
 
   .whatsapp {
     background:#25D366;
@@ -60,27 +57,18 @@
     color:#fff;
   }
 
-  .login-text {
-    margin-top:20px;
+  .login {
+    display:block;
+    margin-top:18px;
     font-size:13px;
     color:#aaa;
-  }
-
-  .login-btn {
-    display:inline-block;
-    margin-top:8px;
-    padding:10px 14px;
-    border:1px solid #444;
-    border-radius:8px;
-    color:#fff;
-    text-decoration:none;
-    font-size:13px;
+    text-decoration:underline;
   }
 
   .note {
-    margin-top:18px;
     font-size:12px;
     color:#888;
+    margin-top:15px;
   }
 </style>
 </head>
@@ -93,30 +81,48 @@
 
   <p>You’re 1 step away from starting your earning journey 💰</p>
 
-  <!-- PRIMARY ACTIONS -->
-  <a class="btn whatsapp" href="https://chat.whatsapp.com/IKq3VjnTXkVIWaa4RoNXsp?mode=gi_t">
+  <!-- Role-based links -->
+  <a id="whatsapp" class="btn whatsapp" href="#">
     Join WhatsApp Group
   </a>
 
-  <a class="btn messenger" href="https://m.me/j/AbZi9sWNJvMyMJ1k/">
+  <a id="messenger" class="btn messenger" href="#">
     Join Messenger Group
   </a>
 
-  <!-- LOGIN (SECONDARY) -->
-  <div class="login-text">
-    Already have an account?
-  </div>
+  <p class="note">🎓 Free affiliate marketing course is inside the group</p>
 
-  <a class="login-btn" href="login.html">
-    Login
+  <!-- Login button -->
+  <a href="login.html" class="login">
+    Already have an account? Login
   </a>
 
-  <!-- FOOT NOTE -->
-  <div class="note">
-    🎓 Free affiliate marketing course is inside the group
-  </div>
-
 </div>
+
+<script>
+  // Get user role from signup
+  const role = localStorage.getItem("userRole");
+
+  const whatsapp = document.getElementById("whatsapp");
+  const messenger = document.getElementById("messenger");
+
+  // Provider links
+  const providerWhatsApp = "https://chat.whatsapp.com/HmnJW1MnfwB2zcv3o2V7tn?mode=gi_t";
+  const providerMessenger = "https://m.me/j/AbbMgOg7zpqdSHwZ/?send_source=gc%3Acopy_invite_link_c";
+
+  // Promoter links
+  const promoterWhatsApp = "https://chat.whatsapp.com/IKq3VjnTXkVIWaa4RoNXsp?mode=gi_t";
+  const promoterMessenger = "https://m.me/j/AbZi9sWNJvMyMJ1k/?send_source=gc%3Acopy_invite_link_c";
+
+  // Assign based on role
+  if (role === "provider") {
+    whatsapp.href = providerWhatsApp;
+    messenger.href = providerMessenger;
+  } else {
+    whatsapp.href = promoterWhatsApp;
+    messenger.href = promoterMessenger;
+  }
+</script>
 
 </body>
 </html>
