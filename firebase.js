@@ -3,8 +3,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebas
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getMessaging } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
 
-// Your web app's Firebase configuration
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBij6NW_NrXInsOPvNtUokteU5i7OxjwVU",
   authDomain: "earnlibr.firebaseapp.com",
@@ -19,6 +20,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
-// Exports for use in your scripts
-export const auth = getAuth(app);   // Firebase Authentication
-export const db = getFirestore(app); // Firestore database
+// Messaging support
+export const messaging = getMessaging(app);
+
+// Exports
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export { app };
