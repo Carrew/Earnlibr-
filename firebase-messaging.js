@@ -4,10 +4,21 @@ import {
   onMessage
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
 
-export function initMessaging(app, saveTokenCallback) {
+import {
+  doc,
+  updateDoc,
+  arrayUnion
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+export function initMessaging(app, db) {
   const messaging = getMessaging(app);
 
   async function enablePush(uid) {
+    if (!uid) {
+      console.error("No user UID provided.");
+      return null;
+    }
+
     const permission = await Notification.requestPermission();
 
     if (permission !== "granted") {
@@ -26,13 +37,21 @@ export function initMessaging(app, saveTokenCallback) {
         serviceWorkerRegistration: registration
       });
 
-      console.log("FCM Token:", token);
-
-      if (saveTokenCallback && uid && token) {
-        await saveTokenCallback(uid, token);
+      if (!token) {
+        console.log("No FCM token received.");
+        return null;
       }
 
+      console.log("FCM Token:", token);
+
+      await updateDoc(doc(db, "users", uid), {
+        fcmTokens: arrayUnion(token)
+      });
+
+      console.log("FCM token saved successfully.");
+
       return token;
+
     } catch (error) {
       console.error("Push notification setup failed:", error);
       return null;
