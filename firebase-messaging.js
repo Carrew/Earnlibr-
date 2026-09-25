@@ -1,30 +1,26 @@
-import { getMessaging, getToken, onMessage } 
-from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
+importScripts(
+  "https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"
+);
+importScripts(
+  "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging-compat.js"
+);
 
-export function initMessaging(app, saveTokenCallback) {
-  const messaging = getMessaging(app);
+firebase.initializeApp({
+  apiKey: "AIzaSyBij6NW_NrXInsOPvNtUokteU5i7OxjwVU",
+  authDomain: "earnlibr.firebaseapp.com",
+  projectId: "earnlibr",
+  storageBucket: "earnlibr.firebasestorage.app",
+  messagingSenderId: "372090987790",
+  appId: "1:372090987790:web:ad3a45523f89fa1192a35f"
+});
 
-  async function enablePush(uid) {
-    const permission = await Notification.requestPermission();
+const messaging = firebase.messaging();
 
-    if (permission !== "granted") return;
+messaging.onBackgroundMessage((payload) => {
+  const title = payload.notification?.title || "EarnLibr";
 
-    const token = await getToken(messaging, {
-      vapidKey: "BJj1ZxukRzkDRiHHzUK35KrhLn3tCGyr8gdgWAa6YTe34Yn7aQoi9T2o1ykcF-tzzgySVBQ52fhXqUOxpHrmVzw"
-    });
-
-    console.log("FCM Token:", token);
-
-    if (saveTokenCallback) {
-      saveTokenCallback(uid, token);
-    }
-  }
-
-  onMessage(messaging, (payload) => {
-    new Notification(payload.notification.title, {
-      body: payload.notification.body
-    });
+  self.registration.showNotification(title, {
+    body: payload.notification?.body || "",
+    icon: "/favicon.ico"
   });
-
-  return { enablePush };
-}
+});
