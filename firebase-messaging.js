@@ -1,26 +1,53 @@
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"
-);
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging-compat.js"
-);
+import {
+  getMessaging,
+  getToken,
+  onMessage
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
 
-firebase.initializeApp({
-  apiKey: "AIzaSyBij6NW_NrXInsOPvNtUokteU5i7OxjwVU",
-  authDomain: "earnlibr.firebaseapp.com",
-  projectId: "earnlibr",
-  storageBucket: "earnlibr.firebasestorage.app",
-  messagingSenderId: "372090987790",
-  appId: "1:372090987790:web:ad3a45523f89fa1192a35f"
-});
+export function initMessaging(app, saveTokenCallback) {
+  const messaging = getMessaging(app);
 
-const messaging = firebase.messaging();
+  async function enablePush(uid) {
+    const permission = await Notification.requestPermission();
 
-messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || "EarnLibr";
+    if (permission !== "granted") {
+      console.log("Notification permission not granted.");
+      return null;
+    }
 
-  self.registration.showNotification(title, {
-    body: payload.notification?.body || "",
-    icon: "/favicon.ico"
+    try {
+      const registration = await navigator.serviceWorker.register(
+        "/firebase-messaging-sw.js"
+      );
+
+      const token = await getToken(messaging, {
+        vapidKey:
+          "BJj1ZxukRzkDRiHHzUK35KrhLn3tCGyr8gdgWAa6YTe34Yn7aQoi9T2o1ykcF-tzzgySVBQ52fhXqUOxpHrmVzw",
+        serviceWorkerRegistration: registration
+      });
+
+      console.log("FCM Token:", token);
+
+      if (saveTokenCallback && uid && token) {
+        await saveTokenCallback(uid, token);
+      }
+
+      return token;
+    } catch (error) {
+      console.error("Push notification setup failed:", error);
+      return null;
+    }
+  }
+
+  onMessage(messaging, (payload) => {
+    console.log("Foreground notification:", payload);
+
+    if (payload.notification) {
+      new Notification(payload.notification.title, {
+        body: payload.notification.body || ""
+      });
+    }
   });
-});
+
+  return { enablePush };
+}
