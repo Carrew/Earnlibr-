@@ -308,14 +308,22 @@
         const batch = writeBatch(db);
 
         batch.set(doc(db, "users", uid), {
-          uid, name, email, role, country,
-          phone: fullPhone,
-          referralCode,
-          referredBy: referredByUid,
-          lastLoginAt: serverTimestamp(),
-updatedAt: serverTimestamp(),
-createdAt: serverTimestamp()
-        });
+  uid,
+  name,
+  email,
+  role,
+  country,
+  phone: fullPhone,
+  referralCode,
+  referredBy: referredByUid,
+
+  // Push notification data
+  fcmTokens: [],
+
+  lastLoginAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  createdAt: serverTimestamp()
+});
 
         batch.set(doc(db, "referralCodes", referralCode), {
           ownerUid: uid
