@@ -276,6 +276,37 @@ header {
   <button id="sendBtn">Send</button>
 </div>
 
+<div id="browserHint" hidden style="padding:11px 15px;background:#142238;border-bottom:1px solid #304866;color:#e2e8f0;font-size:13px">
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <span>For more reliable notifications, open this chat in your regular browser.</span>
+  <div style="display:flex;gap:8px;align-items:center">
+   <button id="browserOpen" type="button" style="background:#a3ff6e;color:#071028;border:0;border-radius:8px;padding:8px 11px;font-weight:700">Continue in browser</button>
+   <button id="browserDismiss" type="button" aria-label="Dismiss browser suggestion" style="background:transparent;color:#fff;border:0;padding:8px">✕</button>
+  </div>
+ </div>
+ <div id="browserHelp" hidden style="margin-top:7px;color:#cbd5e1">If your app keeps the link inside its own browser, use its menu (⋯) and select Open in browser or Open externally.</div>
+</div>
+<script>
+(function(){
+ const agent=navigator.userAgent||'';
+ const embedded=/FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|TikTok|Snapchat/i.test(agent);
+ if(!embedded)return;
+ const panel=document.getElementById('browserHint');
+ if(!panel||sessionStorage.getItem('earnlibr-browser-hint-dismissed'))return;
+ panel.hidden=false;
+ document.getElementById('browserDismiss').onclick=()=>{sessionStorage.setItem('earnlibr-browser-hint-dismissed','1');panel.hidden=true};
+ document.getElementById('browserOpen').onclick=async()=>{
+  const url=location.href;
+  const help=document.getElementById('browserHelp');
+  help.hidden=false;
+  try{
+   if(navigator.share){await navigator.share({title:'Continue EarnLibr chat',url});return}
+  }catch(e){if(e.name==='AbortError')return}
+  try{await navigator.clipboard.writeText(url);help.textContent='Chat link copied. Open your regular browser and paste the link.'}
+  catch{help.textContent='Use the app menu (⋯) and select Open in browser or Open externally.'}
+ };
+})();
+</script>
 <div id="toast"></div>
 
 <script type="module">
