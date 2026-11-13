@@ -4,7 +4,7 @@ import { app, auth } from './firebase.js';
 const API = 'https://earnlibr-core-api.www-sandicarrew.workers.dev';
 const VAPID = 'BJj1ZxukRzkDRiHHzUK35KrhLn3tCGyr8gdgWAa6YTe34Yn7aQoi9T2o1ykcF-tzzgySVBQ52fhXqUOxpHrmVzw';
 async function check() {
-  if (!auth.currentUser?.emailVerified) throw new Error('Sign in with a verified account first.');
+  if (!auth.currentUser || (!auth.currentUser.emailVerified && !auth.currentUser.isAnonymous)) throw new Error('Sign in to enable notifications.');
   if (!('Notification' in window) || !('serviceWorker' in navigator) || !(await isSupported())) throw new Error('Browser push is unsupported.');
 }
 async function registration() {
