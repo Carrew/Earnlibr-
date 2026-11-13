@@ -423,7 +423,7 @@ header {
 
 <script type="module">
 import { auth, db } from "./firebase.js";
-import { queueChatPush, markChatRead } from "./chat-push-client.js";
+import { queueChatPush, markChatRead } from "./chat-push-client.js?v=20261113-5";
 import {
   collection,
   query,
@@ -1148,7 +1148,7 @@ async function sendMessage() {
     });
 
     await batch.commit();
-    queueChatPush(currentChatId,newDocRef.id);
+    void queueChatPush(currentChatId,newDocRef.id);
 
     messageInput.value = "";
     mediaInput.value = "";
