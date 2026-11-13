@@ -32,7 +32,7 @@ refresh();
 button.addEventListener('click',async()=>{
   button.disabled=true;
   info.textContent='Enabling notifications…';
-  try {await enablePush();info.textContent='Notifications enabled on this browser. Automatic unread-chat alerts are not active yet.';}
+  try {await enablePush();info.textContent='Notifications enabled. Unread chat alerts will be sent when supported by your chat and account.';}
   catch(e){info.textContent='Could not enable notifications: '+(e?.message||'Unknown error');}
   finally{button.disabled=!eligible;}
 });
