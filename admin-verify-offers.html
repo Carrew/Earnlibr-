@@ -261,7 +261,7 @@ async function approveOffer(card, offer, offerId, providerId) {
     });
 
     // UPGRADE: Use batch notifications
-    await sendNotifications(providerId, "Offer Approved ✅", `Your offer "${offer.title}" has been approved and is now live.`);
+    try {\n      const token = await auth.currentUser.getIdToken();\n      const response = await fetch('https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/promoters/offer-approved', {\n        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },\n        body: JSON.stringify({ offerId })\n      });\n      if (!response.ok) console.warn('Promoter broadcast failed:', response.status);\n    } catch (pushError) { console.warn('Promoter broadcast failed:', pushError); }\n\n    await sendNotifications(providerId, "Offer Approved ✅", `Your offer "${offer.title}" has been approved and is now live.`);
 
     showNotification(card, "Offer approved successfully!", "success");        
     card.style.opacity = "0";        
