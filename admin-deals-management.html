@@ -268,13 +268,22 @@ async function processCompleteDeal(dealId, deal, card){
 /* --- Cancel Deal --- */
 async function processCancelDeal(dealId, deal, card){
   try {
-    await deleteDoc(doc(db, "deals", dealId));
-    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} cancelled by admin.`);
-    card.remove();
-    showNotif("Deal cancelled","error");
-  } catch(err){ 
-    console.error(err); 
-    showNotif(`**Cancel Error:** ${err.message || err.toString()}`,"error"); 
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Sign in again to continue.");
+    const token = await currentUser.getIdToken();
+    const response = await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/deals/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ dealId })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Unable to cancel deal.");
+    card?.remove();
+    showNotif("Deal cancelled");
+    sendNotifications(deal, "Deal Cancelled", `Deal ${dealId} cancelled by admin.`).catch(console.error);
+  } catch(err){
+    console.error(err);
+    showNotif(`Cancel Error: ${err.message || err.toString()}`, "error");
   }
 }
 
