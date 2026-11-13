@@ -144,7 +144,7 @@ onAuthStateChanged(auth, async (user) => {
     const userDoc = await getDoc(doc(db, "users", user.uid));
     const role = userDoc.data()?.role;
     
-    if (!userDoc.exists() || role !== 'freelancer') {
+    if (!userDoc.exists() || !['promoter','freelancer'].includes(role)) {
       showInPageNotif("Unauthorized access. Redirecting.", "error", 4000);
       setTimeout(() => { auth.signOut(); window.location.href = 'login.html'; }, 1000);
       return;
