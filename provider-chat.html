@@ -566,150 +566,20 @@ async function updateDealActionBar(dealId) {
 
 /* 🔹 Complete deal from chat (reads then writes) */
 async function completeDealFromChat(dealId) {
-  if (!dealId) {
-    showToast("No linked deal for this chat.");
-    return;
-  }
-
-  let dealForNotif = null;
-
+  if (!dealId) { showToast("No linked deal for this chat."); return; }
   try {
-    await runTransaction(db, async (t) => {
-      const dealRef = doc(db, "deals", dealId);
-      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
-      if (completedSnap.exists()) throw new Error("Deal has already been completed.");
-      const dealSnap = await t.get(dealRef);
-      if (!dealSnap.exists()) throw new Error("Deal not found.");
-
-      const deal = dealSnap.data();
-      dealForNotif = { ...deal, id: dealId };
-
-      if (deal.status === "processing") {
-        throw new Error("Deal is already being processed.");
-      }
-      const offerRef = doc(db, "offers_all", deal.offerId);
-      const offerSnap = await t.get(offerRef);
-      if (!offerSnap.exists()) throw new Error("Offer not found.");
-      const offer = offerSnap.data();
-
-      const platformSettingsRef = doc(db, "platform-settings", "commission");
-      const platformSettingsSnap = await t.get(platformSettingsRef);
-      const platformPercentage = platformSettingsSnap.exists()
-        ? parseFloat(platformSettingsSnap.data().percentage)
-        : 20;
-
-      const currency = deal.offerCurrency || "USD";
-      const platformRef = doc(db, `platform-earnings/${currency}`);
-      const platformSnap = await t.get(platformRef);
-      const platformData = platformSnap.exists()
-        ? platformSnap.data()
-        : { totalRevenue: 0, dealsCount: 0, dailyRevenue: {} };
-
-      platformData.dailyRevenue = platformData.dailyRevenue || {};
-
-      let metaSnap = null;
-      if (deal.promoterId && deal.promoterId !== "direct") {
-        const metaRef =
-          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        metaSnap = await t.get(metaRef);
-      }
-
-      // 🔢 calculations (still inside transaction, but only using data already read)
-      const dealQuantity = deal.quantity || 1;
-
-      let commissionEarned = 0;
-      if (offer.commissionType === "percentage") {
-        commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
-      } else if (offer.commissionType === "fixed") {
-        commissionEarned = offer.commissionValue * dealQuantity;
-      } else {
-        commissionEarned = (deal.commissionValue || 0) * dealQuantity;
-      }
-
-      commissionEarned = round(commissionEarned);
-      const platformShare = round(commissionEarned * platformPercentage / 100);
-      const promoterNet = round(commissionEarned - platformShare);
-      const todayUTC = new Date().toISOString().split("T")[0];
-
-      platformData.totalRevenue = (platformData.totalRevenue || 0) + platformShare;
-      platformData.dealsCount = (platformData.dealsCount || 0) + 1;
-      platformData.dailyRevenue[todayUTC] =
-        (platformData.dailyRevenue[todayUTC] || 0) + platformShare;
-
-      const updatedOfferData = {
-        promoSpent: round((offer.promoSpent || 0) + commissionEarned),
-        amountOwed: round((offer.amountOwed || 0) + commissionEarned),
-        outstandingBalance: round(
-          (offer.amountOwed || 0) + commissionEarned - (offer.amountPaid || 0)
-        )
-      };
-
-      let meta = metaSnap?.exists()
-        ? metaSnap.data()
-        : { totalLifetimeEarnings: {}, currentBalance: {}, totalWithdrawn: {} };
-
-      if (deal.promoterId && deal.promoterId !== "direct") {
-        meta.totalLifetimeEarnings[currency] =
-          (meta.totalLifetimeEarnings[currency] || 0) + promoterNet;
-        meta.currentBalance[currency] =
-          meta.totalLifetimeEarnings[currency] - (meta.totalWithdrawn[currency] || 0);
-        meta.lastUpdated = serverTimestamp();
-      }
-
-      // ✅ WRITES (all after the reads)
-      t.update(dealRef, { status: "processing" });
-      t.update(offerRef, updatedOfferData);
-
-      if (deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef =
-          doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
-        const metaRef =
-          doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        t.set(promoterDealRef, {
-          ...deal,
-          commissionAmount: promoterNet,
-          fullCommission: commissionEarned,
-          platformTax: platformShare,
-          completedAt: serverTimestamp(),
-          withdrawn: false,
-          withdrawalRequestId: null
-        });
-        t.set(metaRef, meta, { merge: true });
-      }
-
-      t.set(platformRef, platformData, { merge: true });
-
-      const completedRef = doc(db, "completed-deals", dealId);
-      t.set(completedRef, {
-        ...deal,
-        status: "completed",
-        completedAt: serverTimestamp(),
-        completedBy: "provider",
-        commissionEarned,
-        platformShare,
-        promoterNet,
-        providerPaid: false,
-        billedBy: null,
-        billedAt: null
-      });
-
-      t.delete(dealRef);
-    });
-
-    if (dealForNotif) {
-      await sendDealNotifications(
-        dealForNotif,
-        "Deal Completed ✅",
-        `Deal ${dealId} marked complete.`
-      );
-    }
-
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Sign in again to continue.");
+    const snap = await getDoc(doc(db, "deals", dealId));
+    const dealForNotif = snap.exists() ? { ...snap.data(), id: dealId } : null;
+    const token = await currentUser.getIdToken();
+    const response = await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/deals/complete", { method:"POST", headers:{"Content-Type":"application/json",Authorization:"Bearer "+token}, body:JSON.stringify({dealId}) });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Settlement failed.");
     showToast("Deal completed successfully");
-    dealActionsBar.style.display = "none"; // hide buttons after completion
-  } catch (err) {
-    console.error(err);
-    showToast("Error completing deal: " + err.message);
-  }
+    dealActionsBar.style.display = "none";
+    if (dealForNotif) sendDealNotifications(dealForNotif, "Deal Completed", `Deal ${dealId} marked complete.`).catch(console.error);
+  } catch (err) { console.error(err); showToast("Error completing deal: "+err.message); }
 }
 
 /* 🔹 Cancel deal from chat (already reads before writes) */
