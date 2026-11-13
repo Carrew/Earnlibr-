@@ -78,6 +78,14 @@ header {
   text-overflow:ellipsis;
 }
 
+.chatItem.unread { background:rgba(74,144,226,.10); }
+.chatItem.unread .chatTitle { font-weight:800; }
+.chatItem.unread .chatLastMsg { color:#e2e8f0; font-weight:650; }
+.chatRowTop,.chatPreviewRow { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.chatUnreadBadge { display:none; min-width:21px; height:21px; padding:0 6px; border-radius:999px; background:#a3ff6e; color:#071028; font-size:11px; font-weight:800; align-items:center; justify-content:center; }
+.chatItem.unread .chatUnreadBadge { display:flex; }
+.chatPreviewRow .chatLastMsg { min-width:0; }
+.chatTime { color:#94a3b8; font-size:11px; white-space:nowrap; }
 /* Chat Window */
 #chatContainer {
   flex:1;
@@ -444,6 +452,9 @@ let currentChatId = null;
 let unsubscribeMessages = null;
 let providerId = null;
 let allChats = [];
+const unreadSubscriptions = new Map();
+const unreadByChat = new Map();
+const requestedChat = new URLSearchParams(location.search).get("deal");
 let isSending = false;
 
 const mainContainer = document.getElementById("mainContainer");
@@ -789,36 +800,58 @@ auth.onAuthStateChanged(user => {
 });
 
 function loadChats() {
-  const q = query(
-    collection(db,"chats"),
-    where("providerId","==",providerId),
-    orderBy("lastMessage.timestamp","desc")
-  );
-  onSnapshot(
-    q,
-    snap => {
-      document.getElementById("loading")?.remove();
-      allChats = [];
-      chatList.querySelectorAll(".chatItem").forEach(e => e.remove());
-
-      snap.forEach(d => {
-        const chat = { id:d.id, ...d.data() };
-        allChats.push(chat);
-        const div = document.createElement("div");
-        div.className = `chatItem ${currentChatId === chat.id ? "active" : ""}`;
-        div.innerHTML = `
-          <div class="chatTitle">${chat.clientInfo?.name || "Client"}</div>
-          <div class="chatLastMsg">${chat.lastMessage?.text || "No messages"}</div>
-        `;
-        div.onclick = () => openChat(chat.id);
-        chatList.appendChild(div);
-      });
-    },
-    err => {
-      console.error(err);
-      showToast("Failed to load chats. Please refresh.");
-    }
-  );
+  const q = query(collection(db,"chats"),where("providerId","==",providerId),orderBy("lastMessage.timestamp","desc"));
+  onSnapshot(q,snap=>{
+    document.getElementById("loading")?.remove();
+    allChats=[];
+    chatList.querySelectorAll(".chatItem").forEach(e=>e.remove());
+    const live = new Set();
+    snap.forEach(d=>{
+      const chat={id:d.id,...d.data()};
+      allChats.push(chat);
+      live.add(chat.id);
+      const div=document.createElement("div");
+      div.className="chatItem"+(currentChatId===chat.id?" active":"");
+      div.dataset.chatId=chat.id;
+      const top=document.createElement("div");top.className="chatRowTop";
+      const title=document.createElement("div");title.className="chatTitle";title.textContent=chat.clientInfo?.name||"Client";
+      const time=document.createElement("span");time.className="chatTime";
+      const ts=chat.lastMessage?.timestamp;
+      time.textContent=ts?.toDate?ts.toDate().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+      top.append(title,time);
+      const bottom=document.createElement("div");bottom.className="chatPreviewRow";
+      const preview=document.createElement("div");preview.className="chatLastMsg";preview.textContent=chat.lastMessage?.text||"No messages";
+      const badge=document.createElement("span");badge.className="chatUnreadBadge";
+      bottom.append(preview,badge);
+      div.append(top,bottom);
+      const paint=()=>{
+        const n=unreadByChat.get(chat.id)||0;
+        div.classList.toggle("unread",n>0);
+        badge.textContent=n>99?"99+":String(n);
+        badge.setAttribute("aria-label",n+" unread messages");
+      };
+      paint();
+      div.onclick=()=>openChat(chat.id);
+      chatList.appendChild(div);
+      if(!unreadSubscriptions.has(chat.id)){
+        const uq=query(collection(db,"chats",chat.id,"messages"),where("seen","==",false),limit(100));
+        const stop=onSnapshot(uq,ms=>{
+          let count=0;
+          ms.forEach(m=>{if(m.data().sender==="client"&&!m.data().deleted)count++});
+          unreadByChat.set(chat.id,count);
+          const node=Array.from(chatList.querySelectorAll(".chatItem")).find(el=>el.dataset.chatId===chat.id);
+          if(node){
+            node.classList.toggle("unread",count>0);
+            const b=node.querySelector(".chatUnreadBadge");
+            if(b){b.textContent=count>99?"99+":String(count);b.setAttribute("aria-label",count+" unread messages")}
+          }
+        },err=>console.warn("Unread count unavailable",chat.id,err.code));
+        unreadSubscriptions.set(chat.id,stop);
+      }
+    });
+    for(const [id,stop] of unreadSubscriptions)if(!live.has(id)){stop();unreadSubscriptions.delete(id);unreadByChat.delete(id)}
+    if(requestedChat&&!currentChatId&&allChats.some(c=>c.id===requestedChat))openChat(requestedChat);
+  },err=>{console.error(err);showToast("Failed to load chats. Please refresh.")});
 }
 
 searchBar.addEventListener("input", e => {
@@ -833,7 +866,7 @@ function openChat(chatId) {
   currentChatId = chatId;
   mainContainer.classList.add("chat-open");
 
-  updateDoc(doc(db,"chats",chatId), { unreadCount:0 }).catch(()=>{});
+  history.replaceState(null,"",location.pathname+"?deal="+encodeURIComponent(chatId));
 
   const chat = allChats.find(c => c.id === chatId);
   chatTitle.textContent = chat?.clientInfo?.name || "Client Chat";
