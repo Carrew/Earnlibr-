@@ -363,15 +363,27 @@ async function uploadToCloudinary(file) {
 /* ─────────────────────────
    Initial chat existence check
    ───────────────────────── */
+let clientAuthError = null;
 const authReady = new Promise(resolve => {
-  const stop = onAuthStateChanged(auth, async user => {
-    stop();
-    if (user) return resolve(user);
+  const unsubscribe = onAuthStateChanged(auth, async user => {
+    unsubscribe();
+    if (user) { resolve(user); return; }
     try { resolve((await signInAnonymously(auth)).user); }
-    catch (error) { console.warn("Client sign-in unavailable", error); resolve(null); }
-  }, () => resolve(null));
+    catch (error) {
+      clientAuthError = error?.code || error?.message || 'unknown';
+      console.error('EarnLibr client Firebase sign-in failed:', clientAuthError, error);
+      resolve(null);
+    }
+  }, error => {
+    clientAuthError = error?.code || error?.message || 'initialization-error';
+    console.error('EarnLibr Firebase Auth initialization failed:', clientAuthError);
+    resolve(null);
+  });
 });
-await authReady;
+const signedInClient = await authReady;
+if (!signedInClient) {
+  showToast('Chat works, but alerts require Firebase sign-in: ' + (clientAuthError || 'unavailable'), 12000);
+}
 const chatSnap = await getDoc(chatRef);
 if (!chatSnap.exists()) {
   document.body.innerHTML = "<p style='padding:20px;color:red;'>Chat not found.</p>";
