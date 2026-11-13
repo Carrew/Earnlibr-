@@ -724,6 +724,10 @@ async function cancelDealFromChat(dealId) {
   try {
     await runTransaction(db, async (t) => {
       const dealRef = doc(db, "deals", dealId);
+      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
+      if (completedSnap.exists()) throw new Error("Completed deals cannot be cancelled.");
+      const cancelledSnap = await t.get(doc(db, "cancelled-deals", dealId));
+      if (cancelledSnap.exists()) throw new Error("Deal is already cancelled.");
       const dealSnap = await t.get(dealRef);
       if (!dealSnap.exists()) throw new Error("Deal not found.");
 
