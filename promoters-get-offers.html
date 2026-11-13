@@ -417,7 +417,7 @@ onAuthStateChanged(auth, async (user) => {
       return;  
     }  
 
-    if (role !== 'freelancer') {  
+    if (!['promoter','freelancer'].includes(role)) {  
       showNotification("Access denied: Not a promoter.");  
       auth.signOut();  
       window.location.href='login.html';  
