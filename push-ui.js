@@ -1,56 +1,40 @@
 import { auth } from './firebase.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
-import { enablePush, disablePush } from './push-client.js';
+import { enablePush } from './push-client.js';
 
 const heading = document.querySelector('h1');
-if (heading) {
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'margin:0 0 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center';
-  
-  const enable = document.createElement('button');
-  enable.type = 'button';
-  enable.textContent = 'Enable browser notifications';
-  enable.style.cssText = 'background:#a3ff6e;color:#071028;border:0;padding:11px 16px;border-radius:9px;font-weight:700;cursor:pointer';
-  
-  const disable = document.createElement('button');
-  disable.type = 'button';
-  disable.textContent = 'Turn off on this browser';
-  disable.style.cssText = 'background:#202f46;color:white;border:0;padding:11px 16px;border-radius:9px;cursor:pointer';
-  
-  const status = document.createElement('span');
-  status.setAttribute('role', 'status');
-  status.setAttribute('aria-live', 'polite');
-  
-  wrapper.append(enable, disable, status);
-  heading.insertAdjacentElement('afterend', wrapper);
-
-  onAuthStateChanged(auth, user => { 
-    enable.disabled = disable.disabled = !user?.emailVerified; 
-  });
-
-  enable.addEventListener('click', async () => {
-    enable.disabled = true; 
-    status.textContent = 'Enabling…';
-    try { 
-      await enablePush(); 
-      status.textContent = 'Notifications enabled on this browser.'; 
-    } catch (e) { 
-      status.textContent = e.message || 'Unable to enable notifications.'; 
-    } finally { 
-      enable.disabled = !auth.currentUser?.emailVerified; 
+if (heading && 'Notification' in window && 'serviceWorker' in navigator) {
+  const bubble = document.createElement('button');
+  bubble.type = 'button';
+  bubble.setAttribute('aria-label', 'Enable notifications');
+  bubble.textContent = '🔔 Enable notifications';
+  bubble.style.cssText = 'position:fixed;bottom:22px;right:18px;z-index:9998;border:1px solid #a3ff6e;border-radius:999px;background:#101c2d;color:#fff;padding:12px 17px;box-shadow:0 8px 28px #0008;font:600 14px system-ui;cursor:pointer;max-width:calc(100vw - 36px)';
+  bubble.hidden = true;
+  document.body.appendChild(bubble);
+  const key = () => 'earnlibr-push-enabled:' + (auth.currentUser?.uid || '');
+  function refresh() {
+    const user = auth.currentUser;
+    const enabled = user && localStorage.getItem(key()) === '1' && Notification.permission === 'granted';
+    bubble.hidden = !user?.emailVerified || enabled || sessionStorage.getItem('earnlibr-push-dismissed') === '1' || Notification.permission === 'denied';
+  }
+  onAuthStateChanged(auth, refresh);
+  document.addEventListener('visibilitychange', refresh);
+  bubble.addEventListener('click', async () => {
+    bubble.disabled = true;
+    bubble.textContent = 'Enabling notifications…';
+    try {
+      await enablePush();
+      localStorage.setItem(key(), '1');
+      sessionStorage.setItem('earnlibr-push-dismissed', '1');
+      bubble.hidden = true;
+    } catch (error) {
+      bubble.textContent = error?.message || 'Unable to enable notifications';
+      bubble.disabled = false;
+      setTimeout(() => {
+        bubble.textContent = '🔔 Enable notifications';
+        refresh();
+      }, 3500);
     }
   });
-
-  disable.addEventListener('click', async () => {
-    disable.disabled = true; 
-    status.textContent = 'Disabling…';
-    try { 
-      await disablePush(); 
-      status.textContent = 'This browser has been unsubscribed.'; 
-    } catch (e) { 
-      status.textContent = e.message || 'Unable to unsubscribe.'; 
-    } finally { 
-      disable.disabled = !auth.currentUser?.emailVerified; 
-    }
-  });
+  refresh();
 }
