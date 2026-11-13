@@ -458,7 +458,7 @@ async function loadOffers() {
 
     hideSkeleton();  
     populateCategories();  
-    displayOffers(allOffers);  
+    displayOffers(allOffers);\n    const target = new URLSearchParams(location.search).get('offer');\n    if (target) { const found = allOffers.find(o => o.id === target); if (found) { const index = allOffers.indexOf(found); const cards = offerGrid.querySelectorAll('.offer-card'); cards[index]?.scrollIntoView({behavior:'smooth',block:'center'}); if(cards[index]) cards[index].style.outline='2px solid #a3ff6e'; } }  
   } catch(err) {  
     console.error(err);  
     hideSkeleton();  
