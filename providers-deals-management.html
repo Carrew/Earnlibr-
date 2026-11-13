@@ -599,33 +599,21 @@ async function processCompleteDeal(dealId, deal, card) {
 
 /* --- Cancel Deal --- */
 async function processCancelDeal(dealId, deal, card) {
-  const dealRef = doc(db, "deals", dealId);
-  const cancelledRef = doc(db, "cancelled-deals", dealId);
   const cardEl = card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
-
   try {
-    await runTransaction(db, async (t) => {
-      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
-      if (completedSnap.exists()) throw new Error("Completed deals cannot be cancelled.");
-      const cancelledSnap = await t.get(doc(db, "cancelled-deals", dealId));
-      if (cancelledSnap.exists()) throw new Error("Deal is already cancelled.");
-      const snap = await t.get(dealRef);
-      if (!snap.exists()) throw new Error("Deal not found.");
-
-      t.set(cancelledRef, {
-        ...snap.data(),
-        status: "cancelled",
-        cancelledAt: serverTimestamp(),
-        cancelledBy: "provider"
-      });
-      t.delete(dealRef);
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Sign in again to continue.");
+    const token = await currentUser.getIdToken();
+    const response = await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/deals/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ dealId })
     });
-
-    await sendNotifications(deal, "Deal Cancelled ❌", `Deal ${dealId} has been cancelled.`);
-
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Unable to cancel deal.");
     if (cardEl) cardEl.remove();
-
-    showNotif("Deal cancelled", "error");
+    showNotif("Deal cancelled", "success");
+    sendNotifications(deal, "Deal Cancelled", `Deal ${dealId} has been cancelled.`).catch(console.error);
   } catch (err) {
     console.error(err);
     showNotif(`Cancel Error: ${err.message}`, "error");
