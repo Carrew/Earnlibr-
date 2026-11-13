@@ -156,7 +156,8 @@ button:disabled { opacity:.6; cursor:not-allowed; }
 </div>
 
 <script type="module">
-import { db } from "./firebase.js";
+import { db, auth } from "./firebase.js";
+import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   doc,
   getDoc,
@@ -181,6 +182,23 @@ if (!clientId) {
   clientId = "client_" + Math.random().toString(36).slice(2,10);
   localStorage.setItem("clientId", clientId);
 }
+
+// Preserve the existing clientId and chat links while introducing a stable Firebase identity.
+// An anonymous account is created only when there is no existing signed-in user.
+let firebaseClientUid = null;
+const firebaseIdentityReady = new Promise(resolve => {
+  const unsubscribe = onAuthStateChanged(auth, async user => {
+    unsubscribe();
+    if (user) { firebaseClientUid = user.uid; resolve(); return; }
+    try {
+      const result = await signInAnonymously(auth);
+      firebaseClientUid = result.user.uid;
+    } catch (error) {
+      console.warn("Anonymous Firebase sign-in unavailable; preserving legacy chat flow.", error);
+    }
+    resolve();
+  }, error => { console.warn("Firebase auth initialization failed", error); resolve(); });
+});
 
 const form = document.getElementById("requestForm");
 const submitBtn = document.getElementById("submitBtn");
@@ -390,6 +408,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
+    await firebaseIdentityReady;
     const batch = writeBatch(db);
     const dealRef = doc(collection(db, "deals"));
     const dealId = dealRef.id;
@@ -403,6 +422,7 @@ form.addEventListener("submit", async e => {
       providerId,
       promoterId,
       clientId,
+      ...(firebaseClientUid ? { clientAuthUid: firebaseClientUid } : {}),
       clientName,
       clientContact,
       note,
@@ -422,7 +442,7 @@ form.addEventListener("submit", async e => {
     const chatRef = doc(db, "chats", dealId);
     batch.set(chatRef, {
       dealId, providerId, clientId,
-      participants: { providerId, clientId },
+      participants: { providerId, clientId, ...(firebaseClientUid ? { clientAuthUid: firebaseClientUid } : {}) },
       clientInfo: { name: clientName, contact: clientContact },
       lastMessage: { 
         text: "🔒 EarnLibr Secure Conversation. This chat is monitored and recorded by EarnLibr. Messages may be reviewed only to resolve disputes and ensure fairness.", 
