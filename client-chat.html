@@ -279,7 +279,8 @@ header {
 <div id="toast"></div>
 
 <script type="module">
-import { db } from "./firebase.js";
+import { db, auth } from "./firebase.js";
+import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { queueChatPush, markChatRead } from "./chat-push-client.js";
 import {
   doc,
@@ -362,6 +363,15 @@ async function uploadToCloudinary(file) {
 /* ─────────────────────────
    Initial chat existence check
    ───────────────────────── */
+const authReady = new Promise(resolve => {
+  const stop = onAuthStateChanged(auth, async user => {
+    stop();
+    if (user) return resolve(user);
+    try { resolve((await signInAnonymously(auth)).user); }
+    catch (error) { console.warn("Client sign-in unavailable", error); resolve(null); }
+  }, () => resolve(null));
+});
+await authReady;
 const chatSnap = await getDoc(chatRef);
 if (!chatSnap.exists()) {
   document.body.innerHTML = "<p style='padding:20px;color:red;'>Chat not found.</p>";
@@ -378,6 +388,7 @@ onSnapshot(query(messagesRef, orderBy("timestamp", "asc")), snap => {
 
   snap.forEach(docSnap => {
     const m = docSnap.data();
+    if (document.visibilityState === "visible" && m.sender === "provider" && !m.seen) updateDoc(docSnap.ref,{seen:true}).catch(()=>{});
 
     const isDeleted = !!m.deleted || m.text === "[Message deleted]";
 
@@ -413,7 +424,7 @@ onSnapshot(query(messagesRef, orderBy("timestamp", "asc")), snap => {
       inner += `<div>${m.text || ""}</div>`;
     }
 
-    inner += `<div class="messageTime">${timeStr}</div>`;
+    inner += `<div class="messageTime">${timeStr}${m.sender === "client" ? (m.seen ? " ✓✓" : " ✓") : ""}</div>`;
     div.innerHTML = inner;
 
     // Edit/delete controls only for client's own non-deleted messages that are still editable
@@ -611,7 +622,8 @@ async function sendMessage() {
     let newMsg = {
       sender: "client",
       timestamp: serverTimestamp(),
-      editable: true
+      editable: true,
+      seen: false
     };
 
     if (file) {
