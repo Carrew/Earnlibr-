@@ -237,7 +237,7 @@ p { color:var(--muted); }
 const session = JSON.parse(localStorage.getItem("userSession") || "null");
 const alertBox = document.getElementById("alertBox");
 
-if(!session || session.role !== "freelancer"){
+if(!session || session.!["promoter","freelancer"].includes(role)){
   location.href="login.html";
 } else {
   document.getElementById("name").textContent = session.name;
