@@ -25,9 +25,9 @@ function refresh(){
   const supported='Notification' in window && 'serviceWorker' in navigator;
   button.disabled=!eligible||!supported;
   off.disabled=!eligible||!supported;
-  info.textContent=!supported?'This browser does not support push notifications.':!eligible?'Sign in with a verified EarnLibr account to enable browser notifications.':'Allow notifications to receive updates when the chat is closed.';
+  info.textContent=!supported?'This browser does not support push notifications.':!eligible?'Sign in or open your EarnLibr client chat to enable browser notifications.':'Allow notifications to receive updates when the chat is closed.';
 }
-onAuthStateChanged(auth,user=>{eligible=!!user?.emailVerified;refresh();});
+onAuthStateChanged(auth,user=>{eligible=!!user&&(user.emailVerified||user.isAnonymous);refresh();});
 refresh();
 button.addEventListener('click',async()=>{
   button.disabled=true;
