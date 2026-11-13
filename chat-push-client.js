@@ -17,7 +17,7 @@ async function send(path,dealId,messageId){
  const user=await signedInUser();
  if(!user){report(path,'Firebase sign-in is unavailable on this device');return false}
  const response=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await getIdToken(user)},body:JSON.stringify({dealId,...(messageId?{messageId}:{})})});
- if(!response.ok){let reason='HTTP '+response.status;try{const data=await response.json();reason=data.error||reason}catch{}report(path,reason);return false}
+ if(!response.ok){let reason='HTTP '+response.status;try{const data=await response.json();reason=data.error||reason}catch{}if(response.status===403 && reason==='Forbidden')reason='This chat was opened in a different browser session. Notifications require the original verified chat session.';report(path,reason);return false}
  return true;
 }
 export async function queueChatPush(dealId,messageId){try{return await send('/v1/chat/enqueue',dealId,messageId)}catch(e){report('/v1/chat/enqueue',e?.message||'Network failure');return false}}
