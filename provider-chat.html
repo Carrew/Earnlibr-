@@ -576,6 +576,8 @@ async function completeDealFromChat(dealId) {
   try {
     await runTransaction(db, async (t) => {
       const dealRef = doc(db, "deals", dealId);
+      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
+      if (completedSnap.exists()) throw new Error("Deal has already been completed.");
       const dealSnap = await t.get(dealRef);
       if (!dealSnap.exists()) throw new Error("Deal not found.");
 
