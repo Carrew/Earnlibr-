@@ -417,7 +417,7 @@ onAuthStateChanged(auth, async (user) => {
       return;  
     }  
 
-    if (role !== 'freelancer') {  
+    if (!['freelancer', 'promoter'].includes(role)) {  
       showNotification("Access denied: Not a promoter.");  
       auth.signOut();  
       window.location.href='login.html';  
@@ -454,11 +454,20 @@ async function loadOffers() {
     const snapshot = await getDocs(offersCol);  
     allOffers = snapshot.docs  
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))  
-      .filter(o => o.verified && o.status === 'active');  
+      .filter(o => o.verified !== false && !['rejected', 'deleted', 'draft'].includes(String(o.status || '').toLowerCase()));  
 
     hideSkeleton();  
     populateCategories();  
-    displayOffers(allOffers);\n    const target = new URLSearchParams(location.search).get('offer');\n    if (target) { const found = allOffers.find(o => o.id === target); if (found) { const index = allOffers.indexOf(found); const cards = offerGrid.querySelectorAll('.offer-card'); cards[index]?.scrollIntoView({behavior:'smooth',block:'center'}); if(cards[index]) cards[index].style.outline='2px solid #a3ff6e'; } }  
+    displayOffers(allOffers);
+    const target = new URLSearchParams(location.search).get('offer');
+    if (target) {
+      const index = allOffers.findIndex(o => o.id === target);
+      const card = offerGrid.querySelectorAll('.offer-card')[index];
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.outline = '2px solid #a3ff6e';
+      }
+    }  
   } catch(err) {  
     console.error(err);  
     hideSkeleton();  
