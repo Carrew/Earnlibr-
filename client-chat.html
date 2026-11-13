@@ -281,7 +281,7 @@ header {
 <script type="module">
 import { db, auth } from "./firebase.js";
 import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { queueChatPush, markChatRead } from "./chat-push-client.js";
+import { queueChatPush, markChatRead } from "./chat-push-client.js?v=20261113-5";
 import {
   doc,
   getDoc,
@@ -655,7 +655,7 @@ async function sendMessage() {
     });
 
     await batch.commit();
-    queueChatPush(dealId,newDocRef.id);
+    void queueChatPush(dealId,newDocRef.id);
 
     // Reset input + media preview
     messageInput.value = "";
