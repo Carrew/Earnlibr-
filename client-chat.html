@@ -276,15 +276,6 @@ header {
   <button id="sendBtn">Send</button>
 </div>
 
-<div id="identityPanel" hidden style="background:#142238;border:1px solid #4a90e2;padding:12px 16px;color:#fff;font-size:13px">
- <strong>Secure chat access</strong>
- <p id="identityStatus" style="margin:7px 0">Verify your email to use this conversation across browsers.</p>
- <div style="display:flex;flex-wrap:wrap;gap:7px">
- <input id="identityEmail" type="email" autocomplete="email" placeholder="Your email address" aria-label="Email address for chat verification" style="flex:1;min-width:170px;padding:9px;border-radius:7px"/>
- <button id="identitySend" type="button" style="padding:9px;border-radius:7px">Send sign-in link</button>
- <button id="identityFinish" type="button" style="padding:9px;border-radius:7px">Verify link</button>
- </div>
- </div>
 <div id="toast"></div>
 
 <script type="module">
@@ -719,6 +710,5 @@ window.addEventListener('earnlibr:push-error', event => {
 });
 </script>
 <script type="module" src="./chat-push-ui.js?v=20261113-4"></script>
-<script type="module" src="./chat-identity.js?v=20261113-2"></script>
 </body>
 </html>
