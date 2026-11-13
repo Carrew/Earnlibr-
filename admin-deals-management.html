@@ -121,148 +121,18 @@ async function sendNotifications(deal, title, message) {
 }
 
 /* --- Complete Deal --- */
-async function processCompleteDeal(dealId, deal, card){
-  const dealRef = doc(db, "deals", dealId);
-
-  // Soft Lock Transaction
+async function processCompleteDeal(dealId, deal, card) {
   try {
-    await runTransaction(db, async (t) => {
-      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
-      if (completedSnap.exists()) throw new Error("Deal has already been completed.");
-      const snap = await t.get(dealRef);
-      if (!snap.exists()) throw new Error("Deal not found or already processed.");
-      if (snap.data().status === "processing") throw new Error("Deal is currently being processed.");
-      t.update(dealRef, { status: "processing" }); 
-    });
-  } catch (err) {
-    if (err.message.includes("being processed")) {
-      showNotif("⚠️ Deal is already processing. Please wait.", "error");
-      return;
-    }
-    showNotif(`**Lock Error:** ${err.message || err.toString()}`, "error");
-    return; 
-  }
-
-  // Main financial transaction
-  try {
-    const offerRef = doc(db, "offers_all", deal.offerId);
-    const currency = deal.offerCurrency || "USD";
-
-    await runTransaction(db, async (t) => {
-      
-      // ==========================================================
-      // 1. ALL READS
-      // ==========================================================
-      const offerSnap = await t.get(offerRef);
-      if(!offerSnap.exists()) throw new Error("Offer not found");
-      const offer = offerSnap.data();
-
-      const platformSnap = await t.get(doc(db, "platform-settings", "commission"));
-      const platformPercentage = platformSnap.exists() ? parseFloat(platformSnap.data().percentage) : 20;
-
-      const platformRef = doc(db, `platform-earnings/${currency}`);
-      const platformSnap2 = await t.get(platformRef);
-      const platformData = platformSnap2.exists() ? platformSnap2.data() : { totalRevenue:0, dealsCount:0, dailyRevenue:{} };
-
-      let metaSnap = null;
-      if(deal.promoterId && deal.promoterId!=="direct"){
-        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-        metaSnap = await t.get(metaRef);
-      }
-      
-      // ==========================================================
-      // 2. CALCULATIONS (QUANTITY LOGIC ADDED HERE)
-      // ==========================================================
-      const dealQuantity = deal.quantity || 1; // Default to 1 for safety
-
-      let commissionEarned = 0;
-      if(offer.commissionType === "percentage") {
-          // (Price * Quantity) * Percentage
-          commissionEarned = (offer.price * dealQuantity * offer.commissionValue) / 100;
-      } else if(offer.commissionType === "fixed") {
-          // Fixed * Quantity
-          commissionEarned = offer.commissionValue * dealQuantity;
-      } else {
-          // Fallback
-          commissionEarned = (deal.commissionValue || 0) * dealQuantity;
-      }
-      
-      commissionEarned = round(commissionEarned);
-
-      const platformShare = round(commissionEarned * platformPercentage / 100);
-      const promoterNet = round(commissionEarned - platformShare);
-
-      const todayUTC = new Date().toISOString().split("T")[0];
-      
-      platformData.totalRevenue += platformShare;
-      platformData.dealsCount += 1;
-      platformData.dailyRevenue[todayUTC] = (platformData.dailyRevenue[todayUTC]||0) + platformShare;
-
-      const updatedOfferData = {
-        promoSpent: round((offer.promoSpent||0)+commissionEarned),
-        amountOwed: round((offer.amountOwed||0)+commissionEarned),
-        outstandingBalance: round(((offer.amountOwed||0) + commissionEarned) - (offer.amountPaid||0))
-      };
-      
-      let meta = metaSnap?.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
-      if(deal.promoterId && deal.promoterId!=="direct"){
-          meta.totalLifetimeEarnings[currency] = (meta.totalLifetimeEarnings[currency]||0)+promoterNet;
-          meta.currentBalance[currency] = (meta.totalLifetimeEarnings[currency] || 0) - (meta.totalWithdrawn[currency]||0);
-          meta.lastUpdated = serverTimestamp();
-      }
-
-      // ==========================================================
-      // 3. ALL WRITES
-      // ==========================================================
-      t.update(offerRef, updatedOfferData);
-
-      if(deal.promoterId && deal.promoterId !== "direct") {
-        const promoterDealRef = doc(db, "promoter-earnings", deal.promoterId, "deals", dealId);
-        const metaRef = doc(db, "promoter-earnings", deal.promoterId, "metadata", "summary");
-
-        t.set(promoterDealRef, {
-  ...deal,
-  commissionAmount: promoterNet,
-  fullCommission: commissionEarned,
-  platformTax: platformShare,
-  completedAt: serverTimestamp(),
-  withdrawn: false,
-  withdrawalRequestId: null
-});
-        t.set(metaRef, meta, { merge:true });
-      }
-
-      t.set(platformRef, platformData, { merge:true });
-
-      const completedRef = doc(db, "completed-deals", dealId);
-      t.set(completedRef, {
-        ...deal,
-        status: "completed",
-        completedAt: serverTimestamp(),
-        completedBy: "admin",
-        commissionEarned,
-        platformShare,
-        promoterNet,
-        providerPaid:false
-      });
-
-        t.update(completedRef, {
-         billedBy: null,
-         billedAt: null
-         });
-
-      t.delete(dealRef);
-    });
-
-    await sendNotifications(deal, "Deal Completed ✅", `Deal ${dealId} marked complete by admin.`);
-    card.remove();
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Sign in again to continue.");
+    const token = await currentUser.getIdToken();
+    const response = await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/deals/complete", { method:"POST", headers:{"Content-Type":"application/json",Authorization:"Bearer "+token}, body:JSON.stringify({dealId}) });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Settlement failed.");
+    (card || document.querySelector(`.deal-card[data-deal-id="${dealId}"]`))?.remove();
     showNotif("Deal completed successfully");
-
-  } catch(err){ 
-    console.error(err); 
-    updateDoc(dealRef, { status: "pending" }).catch(e => console.error("Failed to reset status:", e)); 
-    showNotif(`**Financial Error:** ${err.message || err.toString()}`,"error"); 
-  }
+    sendNotifications(deal, "Deal Completed", `Deal ${dealId} marked complete.`).catch(console.error);
+  } catch (err) { console.error(err); showNotif("Financial Error: "+err.message, "error"); }
 }
 
 /* --- Cancel Deal --- */
