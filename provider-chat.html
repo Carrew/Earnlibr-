@@ -423,6 +423,7 @@ header {
 
 <script type="module">
 import { auth, db } from "./firebase.js";
+import { queueChatPush, markChatRead } from "./chat-push-client.js";
 import {
   collection,
   query,
@@ -851,12 +852,13 @@ function openChat(chatId) {
   unsubscribeMessages = onSnapshot(
     q,
     snap => {
+      if (document.visibilityState === "visible" && currentChatId) markChatRead(currentChatId);
       messagesContainer.innerHTML = "";
       snap.forEach(d => {
         const msg = d.data();
         const isDeleted = !!msg.deleted || msg.text === "[Message deleted]";
 
-        if (msg.sender === "client" && !msg.seen) {
+        if (document.visibilityState === "visible" && msg.sender === "client" && !msg.seen) {
           updateDoc(d.ref, { seen:true }).catch(()=>{});
         }
 
@@ -1146,6 +1148,7 @@ async function sendMessage() {
     });
 
     await batch.commit();
+    queueChatPush(currentChatId,newDocRef.id);
 
     messageInput.value = "";
     mediaInput.value = "";
@@ -1175,6 +1178,7 @@ sendBtn.onclick = sendMessage;
 messageInput.onkeydown = e => {
   if (e.key === "Enter") sendMessage();
 };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && currentChatId) markChatRead(currentChatId); });
 backBtn.onclick = () => mainContainer.classList.remove("chat-open");
 </script>
 <script type="module" src="./chat-push-ui.js"></script>
