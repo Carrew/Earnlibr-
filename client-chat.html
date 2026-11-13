@@ -280,6 +280,7 @@ header {
 
 <script type="module">
 import { db } from "./firebase.js";
+import { queueChatPush, markChatRead } from "./chat-push-client.js";
 import {
   doc,
   getDoc,
@@ -371,6 +372,7 @@ if (!chatSnap.exists()) {
    Real-time messages listener
    ───────────────────────── */
 onSnapshot(query(messagesRef, orderBy("timestamp", "asc")), snap => {
+  if (document.visibilityState === "visible") markChatRead(dealId);
   document.getElementById("loading")?.remove();
   messagesContainer.innerHTML = "";
 
@@ -641,6 +643,7 @@ async function sendMessage() {
     });
 
     await batch.commit();
+    queueChatPush(dealId,newDocRef.id);
 
     // Reset input + media preview
     messageInput.value = "";
@@ -668,6 +671,7 @@ messageInput.addEventListener("input", () => {
   }, 2000);
 });
 
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") markChatRead(dealId); });
 sendBtn.onclick = sendMessage;
 messageInput.onkeydown = e => {
   if (e.key === "Enter") sendMessage();
