@@ -198,7 +198,7 @@ async function processCompleteDeal(dealId, deal, card){
       const updatedOfferData = {
         promoSpent: round((offer.promoSpent||0)+commissionEarned),
         amountOwed: round((offer.amountOwed||0)+commissionEarned),
-        outstandingBalance: round((offer.amountOwed||0 + commissionEarned) - (offer.amountPaid||0))
+        outstandingBalance: round(((offer.amountOwed||0) + commissionEarned) - (offer.amountPaid||0))
       };
       
       let meta = metaSnap?.exists() ? metaSnap.data() : { totalLifetimeEarnings:{}, currentBalance:{}, totalWithdrawn:{} };
