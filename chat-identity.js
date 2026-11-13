@@ -31,11 +31,10 @@ if(deal&&panel){
   send.disabled=true;
   try{
    const {user,uid}=await state();
-   if(user?.uid!==uid){say('First link an email from the original browser where this chat was created.');return}
-   if(!user.isAnonymous){say('This chat already has a verified account.');return}
+   if(user?.uid===uid&&!user.isAnonymous){say('This chat already has a verified account.');return}
    await sendSignInLinkToEmail(auth,address,{url:location.origin+location.pathname+'?deal='+encodeURIComponent(deal),handleCodeInApp:true});
    sessionStorage.setItem(key,address);
-   say('Verification email sent. Open its link, then enter the same email if asked.');
+   say('Sign-in link sent. If this is a new browser, use the email already linked to this chat. Open its link and verify.');
   }catch(e){say('Could not send verification link: '+(e.code||e.message))}
   finally{send.disabled=false}
  };
@@ -43,7 +42,7 @@ if(deal&&panel){
  try{
   const {user,uid}=await state();
   panel.hidden=!!(user?.uid===uid&&!user.isAnonymous);
-  if(!panel.hidden)say(user?.uid===uid?'Link your email to open this chat securely across browsers.':'This browser is not verified for this chat. Use the email already linked from the original browser.');
+  if(!panel.hidden)say(user?.uid===uid?'Link your email to open this chat securely across browsers.':'Use the email previously linked to this chat. If it has never been linked, first link it from the original browser.');
  }catch(e){say('Identity check failed: '+(e.code||e.message))}
  if(isSignInWithEmailLink(auth,location.href)){
   panel.hidden=false;
