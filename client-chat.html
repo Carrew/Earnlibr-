@@ -689,6 +689,14 @@ messageInput.onkeydown = e => {
   if (e.key === "Enter") sendMessage();
 };
 </script>
-<script type="module" src="./chat-push-ui.js?v=20261113-3"></script>
+<script>
+window.addEventListener('earnlibr:push-error', event => {
+  const reason = event.detail?.reason || 'Unknown error';
+  const toast = document.getElementById('toast');
+  if (toast) { toast.textContent = 'Message sent, but notification failed: ' + reason; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 9000); }
+  console.warn('Notification issue:', reason);
+});
+</script>
+<script type="module" src="./chat-push-ui.js?v=20261113-4"></script>
 </body>
 </html>
