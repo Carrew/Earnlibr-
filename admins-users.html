@@ -182,7 +182,7 @@ select{ min-width:160px; }
     <div class="kpis">
       <div class="kpi"><div class="label">Total users</div><div class="val" id="kpiTotal">—</div></div>
       <div class="kpi"><div class="label">Providers</div><div class="val" id="kpiProviders">—</div></div>
-      <div class="kpi"><div class="label">Affiliates</div><div class="val" id="kpiAffiliates">—</div></div>
+      <div class="kpi"><div class="label">Promoters</div><div class="val" id="kpiPromoters">—</div></div>
       <div class="kpi"><div class="label">Signups (7 days)</div><div class="val" id="kpi7d">—</div></div>
     </div>
     <div style="padding:0 14px 14px;">
@@ -202,7 +202,7 @@ select{ min-width:160px; }
         <select id="roleFilter">
           <option value="all">All roles</option>
           <option value="provider">Providers</option>
-          <option value="freelancer">Affiliates</option>
+          <option value="promoter">Promoters</option>
         </select>
         <select id="statusFilter">
           <option value="all">All statuses</option>
@@ -303,7 +303,7 @@ function deny(message){
 function renderKPIs(list){
   const total = list.length;
   const providers = list.filter(u => u.role === "provider").length;
-  const affiliates = list.filter(u => u.role === "freelancer").length;
+  const promoters = list.filter(u => u.["promoter","freelancer"].includes(role)).length;
 
   const sevenDays = daysAgo(7);
   const signups7d = list.filter(u => {
@@ -313,7 +313,7 @@ function renderKPIs(list){
 
   $("kpiTotal").textContent = total;
   $("kpiProviders").textContent = providers;
-  $("kpiAffiliates").textContent = affiliates;
+  $("kpiPromoters").textContent = promoters;
   $("kpi7d").textContent = signups7d;
 
   $("lastUpdated").textContent = "Updated: " + new Date().toLocaleString();
@@ -323,7 +323,7 @@ function badgeFor(user){
   const badges = [];
   badges.push(user.role === "provider"
     ? `<span class="badge green">Provider</span>`
-    : `<span class="badge blue">Affiliate</span>`);
+    : `<span class="badge blue">Promoter</span>`);
 
   if(user.disabled) badges.push(`<span class="badge red">Disabled</span>`);
   return badges.join("");
@@ -380,7 +380,7 @@ function renderDetail(u){
     <div class="actions">
       <button class="btn" id="toggleDisableBtn">${u.disabled ? "Enable user" : "Disable user"}</button>
       <button class="btn-ghost" id="makeProviderBtn">Set as Provider</button>
-      <button class="btn-ghost" id="makeAffiliateBtn">Set as Affiliate</button>
+      <button class="btn-ghost" id="makePromoterBtn">Set as Promoter</button>
     </div>
 
     <div class="small" style="margin-top:10px;">
@@ -412,10 +412,10 @@ function renderDetail(u){
     }
   };
 
-  $("makeAffiliateBtn").onclick = async () => {
+  $("makePromoterBtn").onclick = async () => {
     try{
-      await updateDoc(doc(db,"users",u.uid), { role: "freelancer" });
-      toast("Role updated: Affiliate");
+      await updateDoc(doc(db,"users",u.uid), { role: "promoter" });
+      toast("Role updated: Promoter");
       await refresh();
       selectUser(u.uid);
     }catch(e){
