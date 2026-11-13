@@ -311,6 +311,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/fi
 import {
   collection, doc, getDoc, getDocs, setDoc, runTransaction,
   writeBatch, query, orderBy, limit, startAfter, where, serverTimestamp
+, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const dealsContainer = document.getElementById("dealsContainer");
@@ -452,6 +453,8 @@ async function processCompleteDeal(dealId, deal, card) {
   // Locking: set status to 'processing' atomically
   try {
     await runTransaction(db, async (t) => {
+      const completedSnap = await t.get(doc(db, "completed-deals", dealId));
+      if (completedSnap.exists()) throw new Error("Deal has already been completed.");
       const snap = await t.get(dealRef);
       if (!snap.exists()) throw new Error("Deal not found.");
       if (snap.data().status === "processing") {
@@ -587,7 +590,7 @@ async function processCompleteDeal(dealId, deal, card) {
     showNotif("Deal completed successfully", "success");
   } catch (err) {
     console.error(err);
-    setDoc(dealRef, { status: "pending" }, { merge: true }).catch((e) =>
+    updateDoc(dealRef, { status: "pending" }).catch((e) =>
       console.error("Failed to reset status:", e)
     );
     showNotif(`Financial Error: ${err.message}`, "error");
