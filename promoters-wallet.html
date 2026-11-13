@@ -212,7 +212,7 @@ onAuthStateChanged(auth, async (user) => {
   const userDocRef = doc(db, "users", user.uid);  
   const userDoc = await getDoc(userDocRef);  
   
-  if (!userDoc.exists() || userDoc.data().role !== "freelancer") {  
+  if (!userDoc.exists() || userDoc.data().!["promoter","freelancer"].includes(role)) {  
     localStorage.removeItem("userSession");  
     window.location.href = "login.html";  
     return;  
