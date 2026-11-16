@@ -490,6 +490,40 @@ function renderBillCard(bill) {
       });
     };
 
+    const sandbox = document.createElement("div");
+    sandbox.style.cssText = "margin-top:12px;padding:12px;border:1px solid #38506a;border-radius:10px;font-size:12px";
+    sandbox.innerHTML = '<strong>MTN MoMo sandbox (test only)</strong><p style="color:#bfc7d6">No real money will be collected. Sandbox requests currently require an EUR bill.</p><input type="tel" class="momo-number" placeholder="Test wallet number, digits only" style="padding:8px;border-radius:6px;width:95%;max-width:320px"><button class="btn momo-start" type="button">Request test payment</button><button class="btn momo-check" type="button" style="display:none">Check payment status</button><div class="momo-result" aria-live="polite" style="margin-top:8px"></div>';
+    const start = sandbox.querySelector(".momo-start"), check = sandbox.querySelector(".momo-check"), output = sandbox.querySelector(".momo-result");
+    let paymentId = null, attemptKey = crypto.randomUUID();
+    async function momoApi(path, payload) {
+      const token = await auth.currentUser.getIdToken();
+      const url = "https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/payments/momo/" + path;
+      const res = await fetch(url, {method: payload ? "POST" : "GET", headers: {"Authorization":"Bearer "+token,...(payload?{"Content-Type":"application/json"}:{})},...(payload?{body:JSON.stringify(payload)}:{})});
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok || !data.success)throw Error(data.error || "Payment service unavailable");
+      return data;
+    }
+    start.onclick = async () => {
+      const msisdn = sandbox.querySelector(".momo-number").value.trim();
+      if(!/^[0-9]{8,15}$/.test(msisdn)){output.textContent="Enter a valid test wallet number (8 to 15 digits).";return}
+      start.disabled=true;output.textContent="Requesting test payment...";
+      try{
+        const data=await momoApi("request",{billId:bill.billId,msisdn,idempotencyKey:attemptKey});
+        paymentId=data.paymentId;output.textContent="Request accepted. Status: "+data.status+". Check status after approving in the MTN sandbox.";
+        check.style.display="inline-flex";
+      }catch(e){output.textContent=e.message}
+      finally{start.disabled=false}
+    };
+    check.onclick = async () => {
+      if(!paymentId)return;
+      check.disabled=true;
+      try{
+        const data=await momoApi("status?paymentId="+encodeURIComponent(paymentId));
+        output.textContent="MTN status: "+data.status+(data.status==="successful"?" (recorded in sandbox; bill is NOT automatically marked paid)":"");
+      }catch(e){output.textContent=e.message}
+      finally{check.disabled=false}
+    };
+    card.appendChild(sandbox);
     card.appendChild(proofWrap);
     card.appendChild(btn);
   }
