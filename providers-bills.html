@@ -229,7 +229,7 @@ import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   collection, doc, query, where, onSnapshot,
-  serverTimestamp, writeBatch
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 // ===== Cloudinary config =====
@@ -516,35 +516,31 @@ async function markAsPaid(billId, btn, proof){
     // 1) Upload screenshot/receipt to Cloudinary
     const uploaded = await uploadReceiptToCloudinary(proof.file, billId);
 
-    // 2) Update Firestore docs
-    btn.textContent = "Updating bill...";
-
-    const batch = writeBatch(db);
-
-    const updateData = {
-      status: "provider_marked_paid",
-      providerMarkedAt: serverTimestamp(),
-      providerProof: {
-        senderName: proof.senderName,
-        senderPhone: proof.senderPhone,
-        receiptUrl: uploaded.url,
-        cloudinaryPublicId: uploaded.publicId,
-        cloudinaryFormat: uploaded.format,
-        cloudinaryBytes: uploaded.bytes,
-        submittedAt: serverTimestamp(),
-        submittedBy: userSession.uid
-      }
-    };
-
-    batch.update(doc(db,"bills",billId), updateData);
-    batch.update(doc(db, `providers/${userSession.uid}/bills/${billId}`), updateData);
-
-    await batch.commit();
+    // 2) Submit proof to the authenticated backend. The browser cannot mark bills paid.
+    btn.textContent = "Submitting proof...";
+    const idToken = await auth.currentUser.getIdToken();
+    const response = await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/providers/bills/submit-proof", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
+      body: JSON.stringify({
+        billId,
+        proof: {
+          senderName: proof.senderName,
+          senderPhone: proof.senderPhone,
+          receiptUrl: uploaded.url,
+          cloudinaryPublicId: uploaded.publicId,
+          cloudinaryFormat: uploaded.format,
+          cloudinaryBytes: uploaded.bytes
+        }
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || "Proof submission rejected");
 
     showNotif("Proof submitted. Bill marked as paid and sent for Admin approval!", "success");
   } catch(err) {
     console.error("Failed to submit proof:", err);
-    showNotif("Error: Failed to upload proof or update bill.", "error");
+    showNotif("Unable to submit proof: " + (err.message || "Please try again."), "error");
     btn.disabled = false;
     btn.textContent = originalText;
     return;
