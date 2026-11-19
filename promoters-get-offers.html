@@ -271,10 +271,10 @@ h1 {
 <div class="stats"><div>Available <strong id="totalCount">—</strong></div><div>Promoting <strong id="promotingCount">—</strong></div><div>Matching <strong id="matchCount">—</strong></div></div><section id="pushPanel" class="push-panel" hidden><div><strong>🔔 Get new-offer alerts</strong><p>Be notified when new opportunities go live. Optional, and you can turn it off anytime.</p></div><button id="enableOfferPush">Enable notifications</button><button id="dismissOfferPush" aria-label="Dismiss">✕</button></section><div class="filter-bar">  
   <select id="categoryFilter"><option value="">All Categories</option></select>  
   <input type="text" id="searchInput" placeholder="Search offers..." />  
-  <select id="statusFilter"><option value="all">All offers</option><option value="mine">My promotions</option><option value="new">Not promoting yet</option></select><select id="sortFilter"><option value="newest">Newest</option><option value="commission">Highest commission</option><option value="title">Name A–Z</option></select><button id="clearFilters">Reset</button>  
+    
 </div>  
 
-<p id="resultsLine" class="results-line" aria-live="polite"></p><div id="offerGrid" class="offer-grid"></div><nav class="pagination"><button id="prevPage">← Previous</button><span id="pageLabel"></span><button id="nextPage">Next →</button></nav>  
+<p id="resultsLine" class="results-line" aria-live="polite"></p><div id="offerGrid" class="offer-grid"></div><nav class="pagination"><button id="loadMore" type="button">Show more offers</button><span id="pageLabel"></span></nav>  
 <div id="notification" class="notification"></div>  
 
 <script type="module">  
@@ -455,7 +455,7 @@ async function loadOffers() {
     const snapshot = await getDocs(offersCol);  
     allOffers = snapshot.docs  
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))  
-      .filter(o => o.verified === true && String(o.status || '').toLowerCase() === 'active');  
+      .filter(o => o.verified !== false && !['rejected','deleted','draft','pending','processing','paused','inactive'].includes(String(o.status || 'active').toLowerCase()));  
 
     hideSkeleton();  
     populateCategories();  
@@ -463,7 +463,7 @@ async function loadOffers() {
     const target = new URLSearchParams(location.search).get('offer');
     if (target) {
       const index = allOffers.findIndex(o => o.id === target);
-      if(index>=0){currentPage=Math.floor(filteredOffers.findIndex(o=>o.id===target)/pageSize)+1;renderPage();}\n      const card = [...offerGrid.querySelectorAll('.offer-card')].find(el=>el.dataset.offerId===target);
+      if(index>=0){const n=filteredOffers.findIndex(o=>o.id===target);if(n>=0){currentPage=Math.floor(n/pageSize)+1;renderPage();}}\n      const card = [...offerGrid.querySelectorAll('.offer-card')].find(el=>el.dataset.offerId===target);
       if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card.style.outline = '2px solid #a3ff6e';
@@ -688,26 +688,24 @@ function displayOffers(offers) {
 }  
 
 function applyFilters(reset=true){
- const cat=categoryFilter.value,search=searchInput.value.trim().toLowerCase(),mode=document.getElementById('statusFilter').value;
- filteredOffers=allOffers.filter(o=>(!cat||o.category===cat)&&(!search||[o.title,o.description,o.providerName,o.category].some(x=>String(x||'').toLowerCase().includes(search)))&&(mode==='all'||(mode==='mine'?promotedOfferIds.has(o.id):!promotedOfferIds.has(o.id))));
- const sort=document.getElementById('sortFilter').value;
- filteredOffers.sort((a,b)=>sort==='title'?String(a.title||'').localeCompare(String(b.title||'')):sort==='commission'?Number(b.commissionValue||0)-Number(a.commissionValue||0):(b.approvedAt?.seconds||0)-(a.approvedAt?.seconds||0));
+ const cat=categoryFilter.value,search=searchInput.value.trim().toLowerCase();
+ filteredOffers=allOffers.filter(o=>(!cat||o.category===cat)&&(!search||[o.title,o.description,o.providerName,o.category].some(x=>String(x||'').toLowerCase().includes(search))));
+ filteredOffers.sort((a,b)=>(b.approvedAt?.seconds||b.createdAt?.seconds||0)-(a.approvedAt?.seconds||a.createdAt?.seconds||0));
  if(reset)currentPage=1;renderPage();
 }
 function renderPage(){
  const pages=Math.max(1,Math.ceil(filteredOffers.length/pageSize));currentPage=Math.max(1,Math.min(currentPage,pages));
- const start=(currentPage-1)*pageSize;displayOffers(filteredOffers.slice(start,start+pageSize));
+ displayOffers(filteredOffers.slice(0,currentPage*pageSize));
  document.getElementById('totalCount').textContent=allOffers.length;
  document.getElementById('promotingCount').textContent=promotedOfferIds.size;
  document.getElementById('matchCount').textContent=filteredOffers.length;
- document.getElementById('resultsLine').textContent=filteredOffers.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,filteredOffers.length)+' of '+filteredOffers.length+' offers':'No matching offers. Adjust your filters.';
- document.getElementById('pageLabel').textContent='Page '+currentPage+' of '+pages;
- document.getElementById('prevPage').disabled=currentPage===1;document.getElementById('nextPage').disabled=currentPage===pages;
+ document.getElementById('resultsLine').textContent=filteredOffers.length?'Showing '+Math.min(currentPage*pageSize,filteredOffers.length)+' of '+filteredOffers.length+' offers':'No matching offers. Try another search.';
+ document.getElementById('pageLabel').textContent='';
+ document.getElementById('loadMore').hidden=currentPage>=pages;
 }
-[categoryFilter,searchInput,document.getElementById('statusFilter'),document.getElementById('sortFilter')].forEach(el=>el.addEventListener(el===searchInput?'input':'change',()=>applyFilters()));
-clearFiltersBtn.onclick=()=>{categoryFilter.value='';searchInput.value='';document.getElementById('statusFilter').value='all';document.getElementById('sortFilter').value='newest';applyFilters();};
-document.getElementById('prevPage').onclick=()=>{currentPage--;renderPage();window.scrollTo({top:0,behavior:'smooth'});};
-document.getElementById('nextPage').onclick=()=>{currentPage++;renderPage();window.scrollTo({top:0,behavior:'smooth'});};
+categoryFilter.addEventListener('change',()=>applyFilters());
+searchInput.addEventListener('input',()=>applyFilters());
+document.getElementById('loadMore').onclick=()=>{currentPage++;renderPage();};
 async function setupPushInvitation(){
  const panel=document.getElementById('pushPanel'),btn=document.getElementById('enableOfferPush');
  if(!('Notification' in window)||!('serviceWorker' in navigator)||Notification.permission==='denied')return;
