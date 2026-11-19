@@ -512,7 +512,7 @@ function displayOffers(offers) {
   offers.forEach(offer => {  
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";  
 
-    const fullDesc = offer.description || ''; const esc=v=>String(v??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));  
+    const fullDesc = offer.description || ''; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"+'"\'"'+":'&#39;'}[c]));  
     const desc = fullDesc  
       ? (fullDesc.length > 100  
         ? fullDesc.substring(0, 100) + "..."  
@@ -588,7 +588,7 @@ function displayOffers(offers) {
           if (statusEl) statusEl.textContent = 'Promoting';  
           if (promoteChooser) promoteChooser.style.display = 'none';  
           if (mainActions) mainActions.style.display = 'flex';  
-          showNotification("🚀 You're now promoting this offer!");  
+          document.getElementById('promotingCount').textContent=promotedOfferIds.size;\n          showNotification("You're now promoting this offer!");  
         } catch (e) {  
           showNotification('Could not start promoting. Try again.','error');  
           startPromoteBtn.disabled = false;  
