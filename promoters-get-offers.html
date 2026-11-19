@@ -260,20 +260,21 @@ h1 {
   margin-bottom: 4px;  
   color: #e5e7eb;  
 }  
+*{box-sizing:border-box}body{max-width:1500px;margin:auto;padding:28px clamp(14px,4vw,52px);background:radial-gradient(ellipse at top left,#182c3a,#090c14 55%)}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-.04em;margin:3px 0}.eyebrow{font-size:11px;letter-spacing:.18em;font-weight:800;color:#a3ff6e}.subhead{color:#aabbd0;font-size:14px;margin:3px 0 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 18px}.stats div{background:#101d2c;border:1px solid #2c3b4c;border-radius:14px;padding:15px;color:#a9bcd0;font-size:12px}.stats strong{display:block;font-size:27px;color:white}.filter-bar{background:#101c2b;border:1px solid #293c52;gap:10px;position:sticky;top:0;z-index:20}.filter-bar input{flex:2;min-width:170px}.filter-bar select{flex:1;min-width:125px}.filter-bar input,.filter-bar select{min-height:44px;background:#0c1624;color:white}.filter-bar option{background:#0c1624}.filter-bar button{min-height:44px;background:#293f55;color:white}.offer-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}.offer-card{background:#111e2d;border:1px solid #293e52;display:flex;flex-direction:column;padding:13px}.offer-card:hover{transform:translateY(-3px);border-color:#4a90e2}.offer-card img{height:175px;background:#1a2a3c}.offer-card .actions{margin-top:auto;padding-top:12px}.offer-card .btn{min-height:42px;font-size:12px}.offer-card .main-actions:not([style*="display:none"]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))}.offer-desc{overflow-wrap:anywhere}.results-line{font-size:13px;color:#aabbd0}.pagination{display:flex;align-items:center;justify-content:center;gap:15px;margin:28px 0}.pagination button,.push-panel button{padding:11px 15px;min-height:44px;border:1px solid #43617a;border-radius:10px;background:#1b344b;color:white;cursor:pointer}.pagination button:disabled{opacity:.35;cursor:not-allowed}.pagination span{color:#aabbd0;font-size:13px}.push-panel{display:flex;align-items:center;gap:15px;padding:16px;background:#142c2d;border:1px solid #366c60;border-radius:15px;margin-bottom:16px}.push-panel[hidden]{display:none}.push-panel div{flex:1}.push-panel strong{color:#ddffe0}.push-panel p{margin:4px 0 0;color:#b9d0c8;font-size:13px}.push-panel #enableOfferPush{background:#a3ff6e;color:#122018;font-weight:800}.push-panel #dismissOfferPush{background:transparent;border:0}.notification{background:#18354a;border:1px solid #4a90e2;max-width:calc(100vw - 32px)}.notification.error{background:#3b1e2a;border-color:#ef4444}.notification.success{background:#153626;border-color:#4ade80}@media(max-width:650px){body{padding:16px 13px}.stats div{padding:11px}.stats strong{font-size:22px}.filter-bar{position:relative;display:grid;grid-template-columns:1fr 1fr}.filter-bar input{grid-column:1/-1;width:100%}.filter-bar select{width:100%;min-width:0}.filter-bar button{grid-column:1/-1}.offer-grid{grid-template-columns:1fr}.push-panel{flex-wrap:wrap}.push-panel #enableOfferPush{order:3;flex:1}.notification{top:auto;bottom:16px;left:16px;right:16px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
 </style>  
 </head>  
 <body>  
 <header>  
-  <h1>🎯 Promoter Offers</h1>  
+  <div><div class="eyebrow">EARNLIBR / MARKETPLACE</div><h1>Explore offers</h1><p class="subhead">Find great offers, create your link, and share with confidence.</p></div>  
 </header>  
 
-<div class="filter-bar">  
+<div class="stats"><div>Available <strong id="totalCount">—</strong></div><div>Promoting <strong id="promotingCount">—</strong></div><div>Matching <strong id="matchCount">—</strong></div></div><section id="pushPanel" class="push-panel" hidden><div><strong>🔔 Get new-offer alerts</strong><p>Be notified when new opportunities go live. Optional, and you can turn it off anytime.</p></div><button id="enableOfferPush">Enable notifications</button><button id="dismissOfferPush" aria-label="Dismiss">✕</button></section><div class="filter-bar">  
   <select id="categoryFilter"><option value="">All Categories</option></select>  
   <input type="text" id="searchInput" placeholder="Search offers..." />  
-  <button id="clearFilters">Clear Filters</button>  
+  <select id="statusFilter"><option value="all">All offers</option><option value="mine">My promotions</option><option value="new">Not promoting yet</option></select><select id="sortFilter"><option value="newest">Newest</option><option value="commission">Highest commission</option><option value="title">Name A–Z</option></select><button id="clearFilters">Reset</button>  
 </div>  
 
-<div id="offerGrid" class="offer-grid"></div>  
+<p id="resultsLine" class="results-line" aria-live="polite"></p><div id="offerGrid" class="offer-grid"></div><nav class="pagination"><button id="prevPage">← Previous</button><span id="pageLabel"></span><button id="nextPage">Next →</button></nav>  
 <div id="notification" class="notification"></div>  
 
 <script type="module">  
@@ -287,14 +288,14 @@ const categoryFilter = document.getElementById('categoryFilter');
 const searchInput = document.getElementById('searchInput');  
 const clearFiltersBtn = document.getElementById('clearFilters');  
 
-let allOffers = [];  
+let allOffers = []; let filteredOffers=[]; let currentPage=1; const pageSize=12; let toastTimer;  
 let skeletonContainer = null;  
 let promotedOfferIds = new Set(); // offers this promoter is already promoting  
 
-function showNotification(message) {  
+function showNotification(message,type="success") {  
   notification.textContent = message;  
-  notification.classList.add('show');  
-  setTimeout(() => notification.classList.remove('show'), 2500);  
+  notification.className='notification show '+type; clearTimeout(toastTimer);  
+  toastTimer=setTimeout(() => notification.classList.remove('show'), 4500);  
 }  
 
 // Skeleton helpers  
@@ -439,7 +440,7 @@ onAuthStateChanged(auth, async (user) => {
 
     // Load promoted offers first so displayOffers knows which ones are already active  
     await loadPromotedOffers(user.uid);  
-    loadOffers();  
+    loadOffers(); setupPushInvitation();  
   } catch(err) {  
     console.error(err);  
     showNotification("Error validating session.");  
@@ -454,15 +455,15 @@ async function loadOffers() {
     const snapshot = await getDocs(offersCol);  
     allOffers = snapshot.docs  
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))  
-      .filter(o => o.verified !== false && !['rejected', 'deleted', 'draft'].includes(String(o.status || '').toLowerCase()));  
+      .filter(o => o.verified === true && String(o.status || '').toLowerCase() === 'active');  
 
     hideSkeleton();  
     populateCategories();  
-    displayOffers(allOffers);
+    applyFilters();
     const target = new URLSearchParams(location.search).get('offer');
     if (target) {
       const index = allOffers.findIndex(o => o.id === target);
-      const card = offerGrid.querySelectorAll('.offer-card')[index];
+      if(index>=0){currentPage=Math.floor(filteredOffers.findIndex(o=>o.id===target)/pageSize)+1;renderPage();}\n      const card = [...offerGrid.querySelectorAll('.offer-card')].find(el=>el.dataset.offerId===target);
       if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card.style.outline = '2px solid #a3ff6e';
@@ -511,7 +512,7 @@ function displayOffers(offers) {
   offers.forEach(offer => {  
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";  
 
-    const fullDesc = offer.description || '';  
+    const fullDesc = offer.description || ''; const esc=v=>String(v??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));  
     const desc = fullDesc  
       ? (fullDesc.length > 100  
         ? fullDesc.substring(0, 100) + "..."  
@@ -523,13 +524,13 @@ function displayOffers(offers) {
     const isPromoted = promotedOfferIds.has(offer.id);  
 
     const card = document.createElement('div');  
-    card.className='offer-card';  
+    card.className='offer-card'; card.dataset.offerId=offer.id;  
     card.innerHTML = `  
-      <img src="${image}" alt="Offer">  
-      <div class="offer-title">${offer.title || 'Untitled Offer'}</div>  
+      <img src="${esc(image)}" alt="Offer" loading="lazy">  
+      <div class="offer-title">${esc(offer.title || 'Untitled Offer')}</div>  
       <div class="offer-desc">
-        <span class="desc-short">${desc}</span>
-        <span class="desc-full" style="display:none;">${fullDesc}</span>
+        <span class="desc-short">${esc(desc)}</span>
+        <span class="desc-full" style="display:none;">${esc(fullDesc)}</span>
         ${fullDesc && fullDesc.length > 100  
           ? '<button class="toggle-desc" style="margin-left:6px;background:none;border:none;color:var(--accent1);font-size:12px;cursor:pointer;padding:0;">See more</button>'  
           : ''}  
@@ -589,7 +590,7 @@ function displayOffers(offers) {
           if (mainActions) mainActions.style.display = 'flex';  
           showNotification("🚀 You're now promoting this offer!");  
         } catch (e) {  
-          showNotification("❌ Failed to start promoting this offer.");  
+          showNotification('Could not start promoting. Try again.','error');  
           startPromoteBtn.disabled = false;  
         }  
       };  
@@ -687,29 +688,40 @@ function displayOffers(offers) {
   });  
 }  
 
-function applyFilters() {  
-  const cat = categoryFilter.value;  
-  const search = searchInput.value.toLowerCase();  
-  const filtered = allOffers.filter(o => {  
-    const matchesCat = !cat || o.category === cat;  
-    const title = (o.title || "").toLowerCase();  
-    const desc = (o.description || "").toLowerCase();  
-    const matchesSearch = title.includes(search) || desc.includes(search);  
-    return matchesCat && matchesSearch;  
-  });  
-  displayOffers(filtered);  
-}  
-
-categoryFilter.addEventListener('change', applyFilters);  
-searchInput.addEventListener('input', applyFilters);  
-clearFiltersBtn.addEventListener('click', ()=>{  
-  categoryFilter.value='';  
-  searchInput.value='';  
-  applyFilters();  
-});  
+function applyFilters(reset=true){
+ const cat=categoryFilter.value,search=searchInput.value.trim().toLowerCase(),mode=document.getElementById('statusFilter').value;
+ filteredOffers=allOffers.filter(o=>(!cat||o.category===cat)&&(!search||[o.title,o.description,o.providerName,o.category].some(x=>String(x||'').toLowerCase().includes(search)))&&(mode==='all'||(mode==='mine'?promotedOfferIds.has(o.id):!promotedOfferIds.has(o.id))));
+ const sort=document.getElementById('sortFilter').value;
+ filteredOffers.sort((a,b)=>sort==='title'?String(a.title||'').localeCompare(String(b.title||'')):sort==='commission'?Number(b.commissionValue||0)-Number(a.commissionValue||0):(b.approvedAt?.seconds||0)-(a.approvedAt?.seconds||0));
+ if(reset)currentPage=1;renderPage();
+}
+function renderPage(){
+ const pages=Math.max(1,Math.ceil(filteredOffers.length/pageSize));currentPage=Math.max(1,Math.min(currentPage,pages));
+ const start=(currentPage-1)*pageSize;displayOffers(filteredOffers.slice(start,start+pageSize));
+ document.getElementById('totalCount').textContent=allOffers.length;
+ document.getElementById('promotingCount').textContent=promotedOfferIds.size;
+ document.getElementById('matchCount').textContent=filteredOffers.length;
+ document.getElementById('resultsLine').textContent=filteredOffers.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,filteredOffers.length)+' of '+filteredOffers.length+' offers':'No matching offers. Adjust your filters.';
+ document.getElementById('pageLabel').textContent='Page '+currentPage+' of '+pages;
+ document.getElementById('prevPage').disabled=currentPage===1;document.getElementById('nextPage').disabled=currentPage===pages;
+}
+[categoryFilter,searchInput,document.getElementById('statusFilter'),document.getElementById('sortFilter')].forEach(el=>el.addEventListener(el===searchInput?'input':'change',()=>applyFilters()));
+clearFiltersBtn.onclick=()=>{categoryFilter.value='';searchInput.value='';document.getElementById('statusFilter').value='all';document.getElementById('sortFilter').value='newest';applyFilters();};
+document.getElementById('prevPage').onclick=()=>{currentPage--;renderPage();window.scrollTo({top:0,behavior:'smooth'});};
+document.getElementById('nextPage').onclick=()=>{currentPage++;renderPage();window.scrollTo({top:0,behavior:'smooth'});};
+async function setupPushInvitation(){
+ const panel=document.getElementById('pushPanel'),btn=document.getElementById('enableOfferPush');
+ if(!('Notification' in window)||!('serviceWorker' in navigator)||Notification.permission==='denied')return;
+ const key='earnlibr-push-enabled:'+auth.currentUser.uid;
+ if(Notification.permission==='granted'&&localStorage.getItem(key)==='1')return;
+ if(sessionStorage.getItem('earnlibr-offer-push-dismissed')==='1')return;
+ panel.hidden=false;
+ document.getElementById('dismissOfferPush').onclick=()=>{sessionStorage.setItem('earnlibr-offer-push-dismissed','1');panel.hidden=true;};
+ btn.onclick=async()=>{btn.disabled=true;btn.textContent='Enabling…';try{const {enablePush}=await import('./push-client.js');await enablePush();localStorage.setItem(key,'1');panel.hidden=true;showNotification('New-offer alerts enabled.','success');}catch(e){showNotification(e?.message||'Could not enable alerts.','error');btn.disabled=false;btn.textContent='Try again';}};
+}
 </script>  
 
 <!-- Promoter notification opt-in uses the existing authenticated Firebase push registration. -->
-<script type="module" src="./push-ui.js?v=20261113-bubble-3"></script>
+
 </body>  
 </html>
