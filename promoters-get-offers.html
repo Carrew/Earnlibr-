@@ -479,8 +479,7 @@ async function loadOffers() {
 
 function populateCategories() {  
   const categories = [...new Set(allOffers.map(o => o.category).filter(Boolean))];  
-  categoryFilter.innerHTML = '<option value="">All Categories</option>' +  
-    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');  
+  categoryFilter.replaceChildren(new Option('All Categories',''),...categories.map(cat=>new Option(cat,cat)));
 }  
 
 function displayOffers(offers) {  
@@ -512,7 +511,7 @@ function displayOffers(offers) {
   offers.forEach(offer => {  
     const image = offer.imageUrl || "https://via.placeholder.com/400x200?text=No+Image";  
 
-    const fullDesc = offer.description || ''; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"+'"\'"'+":'&#39;'}[c]));  
+    const fullDesc = offer.description || ''; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c.charCodeAt(0)===34?'&quot;':'&#39;');
     const desc = fullDesc  
       ? (fullDesc.length > 100  
         ? fullDesc.substring(0, 100) + "..."  
