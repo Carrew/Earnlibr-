@@ -428,75 +428,14 @@ function loadHistory(promoterId) {
 }  
   
 // --- Request Withdrawal (uses inline form data, no prompts) ---  
-async function requestWithdrawal(promoterId, currency, withdrawableAmount, recipientName, recipientNumber) {  
-  if (withdrawableAmount <= 0) {  
-    throw new Error("No withdrawable balance.");  
-  }  
-
-  const dealsRef = collection(db, "promoter-earnings", promoterId, "deals");  
-  const q = query(
-    dealsRef,
-    where("withdrawalRequestId", "==", null),
-    where("offerCurrency", "==", currency)
-  );  
-
-  const dealSnap = await getDocs(q);  
-  if (dealSnap.empty) {  
-    throw new Error("No eligible deals found for withdrawal.");  
-  }  
-
-  const dealRefs = dealSnap.docs.map(d =>
-    doc(db, "promoter-earnings", promoterId, "deals", d.id)
-  );  
-
-  await runTransaction(db, async (t) => {  
-    const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
-    const metaSnap = await t.get(metaRef);  
-    if (!metaSnap.exists()) throw new Error("Wallet metadata not found.");  
-
-    const currentBalance = metaSnap.data().currentBalance?.[currency] || 0;  
-    if (currentBalance < withdrawableAmount) {  
-      throw new Error("Balance changed. Please refresh the page and try again.");  
-    }  
-
-    // Read all deals inside the transaction
-    const dealDocs = await Promise.all(dealRefs.map(ref => t.get(ref)));  
-    for (const d of dealDocs) {
-      if (!d.exists()) throw new Error("One of the deals was missing during the transaction.");
-    }  
-
-    const reqRef = doc(collection(db, "withdrawal-requests"));  
-    const withdrawalRequestId = reqRef.id;  
-
-    t.set(reqRef, {  
-      withdrawalRequestId,  
-      promoterId,  
-      currency,  
-      amount: withdrawableAmount,  
-      status: "pending",  
-      requestedAt: serverTimestamp(),  
-      dealIds: dealRefs.map(r => r.id),
-
-      // payout info from inline form
-      recipientName: recipientName.trim(),  
-      recipientNumber: recipientNumber.trim(),  
-
-      // optional promoter info from session
-      promoterName: userSession?.name || "",  
-      promoterEmail: userSession?.email || "",  
-      promoterPhone: userSession?.phone || "",  
-    });  
-
-    dealRefs.forEach(ref => t.update(ref, {  
-      withdrawalRequestId,  
-      withdrawalRequestedAt: serverTimestamp()  
-    }));  
-
-    t.update(metaRef, {  
-      [`currentBalance.${currency}`]: Math.max(0, currentBalance - withdrawableAmount)  
-    });  
-  });  
-}  
-</script> 
-</body>  
-  </html>
+async function requestWithdrawal(promoterId,currency,withdrawableAmount,recipientName,recipientNumber){
+ const token=await auth.currentUser.getIdToken();
+ const res=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/promoter/payouts/request",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({currency,recipientName,recipientNumber})});
+ const data=await res.json().catch(()=>({}));
+ if(!res.ok||!data.success)throw Error(data.error||"Withdrawal request failed");
+ await loadWallet(promoterId);
+ return data;
+}
+</script>
+</body>
+</html>
