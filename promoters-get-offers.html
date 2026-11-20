@@ -588,7 +588,8 @@ function displayOffers(offers) {
           if (statusEl) statusEl.textContent = 'Promoting';  
           if (promoteChooser) promoteChooser.style.display = 'none';  
           if (mainActions) mainActions.style.display = 'flex';  
-          document.getElementById('promotingCount').textContent=promotedOfferIds.size;\n          showNotification("You're now promoting this offer!");  
+          document.getElementById('promotingCount').textContent=promotedOfferIds.size;
+          showNotification("You're now promoting this offer!");  
         } catch (e) {  
           showNotification('Could not start promoting. Try again.','error');  
           startPromoteBtn.disabled = false;  
