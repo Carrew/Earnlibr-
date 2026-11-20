@@ -204,7 +204,7 @@ async function approveOffer(card, offer, offerId, providerId) {
     return; 
   }
 
-  let approvalCommitted = false;\n  // Main Approval Logic (Image Upload & Database Transaction)
+  let approvalCommitted = false; // Main Approval Logic (Image Upload & Database Transaction)
   try {        
     const providerInfo = await getProviderInfo(providerId); // Pre-fetch provider info      
     let cloudUrl = null;        
