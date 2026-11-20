@@ -401,25 +401,21 @@ function renderBills(){
 }
 searchInput.addEventListener("input",renderBills);
 statusSelect.addEventListener("change",renderBills);
-function loadBills(){
+let billsRefreshTimer=null;
+async function loadBills(){
   showSkeleton(3);
-  if(billUnsubscribe)billUnsubscribe();
-  const billsQuery=query(collection(db,"providers/"+userSession.uid+"/bills"));
-  billUnsubscribe=onSnapshot(billsQuery,snapshot=>{
-    hideSkeleton();
-    allBills=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{
-      const millis=x=>x?.toMillis?.()|| (x?.seconds?x.seconds*1000:0);
-      return millis(b.createdAt)-millis(a.createdAt);
-    });
-    renderBills();
-  },err=>{
-    console.error("Bills snapshot error:",err);
-    hideSkeleton();
-    billsContainer.textContent="Unable to load billing records. Please refresh or contact support.";
-    showNotif("Failed to load bills.","error");
-  });
+  try{
+    const token=await auth.currentUser.getIdToken();
+    const response=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/providers/billing/bills",{headers:{Authorization:"Bearer "+token}});
+    const data=await response.json();
+    if(!response.ok||!data.success)throw Error(data.error||"Unable to load bills");
+    allBills=(data.bills||[]).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+    hideSkeleton();renderBills();
+  }catch(e){hideSkeleton();console.error("Billing backend",e);billsContainer.textContent="Unable to load billing records. Please refresh.";showNotif(e.message,"error")}
+  clearTimeout(billsRefreshTimer);
+  billsRefreshTimer=setTimeout(()=>{if(!document.hidden&&auth.currentUser)loadBills()},60000);
 }
-
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&auth.currentUser)loadBills()});
 function renderBillCard(bill) {
   const card = document.createElement("div");
   card.className = "bill-card";
