@@ -293,6 +293,7 @@ h1{background:none;-webkit-background-clip:initial;color:#f5f8fc;letter-spacing:
 .pagination button{background:#1c3045;border-color:#344e66}
 @media(max-width:650px){.offer-card{padding:13px}.offer-card img{height:195px}.btn.start-promote{min-height:50px}}
 
+.ui-icon{width:17px;height:17px;display:inline-block;flex-shrink:0;vertical-align:-3px}.btn .ui-icon{width:16px;height:16px;opacity:.88}.btn.start-promote .ui-icon{width:18px;height:18px}.push-panel strong .ui-icon{margin-right:6px}.offer-card .meta-label{font-size:12px;color:#92a7bd;letter-spacing:.015em}.offer-card .meta-value{font-size:14px;color:#e8f0f8;font-weight:650}.offer-card .offer-desc:has(.meta-label){display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #263749;margin:0}.offer-card .offer-desc:has(.meta-label)+.offer-desc:has(.meta-label){margin-bottom:12px}.offer-card .main-actions .btn{gap:8px}.offer-card .main-actions .btn .ui-icon{opacity:.75}.offer-card .main-actions .btn:hover .ui-icon{opacity:1}
 </style>  
 </head>  
 <body>  
@@ -300,7 +301,7 @@ h1{background:none;-webkit-background-clip:initial;color:#f5f8fc;letter-spacing:
   <div><div class="eyebrow">EARNLIBR / MARKETPLACE</div><h1>Explore offers</h1><p class="subhead">Find great offers, create your link, and share with confidence.</p></div>  
 </header>  
 
-<div class="stats"><div>Available <strong id="totalCount">—</strong></div><div>Promoting <strong id="promotingCount">—</strong></div><div>Matching <strong id="matchCount">—</strong></div></div><section id="pushPanel" class="push-panel" hidden><div><strong>🔔 Get new-offer alerts</strong><p>Be notified when new opportunities go live. Optional, and you can turn it off anytime.</p></div><button id="enableOfferPush">Enable notifications</button><button id="dismissOfferPush" aria-label="Dismiss">✕</button></section><div class="filter-bar">  
+<div class="stats"><div>Available <strong id="totalCount">—</strong></div><div>Promoting <strong id="promotingCount">—</strong></div><div>Matching <strong id="matchCount">—</strong></div></div><section id="pushPanel" class="push-panel" hidden><div><strong><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg> Get new-offer alerts</strong><p>Be notified when new opportunities go live. Optional, and you can turn it off anytime.</p></div><button id="enableOfferPush">Enable notifications</button><button id="dismissOfferPush" aria-label="Dismiss">✕</button></section><div class="filter-bar">  
   <select id="categoryFilter"><option value="">All Categories</option></select>  
   <input type="text" id="searchInput" placeholder="Search offers..." />  
     
@@ -567,21 +568,21 @@ function displayOffers(offers) {
           ? '<button class="toggle-desc" style="margin-left:6px;background:none;border:none;color:var(--accent1);font-size:12px;cursor:pointer;padding:0;">See more</button>'  
           : ''}  
       </div>  
-      <div class="offer-desc">💰 ${offer.currency || "$"} ${offer.price || "—"}</div>  
-      <div class="offer-desc">🏆 Commission: ${offer.commissionValue || 0}${offer.commissionType==="percentage"?"%":""}</div>  
+      <div class="offer-desc"><span class="meta-label">Price</span> <strong class="meta-value">${esc(offer.currency || "$")} ${esc(offer.price ?? "—")}</strong></div>  
+      <div class="offer-desc"><span class="meta-label">Commission</span> <strong class="meta-value">${esc(offer.commissionValue ?? 0)}${offer.commissionType==="percentage"?"%":""}</strong></div>  
       <div class="status active">${isPromoted ? 'Promoting' : offer.status}</div>  
 
       <!-- First step: choose to promote -->  
       <div class="actions promote-chooser" style="${isPromoted ? 'display:none;' : ''}">  
-        <button class="btn start-promote"><span>Start promoting</span><span class="button-arrow" aria-hidden="true">→</span></button>  
+        <button class="btn start-promote"><span>Start promoting</span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>  
       </div>  
 
       <!-- Real tools: only visible once they promote -->  
       <div class="actions main-actions" style="${isPromoted ? 'display:flex;' : 'display:none;'}">  
-        <button class="btn copy"><span class="icon">🔗</span><span>Copy Link</span></button>  
-        <button class="btn copy-caption"><span class="icon">📋</span><span>Copy Caption</span></button>  
-        <button class="btn download"><span class="icon">📸</span><span>Download Image</span></button>  
-        <button class="btn share"><span class="icon">📤</span><span>Share</span></button>  
+        <button class="btn copy"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></svg><span>Copy Link</span></button>  
+        <button class="btn copy-caption"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy Caption</span></button>  
+        <button class="btn download"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span>Download Image</span></button>  
+        <button class="btn share"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span>Share</span></button>  
       </div>  
     `;  
     offerGrid.appendChild(card);  
@@ -634,8 +635,8 @@ function displayOffers(offers) {
     if (copyLinkBtn) {  
       copyLinkBtn.onclick = () => {  
         navigator.clipboard.writeText(link)  
-          .then(() => showNotification("✅ Promotion link copied!"))  
-          .catch(() => showNotification("❌ Failed to copy link."));  
+          .then(() => showNotification("Promotion link copied."))  
+          .catch(() => showNotification("Could not copy the link."));  
       };  
     }  
 
@@ -645,8 +646,8 @@ function displayOffers(offers) {
       copyCaptionBtn.onclick = () => {  
         const caption = `${offer.title || 'Untitled Offer'}\n\n${offer.description || ''}\n\nPromo link: ${link}`;  
         navigator.clipboard.writeText(caption)  
-          .then(() => showNotification("📋 Caption copied! Paste it into your post."))  
-          .catch(() => showNotification("❌ Failed to copy caption."));  
+          .then(() => showNotification("Caption copied. Ready to paste."))  
+          .catch(() => showNotification("Could not copy the caption."));  
       };  
     }  
 
@@ -665,9 +666,9 @@ function displayOffers(offers) {
           a.click();  
           a.remove();  
           window.URL.revokeObjectURL(url);  
-          showNotification("📸 Image downloaded!");  
+          showNotification("Image downloaded.");  
         } catch {  
-          showNotification("❌ Failed to download image.");  
+          showNotification("Image download failed.","error");  
         }  
       };  
     }  
@@ -690,7 +691,7 @@ function displayOffers(offers) {
               text: shareText,  
               files: [file]  
             });  
-            showNotification("📤 Offer shared with image!");  
+            showNotification("Offer shared with image.");  
             return;  
           }  
         } catch (err) {  
@@ -705,7 +706,7 @@ function displayOffers(offers) {
               text: shareText,  
               url: link  
             });  
-            showNotification("📤 Shared (image not supported on this device).");  
+            showNotification("Offer shared.");  
             return;  
           } catch (err) {  
             console.error("Share failed:", err);  
@@ -714,8 +715,8 @@ function displayOffers(offers) {
 
         // Last fallback: copy full promo text  
         navigator.clipboard.writeText(shareText)  
-          .then(() => showNotification("🔗 Full promo copied (share not supported)."))  
-          .catch(() => showNotification("❌ Failed to copy promo."));  
+          .then(() => showNotification("Promotion text copied."))  
+          .catch(() => showNotification("Could not copy promotion text."));  
       };  
     }  
   });  
