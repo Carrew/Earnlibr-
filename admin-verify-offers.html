@@ -39,11 +39,18 @@
   .notification.info { background:#3b82f6; color:#fff; }        
 
   .unauthorized { color: #ef4444; text-align: center; padding: 50px; }        
+
+*{box-sizing:border-box}body{font-family:Inter,system-ui,Arial;background:#0b121c;color:#edf3fa;max-width:1250px;margin:auto;padding:clamp(16px,3vw,36px)}
+.review-header{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:25px}.review-header h1{background:none;-webkit-background-clip:initial;color:#f4f8fc;font-size:clamp(28px,4vw,38px);letter-spacing:-.035em;margin:6px 0}.review-header p{font-size:14px;color:#a8b9cb;margin:0}.eyebrow{color:#94b7d0;letter-spacing:.15em;font-size:11px;font-weight:750}.back-link{color:#c8dbe9;text-decoration:none;border:1px solid #37516a;border-radius:10px;padding:10px 14px}
+.review-toolbar{display:flex;gap:12px;align-items:center;background:#121f2e;border:1px solid #2c4054;padding:13px;border-radius:14px;margin-bottom:20px}.review-toolbar input{flex:1;min-width:0;background:#0d1927;border:1px solid #3a536c;border-radius:10px;color:#f1f7fb;padding:12px;font-size:14px}.review-toolbar span{font-size:12px;color:#aabed0}
+.offer-card{display:grid;grid-template-columns:170px minmax(0,1fr) 140px;gap:20px;background:#121f2e;border:1px solid #2b4054;border-radius:18px;padding:18px;box-shadow:none;align-items:start}.offer-card:hover{border-color:#496782}.review-image{min-height:145px;background:#1a2b3d;border:1px solid #30465a;border-radius:12px;display:grid;place-items:center;color:#a5b7c8;font-size:12px;overflow:hidden}.review-image img{width:100%;height:145px;object-fit:cover;border-radius:0;cursor:default}.review-image img:hover{transform:none}.offer-details h2{font-size:19px;margin:10px 0;letter-spacing:-.02em}.review-topline{display:flex;justify-content:space-between;gap:10px}.review-category{font-size:11px;background:#22384c;color:#bed5e8;border-radius:99px;padding:4px 10px}.review-date{font-size:11px;color:#9ab0c5}.review-description{color:#b2c2d3;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.review-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.review-metrics>div{background:#0d1927;border:1px solid #293d50;border-radius:10px;padding:10px}.review-metrics small{display:block;color:#9eb1c5;font-size:11px}.review-metrics strong{display:block;color:#eef4fa;margin-top:4px;font-size:14px}.review-more{font-size:12px;color:#aec0d0;margin-top:14px}.review-more summary{cursor:pointer;color:#b7d1e5}.review-more p{overflow-wrap:anywhere}
+.offer-actions{display:flex;flex-direction:column;gap:9px}.offer-actions button{margin:0;min-height:44px;padding:10px;border-radius:10px;border:1px solid #486b86;font-size:13px}.approve{background:#305570;color:#f2f7fb}.reject{background:#2a2530;color:#edc6cc;border-color:#62444e!important}.offer-actions button:disabled{opacity:.55;cursor:wait}.notification{position:relative;grid-column:1/-1;top:auto;right:auto;opacity:1;font-size:12px;font-weight:600;border-radius:10px;padding:11px}.notification.success{background:#17372d;color:#b8e4ce}.notification.error{background:#3b252d;color:#ffd6da}.notification.info{background:#20364c;color:#d6eafb}.review-empty{padding:36px;text-align:center;color:#b6c7d7;background:#121f2e;border:1px solid #30465a;border-radius:15px}
+@media(max-width:850px){.offer-card{grid-template-columns:135px 1fr}.offer-actions{grid-column:1/-1;flex-direction:row}.offer-actions button{flex:1}}@media(max-width:560px){.offer-card{display:block}.review-image{margin-bottom:15px}.review-image img{height:180px}.offer-actions{margin-top:15px}.review-toolbar{flex-wrap:wrap}.review-toolbar input{flex-basis:100%}}
 </style>        
 </head>        
 <body>        
 
-<h1>Pending Offers Verification</h1>        
+<header class="review-header"><div><span class="eyebrow">EARNLIBR / ADMIN</span><h1>Offer review</h1><p>Check submissions before publishing them to the marketplace.</p></div><a href="admin-dashboard.html" class="back-link">Dashboard</a></header><div class="review-toolbar"><input id="offerSearch" type="search" placeholder="Search offers, categories or providers" aria-label="Search pending offers"><span id="pendingCount"></span></div>        
 <div id="offersContainer">Loading...</div>        
 
 <script type="module">        
@@ -56,7 +63,7 @@ import {
 
 const offersContainer = document.getElementById('offersContainer');        
 const ADMIN_ROLES = ['admin', 'super_admin'];        
-let userSession = null;        
+let userSession = null; let pendingSnapshots=[];\nconst searchField=document.getElementById("offerSearch");\nsearchField.addEventListener("input",renderPendingList);\nconst escapeHtml=v=>String(v??"").replace(/[&<>]/g,c=>c==="&"?"&amp;":c==="<"?"&lt;":"&gt;");        
 
 // ================== UTILITY FUNCTIONS ==================        
 function showNotification(card, message, type='info', duration=3000) {        
@@ -126,18 +133,22 @@ onAuthStateChanged(auth, async (user) => {
 });        
 
 // ================== LOAD PENDING OFFERS (unchanged) ==================        
-async function loadPendingOffers() {        
-  const snapshot = await getDocs(collection(db, "offers_pending"));        
-  offersContainer.innerHTML = '';        
-
-  if (snapshot.empty) {        
-    offersContainer.innerHTML = '<p>No pending offers.</p>';        
-    return;        
-  }        
-
-  snapshot.forEach(docSnap => renderOfferCard(docSnap));        
-}        
-
+async function loadPendingOffers(){
+ offersContainer.textContent="Loading pending offers…";
+ try{
+  const snapshot=await getDocs(collection(db,"offers_pending"));
+  pendingSnapshots=snapshot.docs;
+  renderPendingList();
+ }catch(e){console.error(e);offersContainer.textContent="Unable to load offers. Check your connection and refresh.";}
+}
+function renderPendingList(){
+ const q=searchField.value.trim().toLowerCase();
+ const matches=pendingSnapshots.filter(d=>[d.data().title,d.data().providerId,d.data().category].some(v=>String(v||"").toLowerCase().includes(q)));
+ document.getElementById("pendingCount").textContent=matches.length+" pending";
+ offersContainer.replaceChildren();
+ if(!matches.length){offersContainer.innerHTML='<div class="review-empty">No pending offers match your search.</div>';return}
+ matches.sort((a,b)=>(a.data().createdAt?.seconds||0)-(b.data().createdAt?.seconds||0)).forEach(renderOfferCard);
+}
 // ================== RENDER OFFER CARD ==================        
 function renderOfferCard(docSnap) {        
   const offer = docSnap.data();        
@@ -147,26 +158,24 @@ function renderOfferCard(docSnap) {
   const card = document.createElement('div');        
   card.className = 'offer-card';        
   card.id = `offer-${offerId}`;        
-  card.innerHTML = `        
-    <img src="${offer.imageTemp || 'https://via.placeholder.com/120x80?text=No+Image'}" alt="Offer Image">        
-    <div class="offer-details">        
-      <strong>${offer.title || 'Untitled Offer'}</strong><br>        
-      ${offer.description || ''}<br>        
-      💰 ${offer.currency || '$'} ${offer.price || 0}<br>        
-      Commission: ${offer.commissionType || ''} ${offer.commissionValue || 0}<br>        
-      Total Products: ${offer.totalProducts || 0}<br>        
-      Promo Budget: ${offer.promotionBudget || 0}<br>        
-      Promo Spent: ${offer.promoSpent || 0}<br><br>        
-      <em>Category:</em> ${offer.category || 'Uncategorized'}<br>        
-      <em>Submitted:</em> ${offer.createdAt?.toDate()?.toLocaleString() || 'N/A'}<br>        
-      <em>Provider ID:</em> ${providerId}        
-    </div>        
-    <div class="offer-actions">        
-      <button class="approve">Approve</button>        
-      <button class="reject">Reject</button>        
-    </div>        
-  `;        
-
+  const image = typeof offer.imageTemp==="string" && (offer.imageTemp.startsWith("data:image/")||offer.imageTemp.startsWith("https://"))?offer.imageTemp:"";
+  card.innerHTML = `
+    <div class="review-image">${image?'<img alt="Offer image">':'No image supplied'}</div>
+    <div class="offer-details">
+      <div class="review-topline"><span class="review-category">${escapeHtml(offer.category||'Uncategorized')}</span><span class="review-date">${offer.createdAt?.toDate?.()?.toLocaleDateString()||'Date unavailable'}</span></div>
+      <h2>${escapeHtml(offer.title||'Untitled offer')}</h2>
+      <p class="review-description">${escapeHtml(offer.description||'No description supplied')}</p>
+      <div class="review-metrics">
+        <div><small>Price</small><strong>${escapeHtml(offer.currency||'$')} ${escapeHtml(offer.price??0)}</strong></div>
+        <div><small>Commission</small><strong>${escapeHtml(offer.commissionValue??0)}${offer.commissionType==='percentage'?'%':' '+escapeHtml(offer.currency||'')}</strong></div>
+        <div><small>Available</small><strong>${escapeHtml(offer.totalProducts??0)}</strong></div>
+        <div><small>Promotion budget</small><strong>${escapeHtml(offer.promotionBudget??0)}</strong></div>
+      </div>
+      <details class="review-more"><summary>More details</summary><p>Provider ID: ${escapeHtml(providerId||'Unknown')}</p><p>Commission type: ${escapeHtml(offer.commissionType||'Not specified')}</p><p>Promotion spent: ${escapeHtml(offer.promoSpent??0)}</p></details>
+    </div>
+    <div class="offer-actions"><button class="approve" type="button">Approve offer</button><button class="reject" type="button">Reject</button></div>
+  `;
+  if(image)card.querySelector(".review-image img").src=image;
   const approveBtn = card.querySelector('.approve');        
   const rejectBtn = card.querySelector('.reject');        
 
