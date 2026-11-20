@@ -261,6 +261,38 @@ h1 {
   color: #e5e7eb;  
 }  
 *{box-sizing:border-box}body{max-width:1500px;margin:auto;padding:28px clamp(14px,4vw,52px);background:radial-gradient(ellipse at top left,#182c3a,#090c14 55%)}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-.04em;margin:3px 0}.eyebrow{font-size:11px;letter-spacing:.18em;font-weight:800;color:#a3ff6e}.subhead{color:#aabbd0;font-size:14px;margin:3px 0 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 18px}.stats div{background:#101d2c;border:1px solid #2c3b4c;border-radius:14px;padding:15px;color:#a9bcd0;font-size:12px}.stats strong{display:block;font-size:27px;color:white}.filter-bar{background:#101c2b;border:1px solid #293c52;gap:10px;position:sticky;top:0;z-index:20}.filter-bar input{flex:2;min-width:170px}.filter-bar select{flex:1;min-width:125px}.filter-bar input,.filter-bar select{min-height:44px;background:#0c1624;color:white}.filter-bar option{background:#0c1624}.filter-bar button{min-height:44px;background:#293f55;color:white}.offer-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}.offer-card{background:#111e2d;border:1px solid #293e52;display:flex;flex-direction:column;padding:13px}.offer-card:hover{transform:translateY(-3px);border-color:#4a90e2}.offer-card img{height:175px;background:#1a2a3c}.offer-card .actions{margin-top:auto;padding-top:12px}.offer-card .btn{min-height:42px;font-size:12px}.offer-card .main-actions:not([style*="display:none"]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))}.offer-desc{overflow-wrap:anywhere}.results-line{font-size:13px;color:#aabbd0}.pagination{display:flex;align-items:center;justify-content:center;gap:15px;margin:28px 0}.pagination button,.push-panel button{padding:11px 15px;min-height:44px;border:1px solid #43617a;border-radius:10px;background:#1b344b;color:white;cursor:pointer}.pagination button:disabled{opacity:.35;cursor:not-allowed}.pagination span{color:#aabbd0;font-size:13px}.push-panel{display:flex;align-items:center;gap:15px;padding:16px;background:#142c2d;border:1px solid #366c60;border-radius:15px;margin-bottom:16px}.push-panel[hidden]{display:none}.push-panel div{flex:1}.push-panel strong{color:#ddffe0}.push-panel p{margin:4px 0 0;color:#b9d0c8;font-size:13px}.push-panel #enableOfferPush{background:#a3ff6e;color:#122018;font-weight:800}.push-panel #dismissOfferPush{background:transparent;border:0}.notification{background:#18354a;border:1px solid #4a90e2;max-width:calc(100vw - 32px)}.notification.error{background:#3b1e2a;border-color:#ef4444}.notification.success{background:#153626;border-color:#4ade80}@media(max-width:650px){body{padding:16px 13px}.stats div{padding:11px}.stats strong{font-size:22px}.filter-bar{position:relative;display:grid;grid-template-columns:1fr 1fr}.filter-bar input{grid-column:1/-1;width:100%}.filter-bar select{width:100%;min-width:0}.filter-bar button{grid-column:1/-1}.offer-grid{grid-template-columns:1fr}.push-panel{flex-wrap:wrap}.push-panel #enableOfferPush{order:3;flex:1}.notification{top:auto;bottom:16px;left:16px;right:16px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+
+/* Refined marketplace visual system: calm, high-contrast, action-first */
+:root{--card:#101b29;--accent1:#6c9fc9;--accent2:#82bd9d;--muted:#a8b7c8;--radius:18px}
+body{background:radial-gradient(ellipse at 12% 0%,#182638 0%,#0b111b 50%,#090e16 100%);color:#eaf0f7}
+h1{background:none;-webkit-background-clip:initial;color:#f5f8fc;letter-spacing:-.045em}
+.eyebrow{color:#8faec8}
+.stats div{background:#111d2b;border-color:#263648;border-radius:16px}
+.stats strong{font-weight:750;letter-spacing:-.035em}
+.filter-bar{background:#121e2d;border-color:#2a3b4d;border-radius:16px;box-shadow:0 10px 28px #0003}
+.filter-bar input,.filter-bar select{border:1px solid #35475b;border-radius:11px}
+.filter-bar input:focus-visible,.filter-bar select:focus-visible,.btn:focus-visible,.pagination button:focus-visible{outline:2px solid #a8c7e3;outline-offset:3px}
+.offer-card{background:linear-gradient(155deg,#152335,#101a29);border:1px solid #2c3d50;border-radius:19px;padding:14px;box-shadow:0 9px 26px #0003;transition:border-color .2s,transform .2s,box-shadow .2s}
+.offer-card:hover{border-color:#526b83;box-shadow:0 14px 32px #0005}
+.offer-card img{border-radius:12px;height:188px;margin-bottom:15px}
+.offer-title{font-size:18px;font-weight:750;line-height:1.3;letter-spacing:-.02em}
+.offer-desc{color:#afbdd0;line-height:1.55;margin:6px 0}
+.status.active{background:#1c342f;color:#a2d8bd;border:1px solid #365d50;border-radius:999px;font-size:11px;letter-spacing:.02em;padding:5px 11px;width:fit-content}
+.actions.promote-chooser{margin-top:auto;padding-top:18px}
+.btn.start-promote{width:100%;flex:1;min-height:48px;padding:12px 17px;background:#284c69;color:#f4f9ff;border:1px solid #426987;border-radius:12px;font-size:14px;font-weight:700;letter-spacing:.005em;justify-content:space-between;box-shadow:none}
+.btn.start-promote:hover{background:#345c7b;border-color:#7094b2;opacity:1}
+.btn.start-promote:active{transform:translateY(1px)}
+.btn.start-promote:disabled{opacity:.6;cursor:wait}
+.button-arrow{font-size:19px;font-weight:500;line-height:1;color:#c2d8eb}
+.offer-card .main-actions .btn{background:#203449;color:#e5eef9;border:1px solid #36516b;border-radius:10px;font-weight:650}
+.offer-card .main-actions .btn:hover{background:#2b4761;opacity:1}
+.offer-card .main-actions .btn.share{background:#285448;border-color:#427b67;color:#e9fff4}
+.offer-card .main-actions .btn.share:hover{background:#326a59}
+.push-panel #enableOfferPush{background:#315f52;color:#eafff3;border:1px solid #548a75}
+.push-panel #enableOfferPush:hover{background:#39705f}
+.pagination button{background:#1c3045;border-color:#344e66}
+@media(max-width:650px){.offer-card{padding:13px}.offer-card img{height:195px}.btn.start-promote{min-height:50px}}
+
 </style>  
 </head>  
 <body>  
@@ -541,7 +573,7 @@ function displayOffers(offers) {
 
       <!-- First step: choose to promote -->  
       <div class="actions promote-chooser" style="${isPromoted ? 'display:none;' : ''}">  
-        <button class="btn start-promote"><span class="icon">🚀</span><span>Start Promoting</span></button>  
+        <button class="btn start-promote"><span>Start promoting</span><span class="button-arrow" aria-hidden="true">→</span></button>  
       </div>  
 
       <!-- Real tools: only visible once they promote -->  
