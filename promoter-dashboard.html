@@ -137,12 +137,12 @@ p { color:var(--muted); }
   top:0;
   left:0;
   width:100%;
-  background: linear-gradient(90deg, #ff4d4d, #ff9900);
+  background:#1a3040; border-bottom:1px solid #35566a;
   color:#000;
   padding:12px;
   text-align:center;
   font-weight:bold;
-  animation: blink 1s infinite;
+  animation:none;
   z-index:2000;
 }
 
@@ -166,6 +166,7 @@ p { color:var(--muted); }
   color:#fff;
   font-size:12px;
 }
+.action-box,.group-box{background:#111e2d!important;border:1px solid #2d4052!important;box-shadow:none!important}.btn.primary,.btn.whatsapp,.btn.messenger{background:#294d67!important;color:#edf5ff!important;border:1px solid #42647e!important;box-shadow:none!important}.btn.secondary,.small-btn{background:#223449!important;color:#e5edf6!important;border:1px solid #3a5269!important}.action-box h3,.group-box h3{color:#f1f6fa}.alert,.group-box,.action-box{animation:none!important}#activationBanner[hidden],.group-box[hidden]{display:none!important}.hide{display:none!important}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
 
@@ -173,7 +174,7 @@ p { color:var(--muted); }
 
 <!-- 🔥 ALERT -->
 <div id="alertBox" class="alert">
-🚨 IMPORTANT: Join your Promoter Groups to start earning!
+Community groups are optional. Connect with other EarnLibr promoters.
 </div>
 
 <input type="checkbox" id="menuToggle">
@@ -207,7 +208,7 @@ p { color:var(--muted); }
   <!-- JOIN GROUP SECTION -->
   <div class="action-box">
     <h3>🔥 Join Your Community</h3>
-    <p>Join both groups to start receiving offers & earning commissions.</p>
+    <p>Connect with other promoters for community discussions and updates. Joining is optional.</p>
 
     <a class="btn whatsapp" href="https://chat.whatsapp.com/IKq3VjnTXkVIWaa4RoNXsp?mode=gi_t" target="_blank" onclick="markJoined()">
       Join WhatsApp Group
@@ -218,11 +219,11 @@ p { color:var(--muted); }
     </a>
 
     <button class="small-btn" onclick="markJoined()">
-      ✅ I Already Joined
+      I already joined
     </button>
 
     <p style="margin-top:10px;font-size:12px;color:#bfc7d6;">
-      The alert will disappear once you confirm joining.
+      Your choice will be remembered on this device.
     </p>
   </div>
 
@@ -235,7 +236,7 @@ p { color:var(--muted); }
 <script>
 
 const session = JSON.parse(localStorage.getItem("userSession") || "null");
-const alertBox = document.getElementById("alertBox");
+const alertBox = document.getElementById("alertBox");\nconst groupKey="earnlibr-promoter-group-choice:"+(session?.uid||"guest");
 
 if(!session || session.role !== "freelancer"){
   location.href="login.html";
@@ -248,7 +249,7 @@ if(!session || session.role !== "freelancer"){
 
 /* 🔥 CHECK JOIN STATUS */
 function checkJoinStatus(){
-  const joined = localStorage.getItem("promoterJoinedGroup");
+  const joined = localStorage.getItem(groupKey) || localStorage.getItem("promoterJoinedGroup");
   if(joined === "true"){
     alertBox.classList.add("hide");
   }
@@ -257,11 +258,11 @@ checkJoinStatus();
 
 /* 🔥 MARK JOIN */
 function markJoined(){
-  localStorage.setItem("promoterJoinedGroup","true");
+  localStorage.setItem(groupKey,"true");\n  document.querySelector(".action-box").classList.add("hide");
   alertBox.classList.add("hide");
 }
 
-/* LOGOUT */
+document.getElementById("dismissGroup").onclick=()=>{localStorage.setItem(groupKey,"dismissed");alertBox.classList.add("hide");document.querySelector(".action-box").classList.add("hide");};\n/* LOGOUT */
 document.getElementById("logout").onclick = ()=>{
   localStorage.removeItem("userSession");
   location.href="login.html";
