@@ -534,146 +534,26 @@ function handleReject(requestId, promoterId, amount, currency, dealIds, btn, car
 }
 
 // --- REJECT Payout (ATOMIC FUNCTION) ---
-async function rejectPayout(requestId, promoterId, amount, currency, dealIds, btn, card, rejectionReason){
-  btn.disabled = true;
-  const originalText = btn.innerHTML;
-  btn.innerHTML = `<span class="icon">⏳</span><span>Reversing...</span>`;
-  
-  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
-  const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
-  const requestRef = doc(db, "withdrawal-requests", requestId);
-
-  try {
-    await runTransaction(db, async (t) => {
-      // 1. Get metadata
-      const metaSnap = await t.get(metaRef);
-      if (!metaSnap.exists()) throw new Error("Promoter metadata not found. Cannot reverse funds.");
-      const meta = metaSnap.data();
-      const currentBalance = meta.currentBalance?.[currency] || 0;
-
-      // 2. Get request and ensure still pending
-      const reqSnap = await t.get(requestRef);
-      if (!reqSnap.exists()) throw new Error("Withdrawal request not found.");
-      if (reqSnap.data().status !== "pending") throw new Error("Request already processed.");
-
-      // 3. Update request status
-      const requestUpdateData = { 
-        status: "rejected",
-        adminProcessedAt: serverTimestamp(),
-        adminProcessedBy: userSession.uid,
-        rejectionReason
-      };
-      t.update(requestRef, requestUpdateData);
-
-      // 4. Clear withdrawal flags from deals
-      (dealIds || []).forEach(dealId => {
-        t.update(doc(dealsCollectionRef, dealId), {
-          withdrawalRequestId: null,
-          withdrawalRequestedAt: null 
-        });
-      });
-
-      // 5. Return funds to currentBalance
-      const newBalance = currentBalance + amount;
-      t.update(metaRef, {
-        [`currentBalance.${currency}`]: newBalance,
-      });
-    });
-
-    await sendNotification(
-      promoterId,
-      "Payout Request Rejected ❌",
-      `Your withdrawal request for ${amount.toFixed(2)} ${currency} was rejected.\nReason: ${rejectionReason}\nThe funds have been returned to your available balance.`
-    );
-
-    card.classList.add("rejected");
-    btn.innerHTML = `<span class="icon">❌</span><span>Rejected</span>`;
-    showNotif(`Request ${requestId} rejected and funds reversed.`, "success");
-
-  } catch(err){
-    console.error("Payout rejection failed:", err);
-    showNotif(`Rejection Failed: ${err.message}`, "error");
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-  }
+async function payoutDecision(requestId,decision,rejectionReason,paymentReference){
+ const token=await auth.currentUser.getIdToken();
+ const res=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/admin/promoter-payouts/decide",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({requestId,decision,reason:rejectionReason,paymentReference})});
+ const data=await res.json().catch(()=>({}));if(!res.ok||!data.success)throw Error(data.error||"Payout decision failed");return data;
 }
-
-// --- APPROVE Payout (ATOMIC FUNCTION) ---
-async function approvePayout(requestId, promoterId, amount, currency, dealIds, btn, card){
-  if (!dealIds || dealIds.length === 0) {
-    showNotif("Error: Request has no linked deals.", "error");
-    return;
-  }
-
-  const confirmApprove = confirm(
-    `Approve payout of ${amount.toFixed(2)} ${currency} for promoter ${promoterId}?`
-  );
-  if (!confirmApprove) return;
-
-  btn.disabled = true;
-  const originalText = btn.innerHTML;
-  btn.innerHTML = `<span class="icon">⏳</span><span>Processing...</span>`;
-  
-  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");
-  const dealsCollectionRef = collection(db, "promoter-earnings", promoterId, "deals");
-  const requestRef = doc(db, "withdrawal-requests", requestId);
-
-  try {
-    await runTransaction(db, async (t) => {
-      // Metadata
-      const metaSnap = await t.get(metaRef);
-      if (!metaSnap.exists()) throw new Error("Promoter metadata not found. Cannot finalize payout.");
-      const meta = metaSnap.data();
-      const currentTotalWithdrawn = meta.totalWithdrawn?.[currency] || 0;
-      
-      // Request
-      const requestSnap = await t.get(requestRef);
-      if (!requestSnap.exists()) throw new Error("Withdrawal request not found.");
-      if (requestSnap.data().status !== "pending") throw new Error("Request already processed.");
-
-      // 1. Mark request as completed
-      const requestUpdateData = { 
-        status: "completed",
-        adminProcessedAt: serverTimestamp(),
-        adminProcessedBy: userSession.uid
-      };
-      t.update(requestRef, requestUpdateData);
-
-      // 2. Mark deals as withdrawn
-      (dealIds || []).forEach(dealId => {
-        t.update(doc(dealsCollectionRef, dealId), {
-          withdrawn: true,
-          withdrawalCompletedAt: serverTimestamp()
-        });
-      });
-
-      // 3. Update totalWithdrawn
-      const newTotalWithdrawn = currentTotalWithdrawn + amount;
-      t.update(metaRef, {
-        [`totalWithdrawn.${currency}`]: newTotalWithdrawn,
-      });
-    });
-
-    await sendNotification(
-      promoterId,
-      "Payout Complete! 💸",
-      `Your withdrawal request for ${amount.toFixed(2)} ${currency} has been approved and processed.`
-    );
-
-    card.classList.add("completed");
-    btn.innerHTML = `<span class="icon">✅</span><span>Completed</span>`;
-    showNotif(`Payout completed successfully for Request ID: ${requestId}`, "success");
-
-  } catch(err){
-    console.error("Payout approval failed:", err);
-    showNotif(`Payout Failed: ${err.message}`, "error");
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-  }
+async function rejectPayout(requestId,promoterId,amount,currency,dealIds,btn,card,rejectionReason){
+ btn.disabled=true;
+ try{await payoutDecision(requestId,"reject",rejectionReason);card.remove();showNotif("Withdrawal rejected and reserved balance restored.","success")}
+ catch(e){showNotif(e.message,"error");btn.disabled=false}
 }
-
+async function approvePayout(requestId,promoterId,amount,currency,dealIds,btn,card){
+ if(!confirm("Only continue if you have independently transferred the funds. Record this payout as completed?"))return;
+ const paymentReference=prompt("Enter the actual payment transaction reference (required):");
+ if(!paymentReference||paymentReference.trim().length<5){showNotif("A verified payment reference is required.","error");return}
+ btn.disabled=true;
+ try{await payoutDecision(requestId,"record_paid",null,paymentReference.trim());card.remove();showNotif("Payment recorded as completed.","success")}
+ catch(e){showNotif(e.message,"error");btn.disabled=false}
+}
 // --- Approve all concurrently ---
-approveAllBtn.onclick = async () => {
+approveAllBtn.onclick = async () => { showNotif("Bulk approval is disabled: each completed payout requires its own verified payment reference.","error"); return;
   const activeRequests = requestsList.filter(
     r => !r.btn.disabled && !r.card.classList.contains("completed") && !r.card.classList.contains("rejected")
   );
