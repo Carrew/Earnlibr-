@@ -240,17 +240,42 @@ h1{
   display:block;
   margin-bottom:4px;
 }
+
+/* EarnLibr payout workspace */
+:root{color-scheme:dark;--panel:#132337;--border:#304b62;--soft:#a9bfd2}
+*{box-sizing:border-box}
+body{background:#091320;color:#edf6ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.55}
+h1{font-size:clamp(28px,4vw,38px);letter-spacing:-.04em;margin:6px 0 8px}
+.payout-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:0 0 20px}
+.payout-head p{font-size:14px;color:#a9bfd2;margin:0}
+.payout-back{color:#a9d4f6;text-decoration:none;font-size:13px}
+.payout-refresh{padding:11px 15px;background:#1d3a54;border:1px solid #446986;border-radius:10px;color:#edf6ff;font:inherit;font-weight:700;cursor:pointer}
+.payout-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0 24px}
+.payout-tile{background:#12263a;border:1px solid #34516a;border-radius:14px;padding:17px}
+.payout-tile small{display:block;color:#b0c4d5;font-size:12px}
+.payout-tile strong{display:block;font-size:25px;margin:7px 0 2px;letter-spacing:-.03em}
+.payout-tile span{color:#92adbf;font-size:11px}
+.payout-search{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+.payout-search input,.payout-search select{flex:1;min-width:160px;background:#132b40;border:1px solid #41617b;border-radius:10px;padding:11px 12px;color:#f4faff;font:inherit}
+.payout-notice{padding:13px 15px;border:1px solid #45627a;border-radius:11px;background:#11263a;color:#c3d9e8;font-size:13px;margin-bottom:19px}
+.wallet-card,.history-section,.request-card{border:1px solid #34516a;background:#122235;border-radius:15px;box-shadow:none}
+.history-section{overflow:hidden}
+table{min-width:540px}
+th{color:#b4cadb}
+button:disabled{opacity:.6;cursor:not-allowed}
+:focus-visible{outline:3px solid #a3ff6e;outline-offset:3px}
+@media(max-width:600px){body{padding:15px}.payout-refresh{width:100%}.payout-search input,.payout-search select{width:100%}}
 </style>
 </head>
 
 <body>
 <div class="page-wrap">
-  <h1>Approve Promoter Payouts</h1>
+  <header class="payout-head"><div><a class="payout-back" href="admin-dashboard.html">← Admin dashboard</a><h1>Promoter payouts</h1><p>Review withdrawal requests and keep a clear record of payout decisions.</p></div><button id="payoutRefresh" class="payout-refresh" type="button">↻ Refresh requests</button></header><section class="payout-summary"><div class="payout-tile"><small>Pending requests</small><strong id="pendingPayoutCount">0</strong><span>Require admin review</span></div><div class="payout-tile"><small>Displayed requests</small><strong id="visiblePayoutCount">0</strong><span>After search</span></div></section><div class="payout-search"><input id="payoutSearch" type="search" placeholder="Search promoter or request ID" aria-label="Search payout requests"></div>
   <p class="page-subtitle">Review, approve, or reject promoter withdrawal requests.</p>
 
   <div id="notif" class="notif"></div>
 
-  <div class="controls">
+  <div class="payout-notice">Approving a request should only happen after payment has been independently verified. An approval record alone does not transfer money.</div><div class="controls">
     <span class="label">Action Center: Approve or reject pending promoter payout requests.</span>
     <button id="approveAllBtn" class="btn btn-all">
       <span class="icon">✅</span><span>Approve All</span>
@@ -277,6 +302,10 @@ const approveAllBtn = document.getElementById("approveAllBtn");
 let userSession = null;
 let requestsList = [];
 let skeletonContainer = null;
+const payoutSearch=document.getElementById("payoutSearch");
+function updatePayoutUI(){const cards=[...requestsContainer.children].filter(e=>e.classList.contains("request-card"));const term=payoutSearch.value.trim().toLowerCase();let visible=0;cards.forEach(c=>{c.hidden=!!(term&&!c.textContent.toLowerCase().includes(term));if(!c.hidden)visible++});document.getElementById("pendingPayoutCount").textContent=requestsList.length;document.getElementById("visiblePayoutCount").textContent=visible}
+payoutSearch.addEventListener("input",updatePayoutUI);
+document.getElementById("payoutRefresh").addEventListener("click",()=>location.reload());
 
 // --- Notifications ---
 const showNotif = (msg,type="success")=>{
@@ -477,7 +506,7 @@ function renderRequestCard(id, request) {
   actions.appendChild(approveBtn);
   card.appendChild(actions);
 
-  requestsContainer.appendChild(card);
+  requestsContainer.appendChild(card);updatePayoutUI();
 
   // Track for "Approve All"
   requestsList.push({
