@@ -569,8 +569,7 @@ function loadDeals(isInitialLoad = true) {
   let dealsQuery = query(
     collection(db, "deals"),
     where("providerId", "==", userSession.uid),
-    where("status", "!=", "processing"),
-    orderBy("status"),
+    where("status", "==", "pending"),
     orderBy("createdAt", "desc"),
     limit(25)
   );
