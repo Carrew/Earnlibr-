@@ -174,6 +174,18 @@ button:disabled {
     height:auto;
   }
 }
+
+/* Calm, guided provider studio */
+:root{--accent1:#7199bf;--accent2:#8ab6a5;--radius:18px}
+html,body{background:#0b121c;color:#edf3fa}
+.wrap{max-width:1100px;grid-template-columns:225px minmax(0,1fr);gap:22px}
+.card{background:#121e2d;border:1px solid #2c4054;border-radius:18px;box-shadow:none}
+.main{padding:clamp(20px,4vw,38px)}
+.form-intro{margin-bottom:25px}.form-intro h1{font-size:clamp(27px,3vw,36px);margin:7px 0;color:#f2f7fc;letter-spacing:-.035em}.form-intro p,.section-help{color:#adbdce;line-height:1.6;font-size:14px;max-width:580px}.eyebrow{color:#95b6cf;font-size:11px;letter-spacing:.16em;font-weight:750}
+.step-progress{margin:0 0 30px;color:#d6e3ef;font-size:12px;font-weight:650}.progress-track{height:5px;background:#26384a;border-radius:99px;margin-top:11px;overflow:hidden}.progress-track>div{height:100%;width:33.33%;background:#6e9bb9;border-radius:99px;transition:width .2s}
+.form-step[hidden],#offerSummary[hidden],.step-actions button[hidden]{display:none!important}.form-step h2{font-size:21px;letter-spacing:-.02em;margin:0 0 5px}.form-step label{display:block;font-size:13px;font-weight:700;color:#e1ebf5;margin:20px 0 4px}.field-help{font-size:12px;line-height:1.55;color:#99aec2;margin:0 0 9px}.form-step input,.form-step textarea,.form-step select{width:100%;max-width:100%;border:1px solid #354a60;background:#0d1928;color:#eef4fb;border-radius:11px;min-height:47px;padding:12px 13px;font-size:15px}.form-step textarea{min-height:132px;resize:vertical}.form-step input:focus,.form-step textarea:focus,.form-step select:focus{outline:2px solid #7099b9;outline-offset:2px}.form-step select option{background:#0d1928}
+.step-actions{display:flex;gap:12px;justify-content:flex-end;margin:28px 0 14px}.step-actions button{width:auto;min-width:135px;min-height:46px;background:#315773;color:#f2f7fd;border:1px solid #4d7795;border-radius:11px;font-weight:700;padding:11px 20px}.step-actions .secondary-action{background:#1c2c3e;border-color:#354b62}.offer-summary{padding:15px;background:#182b3b;border:1px solid #38546a;border-radius:12px;font-size:13px;color:#dce9f4;line-height:1.7;margin-top:20px}.legal-note{font-size:12px;color:#a8b9c9;line-height:1.6}
+@media(max-width:800px){.wrap{display:block;margin:0 auto;padding:14px}.wrap aside{margin-bottom:16px}.main{padding:21px}.step-actions button{flex:1}}
 </style>
 </head>
 <body>
@@ -201,9 +213,9 @@ button:disabled {
   </aside>
 
   <main class="main card">
-    <h1>Create a New Offer</h1>
+    <div class="form-intro"><span class="eyebrow">PROVIDER STUDIO</span><h1>Create an offer</h1><p>Tell promoters what you sell and what they can earn. Complete one section at a time, then send it for review.</p></div><div class="step-progress"><span id="stepLabel">Step 1 of 3 · Offer details</span><div class="progress-track"><div id="progressFill"></div></div></div>
     <form id="offerForm" novalidate>
-      <label>Title</label>
+      <section class="form-step" data-step="0"><h2>What are you offering?</h2><p class="section-help">Start with the basics. Keep your title short and your description useful to a buyer.</p><label for="title">Offer title</label><p class="field-help">Example: Custom business logo design or 10kg bag of rice.</p>
       <input
         type="text"
         id="title"
@@ -212,7 +224,7 @@ button:disabled {
         minlength="3"
       />
       
-      <label>Description</label>
+      <label for="description">Description</label><p class="field-help">Explain what buyers receive, key features, and how delivery works.</p>
       <textarea
         id="description"
         placeholder="Describe your product/service"
@@ -220,7 +232,7 @@ button:disabled {
         minlength="10"
       ></textarea>
       
-      <label>Category</label>
+      <label for="category">Category</label><p class="field-help">Choose the closest match so promoters can find your offer.</p>
       <select id="category" required>
         <option value="">Select category</option>
         <option>Digital Service</option>
@@ -230,10 +242,10 @@ button:disabled {
         <option>Other</option>
       </select>
       
-      <label>Currency</label>
+      </section><section class="form-step" data-step="1" hidden><h2>Price and promoter reward</h2><p class="section-help">These values help promoters understand the offer before sharing it.</p><label for="currency">Currency</label><p class="field-help">Choose the currency you charge buyers in.</p>
       <select id="currency" required></select>
       
-      <label>Price</label>
+      <label for="price">Selling price</label><p class="field-help">What does one customer pay for the product or service?</p>
       <input
         type="number"
         id="price"
@@ -243,13 +255,13 @@ button:disabled {
         step="0.01"
       />
       
-      <label>Commission Type</label>
+      <label for="commissionType">How should commission work?</label><p class="field-help">Fixed means a set amount per qualifying sale. Percentage means a share of the selling price.</p>
       <select id="commissionType" required>
         <option value="fixed">Fixed</option>
         <option value="percentage">Percentage</option>
       </select>
       
-      <label>Commission Value</label>
+      <label for="commissionValue">Promoter commission</label><p class="field-help" id="commissionHelp">Enter the amount a promoter earns per qualifying sale.</p>
       <input
         type="number"
         id="commissionValue"
@@ -259,7 +271,7 @@ button:disabled {
         step="0.01"
       />
       
-      <label>Promotion Budget</label>
+      <label for="promotionBudget">Promotion budget</label><p class="field-help">Your planned total budget for promoter rewards. This does not charge you now.</p>
       <input
         type="number"
         id="promotionBudget"
@@ -269,7 +281,7 @@ button:disabled {
         step="0.01"
       />
       
-      <label>Total Products Available</label>
+      </section><section class="form-step" data-step="2" hidden><h2>Availability and image</h2><p class="section-help">Check your stock or service capacity, and add a clear photo if you have one.</p><label for="totalProducts">Units or bookings available</label><p class="field-help">How many sales or bookings can you currently fulfill?</p>
       <input
         type="number"
         id="totalProducts"
@@ -279,11 +291,11 @@ button:disabled {
         step="1"
       />
       
-      <label>Upload Product Image (optional)</label>
+      <label for="productImage">Offer image (optional)</label><p class="field-help">A clear photo helps buyers recognize the product. JPG and PNG work well.</p>
       <input type="file" id="productImage" accept="image/*" />
       <img id="imagePreview" alt="Preview" />
       
-      <button type="submit" id="submitBtn">Submit Offer for Verification</button>
+      </section><div id="offerSummary" class="offer-summary" hidden></div><div class="step-actions"><button type="button" id="previousStep" class="secondary-action" hidden>Back</button><button type="button" id="nextStep">Continue</button><button type="submit" id="submitBtn" hidden>Submit for review</button></div>
 
       <!-- NEW: legal note -->
       <p class="legal-note">
@@ -310,7 +322,7 @@ const avatarEl = document.getElementById('avatar');
 const imageInput = document.getElementById('productImage');
 const imagePreview = document.getElementById('imagePreview');
 const offerForm = document.getElementById("offerForm");
-const submitBtn = document.getElementById("submitBtn");
+const submitBtn = document.getElementById("submitBtn");\nconst formSteps=[...document.querySelectorAll(".form-step")]; let activeStep=0;\nconst nextStep=document.getElementById("nextStep"),previousStep=document.getElementById("previousStep");
 
 // Form Inputs
 const title = document.getElementById('title');
@@ -352,6 +364,33 @@ function showNotification(message, type='info', duration=4000) {
   offerForm.prepend(notif);
   setTimeout(() => notif.remove(), duration);
 }
+
+// Guided form navigation. The existing validation and Firestore submission remain unchanged.
+const stepFields=[['title','description','category'],['currency','price','commissionType','commissionValue','promotionBudget'],['totalProducts']];
+function showStep(n){
+ activeStep=Math.max(0,Math.min(2,n));
+ formSteps.forEach((el,i)=>el.hidden=i!==activeStep);
+ document.getElementById('stepLabel').textContent=['Step 1 of 3 · Offer details','Step 2 of 3 · Pricing and rewards','Step 3 of 3 · Final review'][activeStep];
+ document.getElementById('progressFill').style.width=((activeStep+1)/3*100)+'%';
+ previousStep.hidden=activeStep===0;nextStep.hidden=activeStep===2;submitBtn.hidden=activeStep!==2;
+ document.getElementById('offerSummary').hidden=activeStep!==2;
+ if(activeStep===2)document.getElementById('offerSummary').textContent='Review: '+title.value.trim()+' · '+currency.value+' '+price.value+' · Commission '+commissionValue.value+(commissionType.value==='percentage'?'%':' '+currency.value)+'. Your offer will be reviewed before going live.';
+}
+function validateStep(n){
+ for(const id of stepFields[n]){
+  const el=document.getElementById(id);
+  if(!el.checkValidity() || !String(el.value).trim()){showNotification('Please complete '+(el.previousElementSibling?.textContent||id)+' before continuing.','error');el.focus();return false}
+ }
+ if(n===1){
+  const p=Number(price.value),c=Number(commissionValue.value),b=Number(promotionBudget.value);
+  if(!(p>0&&c>0&&b>=0)||(commissionType.value==='percentage'&&c>100)){showNotification('Check your price, commission and budget values.','error');return false}
+ }
+ return true;
+}
+nextStep.addEventListener('click',()=>{if(validateStep(activeStep)){showStep(activeStep+1);document.querySelector('.form-intro').scrollIntoView({behavior:'smooth'});}});
+previousStep.addEventListener('click',()=>showStep(activeStep-1));
+commissionType.addEventListener('change',()=>{document.getElementById('commissionHelp').textContent=commissionType.value==='percentage'?'Enter a percentage of each qualifying sale (for example, 10 for 10%).':'Enter a fixed amount in your selected currency for each qualifying sale.';});
+showStep(0);
 
 // --- Simple Validation ---
 
@@ -561,12 +600,12 @@ function setupFormSubmit() {
       );
 
       showNotification("Success! Your offer is now pending verification.", "success");
-      offerForm.reset();
+      offerForm.reset();\n      showStep(0);
       imagePreview.style.display = "none";
       imageBase64 = "";
     } catch(err) {
       console.error(err);
-      showNotification("Error: Could not save offer. Check your connection.", "error");
+      showNotification("We could not submit your offer. Check your connection and try again. Your entries are still here.", "error");
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit Offer for Verification";
