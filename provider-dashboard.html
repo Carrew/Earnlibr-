@@ -28,12 +28,12 @@ body {
   position:sticky;
   top:0;
   z-index:999;
-  background: linear-gradient(90deg,#ff416c,#ff4b2b);
+  background:#1a3040; border-bottom:1px solid #35566a;
   padding:12px;
   text-align:center;
   font-weight:bold;
   color:#fff;
-  animation:pulse 1.5s infinite;
+  animation:none;
 }
 
 @keyframes pulse {
@@ -161,7 +161,7 @@ p { color:var(--muted); }
   color:var(--muted);
 }
 
-/* logout */
+document.getElementById("dismissGroup").addEventListener("click", () => { localStorage.setItem(joinKey,"dismissed"); document.querySelector(".group-box").hidden=true; banner.hidden=true; });\nif(joined === "dismissed"){document.querySelector(".group-box").hidden=true;banner.hidden=true;}\n/* logout */
 .logout {
   margin-top:15px;
   background:var(--danger);
@@ -173,6 +173,7 @@ p { color:var(--muted); }
   cursor:pointer;
 }
 
+.action-box,.group-box{background:#111e2d!important;border:1px solid #2d4052!important;box-shadow:none!important}.btn.primary,.btn.whatsapp,.btn.messenger{background:#294d67!important;color:#edf5ff!important;border:1px solid #42647e!important;box-shadow:none!important}.btn.secondary,.small-btn{background:#223449!important;color:#e5edf6!important;border:1px solid #3a5269!important}.action-box h3,.group-box h3{color:#f1f6fa}.alert,.group-box,.action-box{animation:none!important}#activationBanner[hidden],.group-box[hidden]{display:none!important}.hide{display:none!important}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
 
@@ -236,7 +237,7 @@ p { color:var(--muted); }
     <p>Activate your account by joining EarnLibr community.</p>
 
     <a id="whatsappLink" class="btn primary" href="#">Join WhatsApp</a>
-    <a id="messengerLink" class="btn secondary" href="#">Join Messenger</a>
+    <a id="messengerLink" class="btn secondary" href="#">Join Messenger</a>\n    <button type="button" id="dismissGroup" class="btn secondary">Not now</button>
   </div>
 
   <button class="logout" id="logout">Logout</button>
@@ -271,7 +272,7 @@ document.getElementById("messengerLink").href = providerMS;
 
 /* 🔥 ACTIVATION STATE LOGIC */
 const banner = document.getElementById("activationBanner");
-const joined = localStorage.getItem("providerJoined");
+const joinKey = "earnlibr-provider-group-choice:" + (session?.uid || "guest");\nconst joined = localStorage.getItem(joinKey) || localStorage.getItem("providerJoined");
 
 /* hide or soften banner */
 if (joined === "true") {
@@ -281,11 +282,11 @@ if (joined === "true") {
 
 /* mark join on click */
 document.getElementById("whatsappLink").addEventListener("click", () => {
-  localStorage.setItem("providerJoined", "true");
+  localStorage.setItem(joinKey, "true");\n  banner.hidden = true;\n  document.querySelector(".group-box").hidden = true;
 });
 
 document.getElementById("messengerLink").addEventListener("click", () => {
-  localStorage.setItem("providerJoined", "true");
+  localStorage.setItem(joinKey, "true");\n  banner.hidden = true;\n  document.querySelector(".group-box").hidden = true;
 });
 
 /* logout */
