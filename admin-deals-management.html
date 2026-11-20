@@ -35,7 +35,7 @@ body{background:#0a111b;color:#eef5fb;font-family:system-ui,-apple-system,Segoe 
 </head>
 <body>
 
-<header class="deal-page-header"><div><a href="admin-dashboard.html" class="deal-back">← Admin dashboard</a><h1>Manage deals</h1><p>Review deals and use the separate cancellation review queue for disputed cancellations.</p></div><a href="admin-review.html" class="deal-review-link">Review cancelled deals →</a></header>
+<header class="deal-page-header"><div><a href="admin-dashboard.html" class="deal-back">← Admin dashboard</a><h1>Manage deals</h1><p>Manage pending deals. Inspect all cancelled deals in the separate admin review page.</p></div><a href="admin-review.html" class="deal-review-link">Review cancelled deals →</a></header>
 <div id="notif" class="notif"></div>
 <div id="dealsContainer">Loading deals...</div>
 <div id="loadMoreContainer" class="load-more" style="display: none;">
@@ -205,8 +205,7 @@ function loadDeals(isInitialLoad = true) {
 
     let dealsQuery = query(
         collection(db, "deals"),
-        where("status", "!=", "processing"), 
-        orderBy("status"),
+        where("status", "==", "pending"), 
         orderBy("createdAt", "desc"),
         limit(25)
     );
