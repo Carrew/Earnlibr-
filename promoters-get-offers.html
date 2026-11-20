@@ -463,7 +463,8 @@ async function loadOffers() {
     const target = new URLSearchParams(location.search).get('offer');
     if (target) {
       const index = allOffers.findIndex(o => o.id === target);
-      if(index>=0){const n=filteredOffers.findIndex(o=>o.id===target);if(n>=0){currentPage=Math.floor(n/pageSize)+1;renderPage();}}\n      const card = [...offerGrid.querySelectorAll('.offer-card')].find(el=>el.dataset.offerId===target);
+      if(index>=0){const n=filteredOffers.findIndex(o=>o.id===target);if(n>=0){currentPage=Math.floor(n/pageSize)+1;renderPage();}}
+      const card = [...offerGrid.querySelectorAll('.offer-card')].find(el=>el.dataset.offerId===target);
       if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card.style.outline = '2px solid #a3ff6e';
