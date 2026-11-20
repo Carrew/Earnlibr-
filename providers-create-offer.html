@@ -601,7 +601,7 @@ function setupFormSubmit() {
       );
 
       showNotification("Success! Your offer is now pending verification.", "success");
-      offerForm.reset();\n      showStep(0);
+      offerForm.reset();  showStep(0);
       imagePreview.style.display = "none";
       imageBase64 = "";
     } catch(err) {
@@ -616,3 +616,4 @@ function setupFormSubmit() {
 </script>
 </body>
 </html>
+ 
