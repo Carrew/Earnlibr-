@@ -220,11 +220,43 @@
     color: #9ca3af;
     margin-left: 4px;
   }
+
+/* Billing workspace refresh */
+:root{color-scheme:dark;--surface:#122235;--line:#30495f;--muted:#a8bdd0;--accent:#a3ff6e}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:1180px;margin:auto;padding:28px 20px 70px;background:#0a111b;line-height:1.55}
+h1{font-size:clamp(28px,4vw,38px);letter-spacing:-.045em;background:none;color:#f1f7fc;margin:5px 0 8px}
+.workspace-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:23px}
+.workspace-header p{color:#a9bfd0;font-size:14px;margin:0}
+.back-link{color:#b2d3ee;text-decoration:none;font-size:13px}
+.bill-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:20px 0}
+.bill-stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:17px}
+.bill-stat small{display:block;color:var(--muted);font-size:12px}
+.bill-stat strong{display:block;font-size:25px;margin-top:6px;letter-spacing:-.03em}
+.bill-stat span{font-size:11px;color:#8faac0}
+.billing-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:17px}
+.billing-toolbar input,.billing-toolbar select{background:#14273a;border:1px solid #395771;color:#f1f7fc;border-radius:10px;padding:11px 13px;font:inherit}
+.billing-toolbar input{flex:1;min-width:200px}
+.billing-toolbar select{min-width:170px}
+.btn{min-height:40px;padding:9px 14px;border-radius:10px;background:#a3ff6e;color:#0b2218}
+.btn.secondary{background:#20384e;color:#e6f2fb;border:1px solid #3c5b74}
+.provider-card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:20px;box-shadow:none}
+.provider-card:hover{transform:none;border-color:#537b9a}
+.provider-header{flex-wrap:wrap;gap:12px}
+.provider-name{font-size:17px;font-weight:750}
+.offer-breakdown,.offer-box{background:#192d42;border:1px solid #314d65;border-radius:11px;padding:14px}
+.toggle-offers{background:#294e75;color:#eff8ff}
+.controls{flex-wrap:wrap;gap:12px}
+.empty-state{border:1px dashed #3e5b74;background:#142438;padding:30px}
+:focus-visible{outline:3px solid #a3ff6e;outline-offset:3px}
+@media(max-width:600px){body{padding:18px 14px 55px}.billing-toolbar input,.billing-toolbar select{width:100%}.controls>.btn{width:100%;justify-content:center}}
 </style>
 </head>
 <body>
 
-<h1>Admin Send Bills</h1>
+<header class="workspace-header"><div><a class="back-link" href="admin-dashboard.html">← Admin dashboard</a><h1>Provider billing</h1><p>Review completed deals, check commission thresholds, and issue provider bills.</p></div><button id="refreshBills" class="btn secondary" type="button">↻ Refresh deals</button></header>
+<section class="bill-stats" aria-label="Billing summary"><div class="bill-stat"><small>Providers to bill</small><strong id="providerCount">0</strong><span>With unbilled deals</span></div><div class="bill-stat"><small>Eligible offers</small><strong id="eligibleCount">0</strong><span>Meet currency thresholds</span></div><div class="bill-stat"><small>Unbilled deals</small><strong id="dealCount">0</strong><span>Awaiting billing</span></div></section>
+<div class="billing-toolbar"><input type="search" id="billingSearch" placeholder="Search providers or offers" aria-label="Search providers and offers"><select id="billingFilter" aria-label="Filter billing eligibility"><option value="all">All providers</option><option value="eligible">Eligible to bill</option><option value="below">Below threshold</option></select></div>
 <div id="notif" class="notif" role="alert" aria-live="polite"></div>
 
 <div class="controls">
@@ -234,7 +266,8 @@
   <span class="muted" id="summaryText"></span>
 </div>
 
-<div id="providersContainer"></div>\n<div class="muted" style="margin-top:18px;font-size:12px">Billing records are loaded through the authenticated EarnLibr backend. Refresh this page to see newly completed deals.</div>
+<div id="providersContainer"></div>
+<div class="muted" style="margin-top:18px;font-size:12px">Billing records are loaded through the authenticated EarnLibr backend. Refresh this page to see newly completed deals.</div>
 
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -380,9 +413,26 @@ async function loadDeals(){
    const offer=grouped[providerId].offers[offerId];
    offer.total+=commission;offer.deals.push({dealId:d.id,clientName:d.clientName||"Unknown Client",commissionEarned:commission});
   }
-  renderProviders();
+  renderProviders();refreshBillingOverview();
  }catch(err){console.error("Billing backend",err);providersContainer.innerHTML='<div class="empty-state">Unable to load unbilled deals.</div>';showNotif(err.message,"error")}
 }
+function refreshBillingOverview(){
+ const entries=Object.values(grouped||{});
+ const offers=entries.flatMap(p=>Object.values(p.offers||{}));
+ document.getElementById("providerCount").textContent=entries.length;
+ document.getElementById("eligibleCount").textContent=offers.filter(o=>Number(o.total)>=Number(THRESHOLDS[o.currency]||0)).length;
+ document.getElementById("dealCount").textContent=offers.reduce((n,o)=>n+(o.deals||[]).length,0);
+ const term=document.getElementById("billingSearch").value.trim().toLowerCase(),filter=document.getElementById("billingFilter").value;
+ document.querySelectorAll(".provider-card").forEach(card=>{
+  const provider=card.querySelector(".provider-name")?.textContent?.toLowerCase()||"";
+  const text=card.textContent.toLowerCase();
+  const eligible=Array.from(card.querySelectorAll(".offer-box")).some(b=>!!b.querySelector("button.btn:not(:disabled)"));
+  card.hidden=!!((term&&!provider.includes(term)&&!text.includes(term))||(filter==="eligible"&&!eligible)||(filter==="below"&&eligible));
+ });
+}
+document.getElementById("billingSearch").addEventListener("input",refreshBillingOverview);
+document.getElementById("billingFilter").addEventListener("change",refreshBillingOverview);
+document.getElementById("refreshBills").addEventListener("click",loadDeals);
 // --- Render provider cards ---
 function renderProviders() {
   providersContainer.innerHTML = "";
