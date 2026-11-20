@@ -229,11 +229,37 @@ body{background:#0a111b;color:#edf5fc}
 .bill-header-row{gap:12px;align-items:flex-start}
 .bill-meta{color:#a9bfd0}
 @media(max-width:600px){.billing-tools input,.billing-tools select{width:100%}.billing-header{gap:6px}}
+
+/* Billing experience refinements */
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{line-height:1.6}
+.billing-header{align-items:center}
+.billing-header h1{margin-bottom:8px}
+.billing-header .page-subtitle{max-width:650px}
+.billing-refresh{border:1px solid #456782;border-radius:10px;background:#203a53;color:#e8f5ff;padding:11px 15px;cursor:pointer;font:inherit;font-weight:650}
+.billing-refresh:disabled{opacity:.55;cursor:wait}
+.billing-stats{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.stat-tile{min-height:116px}
+.stat-tile strong{font-variant-numeric:tabular-nums}
+.billing-tools input:focus,.billing-tools select:focus{outline:2px solid #a3ff6e;outline-offset:2px}
+.bill-card{position:relative;margin-bottom:14px}
+.bill-header-row{flex-wrap:wrap}
+.bill-line{font-size:14px;overflow-wrap:anywhere}
+.bill-card .btn{border-radius:10px;min-height:41px;padding:10px 15px;box-shadow:none}
+.status-pill{padding:5px 10px;font-weight:750}
+.status-pill.provider_marked_paid{border-color:#4a90e2;color:#a9d5ff}
+.status-pill.paid,.status-pill.verified,.status-pill.approved{border-color:#4ade80;color:#b4f5ce}
+.bill-card input{max-width:100%;font-size:16px}
+.bill-card input[type=file]{width:100%}
+.billing-help{font-size:12px;color:#a8c0d3;margin:0 0 16px}
+:focus-visible{outline:3px solid #a3ff6e;outline-offset:3px}
+@media(max-width:600px){body{padding:15px}.bill-card{padding:16px}.billing-refresh{width:100%}.stat-tile{min-height:100px}}
 </style>
 </head>
 <body>
 <div class="page-wrap">
-  <header class="billing-header"><div><a class="billing-back" href="providers-dashboard.html">← Provider dashboard</a><h1>Billing &amp; Payments</h1><div class="page-subtitle">Track bills from EarnLibr, submit payment proof, and review your payment history.</div></div></header>
+  <header class="billing-header"><div><a class="billing-back" href="providers-dashboard.html">← Provider dashboard</a><h1>Billing &amp; Payments</h1><div class="page-subtitle">Track bills from EarnLibr, submit payment proof, and review your payment history.</div></div><button class="billing-refresh" id="refreshProviderBills" type="button">↻ Refresh bills</button></header>
   <section class="billing-stats" aria-label="Billing overview">
     <div class="stat-tile"><small>Awaiting payment</small><strong id="sentCount">0</strong><span>Bills needing action</span></div>
     <div class="stat-tile"><small>Proof submitted</small><strong id="proofCount">0</strong><span>Pending verification</span></div>
@@ -241,7 +267,7 @@ body{background:#0a111b;color:#edf5fc}
     <div class="stat-tile"><small>Total bills</small><strong id="totalCount">0</strong><span>Across all statuses</span></div>
   </section>
   <div class="billing-tools"><input id="billSearch" type="search" placeholder="Search offer or bill ID" aria-label="Search bills"><select id="billStatus" aria-label="Filter bill status"><option value="all">All bills</option><option value="sent">Awaiting payment</option><option value="proof">Proof submitted</option><option value="paid">Paid / verified</option><option value="other">Other statuses</option></select></div>
-  <div class="billing-count" id="billCount" aria-live="polite"></div>
+  <div class="billing-count" id="billCount" aria-live="polite"></div><p class="billing-help">Payment proof is reviewed by EarnLibr before a bill is confirmed as paid. MTN MoMo testing does not collect real money.</p>
 
   <!-- NEW legal note -->
   <p class="legal-note">
@@ -400,6 +426,7 @@ function renderBills(){
   shown.forEach(renderBillCard);
 }
 searchInput.addEventListener("input",renderBills);
+document.getElementById("refreshProviderBills").addEventListener("click",async e=>{const btn=e.currentTarget;btn.disabled=true;try{await loadBills()}finally{btn.disabled=false}});
 statusSelect.addEventListener("change",renderBills);
 let billsRefreshTimer=null;
 async function loadBills(){
@@ -427,6 +454,7 @@ function renderBillCard(bill) {
   const safeTotal = isNaN(totalNumber) ? 0 : totalNumber;
 
   const status = String(bill.status || "sent").toLowerCase();
+  const statusLabel=({sent:"Awaiting payment",provider_marked_paid:"Proof under review",paid:"Paid",verified:"Verified",approved:"Approved"})[status]||status.replace(/_/g," ");
   const currency = safeText(bill.currency || "USD");
   const offerTitle = safeText(bill.offerTitle || "Untitled Offer");
   const createdAt = bill.createdAt && typeof bill.createdAt.toDate === "function"
@@ -436,7 +464,7 @@ function renderBillCard(bill) {
   card.innerHTML = `
     <div class="bill-header-row">
       <div class="bill-title">${offerTitle}</div>
-      <div class="status-pill ${safeText(status)}">${safeText(status.replace(/_/g," ").toUpperCase())}</div>
+      <div class="status-pill ${safeText(status)}">${safeText(statusLabel)}</div>
     </div>
 
     <div class="bill-line">
@@ -605,7 +633,8 @@ async function markAsPaid(billId, btn, proof){
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.success) throw new Error(result.error || "Proof submission rejected");
 
-    showNotif("Proof submitted for admin verification. Payment is not confirmed yet.", "success");\n    await loadBills();
+    showNotif("Proof submitted for admin verification. Payment is not confirmed yet.", "success");
+    await loadBills();
   } catch(err) {
     console.error("Failed to submit proof:", err);
     showNotif("Unable to submit proof: " + (err.message || "Please try again."), "error");
