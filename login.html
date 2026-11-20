@@ -6,129 +6,32 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>EarnLibr — Login</title>
   <style>
-    :root{
-      --bg:#0b0d17;
-      --card:#0f1724;
-      --accent1:#4a90e2;
-      --accent2:#a3ff6e;
-      --muted:#bfc7d6;
-      --danger:#e74c3c;
-    }
-    body{
-      margin:0;
-      font-family:Inter,system-ui,Arial;
-      background:linear-gradient(180deg,#071028 0%, #0b0d17 100%);
-      color:#eef2f7;
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-    }
-    .card{
-      width:100%;
-      max-width:420px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
-      border-radius:14px;
-      padding:22px;
-      box-shadow:0 8px 30px rgba(2,6,23,0.6);
-      border:1px solid rgba(255,255,255,0.03);
-      overflow:hidden;
-    }
-    .image-header{
-      width:100%;
-      height:160px;
-      border-radius:10px;
-      overflow:hidden;
-      margin-bottom:15px;
-    }
-    .image-header img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      filter:brightness(0.8);
-    }
-    h1{
-      font-size:22px;
-      margin-bottom:6px;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      -webkit-background-clip:text;
-      color:transparent;
-    }
-    p.lead{
-      color:var(--muted);
-      margin-bottom:14px;
-      font-size:13px
-    }
-    label{
-      display:block;
-      font-size:13px;
-      color:var(--muted);
-      margin-top:12px;
-      margin-bottom:6px
-    }
-    input{
-      width:100%;
-      padding:10px 12px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.04);
-      background:#071427;
-      color:#fff;
-      font-size:14px;
-    }
-    .btn{
-      margin-top:18px;
-      width:100%;
-      padding:12px;
-      border-radius:10px;
-      border:0;
-      cursor:pointer;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2));
-      color:#041018;
-      font-weight:700;
-      transition:opacity 0.2s;
-    }
-    .btn:hover{opacity:0.9;}
-    .small{
-      font-size:13px;
-      color:var(--muted);
-      margin-top:10px;
-      text-align:center
-    }
-    .link{
-      color:var(--accent2);
-      text-decoration:none;
-      font-weight:600
-    }
-    .link:hover{opacity:0.8;}
-    .error{
-      color:var(--danger);
-      font-weight:600;
-      margin-top:8px;
-      font-size:13px;
-    }
-  </style>
+/* Presentation only: account fields, IDs, auth and redirect logic remain unchanged. */
+*{box-sizing:border-box}html{color-scheme:dark}body{margin:0;min-height:100vh;padding:28px 20px;background:radial-gradient(ellipse at 12% 12%,rgba(44,109,195,.17),transparent 48%),radial-gradient(ellipse at 90% 90%,rgba(163,255,110,.055),transparent 45%),#09111e;color:#eff5fa;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center}
+.auth-layout{width:min(100%,1040px);display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1fr);background:#111c2b;border:1px solid #2d4358;border-radius:24px;overflow:hidden;box-shadow:0 24px 75px rgba(0,0,0,.3)}.auth-aside{padding:clamp(30px,5vw,58px);background:linear-gradient(155deg,#102847,#0b1c30 70%,#132719);display:flex;flex-direction:column;justify-content:space-between;gap:45px;border-right:1px solid #29445d}.brand{display:inline-flex;align-items:center;gap:12px;text-decoration:none;color:#f2f7fc;font-size:22px;font-weight:850;letter-spacing:-.04em}.brand img{width:46px;height:46px;object-fit:cover;border-radius:50%;border:2px solid #52779a}.auth-aside h2{font-size:clamp(29px,3.5vw,43px);letter-spacing:-.05em;line-height:1.15;margin:0 0 15px}.auth-aside h2 span{color:#a3ff6e}.auth-aside p{font-size:15px;line-height:1.8;color:#b9cde0;margin:0}.aside-foot{font-size:12px;color:#92aabe}.card{width:100%;max-width:none;background:#111c2b;border:0;border-radius:0;padding:clamp(25px,4.5vw,54px);box-shadow:none;overflow:visible}.form-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}.form-topline a{font-size:13px;color:#bdd6e9;text-decoration:none}.form-topline a:hover{text-decoration:underline}.eyebrow{font-size:11px;color:#9ed17b;letter-spacing:.14em;font-weight:800;text-transform:uppercase}h1{font-size:clamp(27px,3vw,34px);letter-spacing:-.04em;margin:0 0 7px;color:#f5f9fc;background:none;-webkit-background-clip:initial}.lead,p.lead{color:#afc1d1;font-size:14px;line-height:1.65;margin:0 0 26px}label{display:block;font-size:13px;font-weight:650;color:#d7e3ed;margin:18px 0 7px}input,select{display:block;width:100%;min-width:0;min-height:47px;padding:12px 13px;border-radius:10px;border:1px solid #385067;background:#0b1827;color:#f1f7fc;font:inherit;font-size:14px;outline:none}input::placeholder{color:#8297ab}input:focus,select:focus{border-color:#7fb0e6;box-shadow:0 0 0 3px rgba(91,149,215,.15)}.password-wrap{position:relative}.password-wrap input{padding-right:85px}.toggle-password{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;background:#1c3045;color:#d6e6f2;border-radius:7px;min-height:34px;padding:4px 11px;cursor:pointer;font-size:12px;font-weight:650}.phone-group{display:flex;gap:9px}.phone-group select{width:34%}.phone-group input{width:66%}.btn{width:100%;min-height:48px;margin-top:24px;padding:12px 17px;background:linear-gradient(100deg,#2c69b4,#4e91d0);border:1px solid #6299d0;border-radius:11px;color:#fff;font-weight:750;font-size:14px;cursor:pointer;transition:filter .2s}.btn:hover{filter:brightness(1.12)}.btn:disabled{opacity:.65;cursor:wait}.small{font-size:12px;color:#a6b9cb;margin-top:17px;text-align:center;line-height:1.7}.small:last-child{margin-top:25px}.link{color:#a3ff6e;font-weight:650;text-decoration:none}.link:hover{text-decoration:underline}.error{color:#ffb5bb;background:#351e2a;border:1px solid #774553;border-radius:9px;padding:10px 12px;font-size:13px;margin-top:12px;font-weight:550}#message:not(:empty){background:#163126;border:1px solid #35624b;border-radius:9px;padding:10px 12px;color:#d0e8d7!important;text-align:left}.form-hint{font-size:12px;line-height:1.55;color:#8fa7ba;margin:6px 0 0}.form-divider{border-top:1px solid #293d51;margin:23px 0 0}.terms-backdrop{position:fixed;inset:0;background:rgba(2,8,16,.78);display:none;align-items:center;justify-content:center;z-index:999;padding:18px}.terms-modal{width:100%;max-width:425px;background:#142236;border:1px solid #3b5671;border-radius:17px;padding:25px;box-shadow:0 24px 70px #0009}.terms-modal h2{font-size:21px;letter-spacing:-.03em;color:#f3f8fc;background:none;-webkit-background-clip:initial;margin:0 0 10px}.terms-modal p{color:#b6c9d8;font-size:13px;line-height:1.7}.terms-modal a{color:#a3ff6e}.terms-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}.btn-ghost,.btn-primary{padding:11px 16px;min-height:42px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700}.btn-ghost{background:#213348;border:1px solid #415971;color:#e1edf6}.btn-primary{background:#306eaf;border:1px solid #548ec3;color:#fff}.terms-note{font-size:12px}.auth-aside .mini-list{display:grid;gap:12px;margin-top:24px}.mini-list div{border-left:2px solid #70ad83;padding-left:13px;color:#c6d9e8;font-size:13px}.mobile-brand{display:none}
+@media(max-width:760px){body{padding:14px}.auth-layout{grid-template-columns:1fr;max-width:520px;border-radius:18px}.auth-aside{display:none}.card{padding:27px 23px 30px}.mobile-brand{display:flex;align-items:center;gap:9px;margin-bottom:22px;color:#eaf5fb;font-weight:850;letter-spacing:-.03em;text-decoration:none}.mobile-brand img{width:34px;height:34px;object-fit:cover;border-radius:50%}.form-topline{margin-bottom:19px}}
+@media(prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
 </head>
 <body>
+<div class="auth-layout"><aside class="auth-aside"><a class="brand" href="index.html"><img src="1000115452-01.jpeg" alt="" width="46" height="46">EarnLibr</a><div><h2>Your opportunities, <span>all in one place.</span></h2><p>Pick up where you left off. Your existing EarnLibr account and dashboard are right where you expect them.</p><div class="mini-list"><div>Made for Liberia</div><div>Clear offer and commission information</div><div>Promoters and providers, one platform</div></div></div><div class="aside-foot">Your existing login and account role stay the same.</div></aside>
   <div class="card">
-    <div class="image-header">
-      <img src="https://raw.githubusercontent.com/Carrew/Earnlibr-/refs/heads/main/1000115452-01.jpeg" alt="EarnLibr">
-    </div>
-
-    <h1>Welcome Back 👋</h1>
-    <p class="lead">Log in to continue your journey with EarnLibr.</p>
+    <a class="mobile-brand" href="index.html"><img src="1000115452-01.jpeg" alt="" width="34" height="34">EarnLibr</a>
+    <div class="form-topline"><span class="eyebrow">Account access</span><a href="index.html">Back to home</a></div>
+    <h1>Welcome back</h1>
+    <p class="lead">Sign in with the same account you already use on EarnLibr.</p>
 
     <label for="email">Email</label>
-    <input id="email" type="email" placeholder="example@gmail.com" />
+    <input id="email" type="email" placeholder="example@gmail.com" autocomplete="username" />
 
     <label for="password">Password</label>
-    <input id="password" type="password" placeholder="Your password" />
+    <input id="password" type="password" placeholder="Your password" autocomplete="current-password" />
 
     <p class="small" style="text-align:right; margin-top:6px;">
       <a class="link" href="users-password-reset.html">Forgot password?</a>
     </p>
 
-    <button id="loginBtn" class="btn">Login</button>
+    <button id="loginBtn" class="btn">Log in</button>
 
     <p class="small">
       By logging in, you agree to EarnLibr’s
@@ -137,11 +40,12 @@
       <a class="link" href="/policies/privacy.html" target="_blank">Privacy Policy</a>.
     </p>
 
-    <div id="message" class="small"></div>
-    <div id="error" class="error" style="display:none"></div>
+    <div id="message" class="small" role="status" aria-live="polite"></div>
+    <div id="error" class="error" role="alert" style="display:none"></div>
 
     <p class="small">New to EarnLibr? <a class="link" href="signup.html">Create an account</a></p>
   </div>
+</div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
@@ -249,7 +153,7 @@
         else showError('Login failed. Please check your credentials.');
       } finally{
         loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
+        loginBtn.textContent = 'Log in';
       }
     });
   </script>
