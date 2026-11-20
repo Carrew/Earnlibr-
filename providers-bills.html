@@ -205,12 +205,43 @@ h1 {
   display:block;
   margin-bottom:4px;
 }
+
+/* Provider billing dashboard, aligned with admin billing management */
+body{background:#0a111b;color:#edf5fc}
+.page-wrap{max-width:1120px}
+.billing-header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin:0 0 22px}
+.billing-header h1{font-size:clamp(27px,4vw,38px);letter-spacing:-.04em;background:none;color:#f1f7fc}
+.billing-back{display:inline-block;color:#a9c9e3;text-decoration:none;font-size:13px;margin-bottom:12px}
+.billing-header .page-subtitle{font-size:14px;line-height:1.65}
+.billing-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0 22px}
+.stat-tile{background:#122235;border:1px solid #304c64;border-radius:14px;padding:17px}
+.stat-tile small{display:block;color:#a9bfd1;font-size:12px;margin-bottom:8px}
+.stat-tile strong{font-size:23px;color:#eff7ff;letter-spacing:-.025em}
+.stat-tile span{display:block;font-size:11px;color:#8da8be;margin-top:5px}
+.billing-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.billing-tools input,.billing-tools select{background:#14283c;color:#eff7ff;border:1px solid #3b5a73;border-radius:10px;padding:11px 13px;font:inherit}
+.billing-tools input{flex:1;min-width:190px}
+.billing-tools select{min-width:165px}
+.billing-count{font-size:12px;color:#a7bfd2;margin-bottom:14px}
+.bill-card{background:#122033;border:1px solid #304c64;box-shadow:none;border-radius:15px;padding:20px}
+.bill-card:hover{box-shadow:none;transform:none;border-color:#4b7291}
+.bill-title{font-size:16px;font-weight:750}
+.bill-header-row{gap:12px;align-items:flex-start}
+.bill-meta{color:#a9bfd0}
+@media(max-width:600px){.billing-tools input,.billing-tools select{width:100%}.billing-header{gap:6px}}
 </style>
 </head>
 <body>
 <div class="page-wrap">
-  <h1>Your Bills</h1>
-  <div class="page-subtitle">Review and mark your outstanding bills as paid.</div>
+  <header class="billing-header"><div><a class="billing-back" href="providers-dashboard.html">← Provider dashboard</a><h1>Billing &amp; Payments</h1><div class="page-subtitle">Track bills from EarnLibr, submit payment proof, and review your payment history.</div></div></header>
+  <section class="billing-stats" aria-label="Billing overview">
+    <div class="stat-tile"><small>Awaiting payment</small><strong id="sentCount">0</strong><span>Bills needing action</span></div>
+    <div class="stat-tile"><small>Proof submitted</small><strong id="proofCount">0</strong><span>Pending verification</span></div>
+    <div class="stat-tile"><small>Paid or verified</small><strong id="paidCount">0</strong><span>Recorded bills</span></div>
+    <div class="stat-tile"><small>Total bills</small><strong id="totalCount">0</strong><span>Across all statuses</span></div>
+  </section>
+  <div class="billing-tools"><input id="billSearch" type="search" placeholder="Search offer or bill ID" aria-label="Search bills"><select id="billStatus" aria-label="Filter bill status"><option value="all">All bills</option><option value="sent">Awaiting payment</option><option value="proof">Proof submitted</option><option value="paid">Paid / verified</option><option value="other">Other statuses</option></select></div>
+  <div class="billing-count" id="billCount" aria-live="polite"></div>
 
   <!-- NEW legal note -->
   <p class="legal-note">
@@ -341,44 +372,51 @@ async function uploadReceiptToCloudinary(file, billId) {
   };
 }
 
-// --- Load provider bills ---
+// --- Load all provider bills, including history ---
+let billUnsubscribe=null;
+let allBills=[];
+const searchInput=document.getElementById("billSearch");
+const statusSelect=document.getElementById("billStatus");
+const paidStatuses=new Set(["paid","approved","verified","completed","settled"]);
+const proofStatuses=new Set(["pending_verification","payment_submitted","proof_submitted","awaiting_verification","pending_approval"]);
+const safeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function billGroup(status){
+  const s=String(status||"sent").toLowerCase();
+  if(s==="sent")return "sent";
+  if(paidStatuses.has(s))return "paid";
+  if(proofStatuses.has(s)||s.includes("verification")||s.includes("proof"))return "proof";
+  return "other";
+}
+function renderBills(){
+  const term=searchInput.value.trim().toLowerCase(),filter=statusSelect.value;
+  const shown=allBills.filter(b=>(filter==="all"||billGroup(b.status)===filter)&&[b.offerTitle,b.billId,b.id].some(v=>String(v||"").toLowerCase().includes(term)));
+  document.getElementById("sentCount").textContent=allBills.filter(b=>billGroup(b.status)==="sent").length;
+  document.getElementById("proofCount").textContent=allBills.filter(b=>billGroup(b.status)==="proof").length;
+  document.getElementById("paidCount").textContent=allBills.filter(b=>billGroup(b.status)==="paid").length;
+  document.getElementById("totalCount").textContent=allBills.length;
+  document.getElementById("billCount").textContent=shown.length+" of "+allBills.length+" bills";
+  billsContainer.replaceChildren();
+  if(!shown.length){const empty=document.createElement("div");empty.className="empty-state";empty.innerHTML="<strong>No matching bills.</strong>New bills and payment updates will appear here.";billsContainer.append(empty);return;}
+  shown.forEach(renderBillCard);
+}
+searchInput.addEventListener("input",renderBills);
+statusSelect.addEventListener("change",renderBills);
 function loadBills(){
   showSkeleton(3);
-
-  const billsQuery = query(
-    collection(db, `providers/${userSession.uid}/bills`),
-    where("status", "==", "sent")
-  );
-
-  let firstSnapshot = true;
-
-  onSnapshot(billsQuery, snapshot=>{
-    if (firstSnapshot) {
-      hideSkeleton();
-      firstSnapshot = false;
-    }
-
-    billsContainer.innerHTML = "";
-
-    if(snapshot.empty) {
-      billsContainer.innerHTML = `
-        <div class="empty-state">
-          <strong>No pending bills to pay.</strong>
-          When admins send you bills for your completed deals, they will appear here for you to confirm payment.
-        </div>
-      `;
-      return;
-    }
-
-    snapshot.docs.forEach(docSnap=>{
-      const bill = docSnap.data();
-      renderBillCard(bill);
-    });
-  }, (err) => {
-    console.error("Bills snapshot error:", err);
+  if(billUnsubscribe)billUnsubscribe();
+  const billsQuery=query(collection(db,"providers/"+userSession.uid+"/bills"));
+  billUnsubscribe=onSnapshot(billsQuery,snapshot=>{
     hideSkeleton();
-    billsContainer.innerHTML = `<p style="color:#fecaca;font-size:13px;">Failed to load bills. Please reload.</p>`;
-    showNotif("Failed to load bills.", "error");
+    allBills=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{
+      const millis=x=>x?.toMillis?.()|| (x?.seconds?x.seconds*1000:0);
+      return millis(b.createdAt)-millis(a.createdAt);
+    });
+    renderBills();
+  },err=>{
+    console.error("Bills snapshot error:",err);
+    hideSkeleton();
+    billsContainer.textContent="Unable to load billing records. Please refresh or contact support.";
+    showNotif("Failed to load bills.","error");
   });
 }
 
@@ -392,9 +430,9 @@ function renderBillCard(bill) {
 
   const safeTotal = isNaN(totalNumber) ? 0 : totalNumber;
 
-  const status = bill.status || "sent";
-  const currency = bill.currency || "USD";
-  const offerTitle = bill.offerTitle || "Untitled Offer";
+  const status = String(bill.status || "sent").toLowerCase();
+  const currency = safeText(bill.currency || "USD");
+  const offerTitle = safeText(bill.offerTitle || "Untitled Offer");
   const createdAt = bill.createdAt && typeof bill.createdAt.toDate === "function"
     ? bill.createdAt.toDate().toLocaleString()
     : "";
@@ -402,7 +440,7 @@ function renderBillCard(bill) {
   card.innerHTML = `
     <div class="bill-header-row">
       <div class="bill-title">${offerTitle}</div>
-      <div class="status-pill ${status}">${status.replace(/_/g," ").toUpperCase()}</div>
+      <div class="status-pill ${safeText(status)}">${safeText(status.replace(/_/g," ").toUpperCase())}</div>
     </div>
 
     <div class="bill-line">
@@ -410,7 +448,7 @@ function renderBillCard(bill) {
     </div>
 
     <div class="bill-line">
-      <strong>Bill ID:</strong> ${bill.billId || "N/A"}
+      <strong>Bill ID:</strong> ${safeText(bill.billId || bill.id || "N/A")}
     </div>
 
     <div class="bill-meta">
