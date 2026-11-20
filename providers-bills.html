@@ -378,7 +378,7 @@ let allBills=[];
 const searchInput=document.getElementById("billSearch");
 const statusSelect=document.getElementById("billStatus");
 const paidStatuses=new Set(["paid","approved","verified","completed","settled"]);
-const proofStatuses=new Set(["pending_verification","payment_submitted","proof_submitted","awaiting_verification","pending_approval"]);
+const proofStatuses=new Set(["pending_verification","payment_submitted","proof_submitted","awaiting_verification","pending_approval","provider_marked_paid"]);
 const safeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function billGroup(status){
   const s=String(status||"sent").toLowerCase();
@@ -605,7 +605,7 @@ async function markAsPaid(billId, btn, proof){
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.success) throw new Error(result.error || "Proof submission rejected");
 
-    showNotif("Proof submitted. Bill marked as paid and sent for Admin approval!", "success");
+    showNotif("Proof submitted for admin verification. Payment is not confirmed yet.", "success");\n    await loadBills();
   } catch(err) {
     console.error("Failed to submit proof:", err);
     showNotif("Unable to submit proof: " + (err.message || "Please try again."), "error");
