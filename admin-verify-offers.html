@@ -64,7 +64,7 @@ import {
 
 const offersContainer = document.getElementById('offersContainer');        
 const ADMIN_ROLES = ['admin', 'super_admin'];        
-let userSession = null; let pendingSnapshots=[];\nconst searchField=document.getElementById("offerSearch");\nsearchField.addEventListener("input",renderPendingList);\nconst escapeHtml=v=>String(v??"").replace(/[&<>]/g,c=>c==="&"?"&amp;":c==="<"?"&lt;":"&gt;");        
+let userSession = null; let pendingSnapshots=[]; const searchField=document.getElementById("offerSearch");\nsearchField.addEventListener("input",renderPendingList);\nconst escapeHtml=v=>String(v??"").replace(/[&<>]/g,c=>c==="&"?"&amp;":c==="<"?"&lt;":"&gt;");        
 
 // ================== UTILITY FUNCTIONS ==================        
 function showNotification(card, message, type='info', duration=3000) {        
