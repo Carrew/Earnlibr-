@@ -406,52 +406,17 @@ onAuthStateChanged(auth, async user=>{
 });
 
 // --- LOAD PENDING REQUESTS ---
-function loadWithdrawalRequests(){
-  showSkeleton(3);
-
-  const requestsQuery = query(
-    collection(db, "withdrawal-requests"),
-    where("status", "==", "pending")
-  );
-  
-  let firstSnapshot = true;
-
-  onSnapshot(requestsQuery, snapshot=>{
-    if (firstSnapshot) {
-      hideSkeleton();
-      firstSnapshot = false;
-    }
-
-    requestsContainer.innerHTML = "";
-    requestsList = [];
-
-    if(snapshot.empty) {
-      requestsContainer.innerHTML = `
-        <div class="empty-state">
-          <strong>No pending withdrawal requests.</strong>
-          When promoters request payouts, they will appear here for your approval.
-        </div>
-      `;
-      return;
-    }
-
-    snapshot.docs.forEach(docSnap=>{
-      const request = docSnap.data();
-      renderRequestCard(docSnap.id, request);
-    });
-  }, (err) => {
-    console.error("Withdrawal requests snapshot error:", err);
-    hideSkeleton();
-    requestsContainer.innerHTML = `
-      <div class="empty-state">
-        <strong>Failed to load withdrawal requests.</strong>
-        Please refresh the page or check your connection.
-      </div>
-    `;
-    showNotif("Failed to load withdrawal requests.", "error");
-  });
+async function loadWithdrawalRequests(){
+ showSkeleton(3);
+ try{
+ const token=await auth.currentUser.getIdToken();
+ const response=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/admin/promoter-payouts/pending",{headers:{Authorization:"Bearer "+token}});
+ const data=await response.json().catch(()=>({}));if(!response.ok||!data.success)throw Error(data.error||"Unable to load requests");
+ hideSkeleton();requestsContainer.replaceChildren();requestsList=[];
+ if(!(data.requests||[]).length){requestsContainer.innerHTML='<div class="empty-state">No pending withdrawal requests.</div>';updatePayoutUI();return}
+ data.requests.forEach(r=>renderRequestCard(r.id,r));updatePayoutUI();
+ }catch(e){hideSkeleton();requestsContainer.textContent="Unable to load payout requests.";showNotif(e.message,"error")}
 }
-
 function renderRequestCard(id, request) {
   const card = document.createElement("div");
   card.className = "request-card";
@@ -541,7 +506,7 @@ async function payoutDecision(requestId,decision,rejectionReason,paymentReferenc
 }
 async function rejectPayout(requestId,promoterId,amount,currency,dealIds,btn,card,rejectionReason){
  btn.disabled=true;
- try{await payoutDecision(requestId,"reject",rejectionReason);card.remove();showNotif("Withdrawal rejected and reserved balance restored.","success")}
+ try{await payoutDecision(requestId,"reject",rejectionReason);card.remove();await loadWithdrawalRequests();showNotif("Withdrawal rejected and reserved balance restored.","success")}
  catch(e){showNotif(e.message,"error");btn.disabled=false}
 }
 async function approvePayout(requestId,promoterId,amount,currency,dealIds,btn,card){
@@ -549,7 +514,7 @@ async function approvePayout(requestId,promoterId,amount,currency,dealIds,btn,ca
  const paymentReference=prompt("Enter the actual payment transaction reference (required):");
  if(!paymentReference||paymentReference.trim().length<5){showNotif("A verified payment reference is required.","error");return}
  btn.disabled=true;
- try{await payoutDecision(requestId,"record_paid",null,paymentReference.trim());card.remove();showNotif("Payment recorded as completed.","success")}
+ try{await payoutDecision(requestId,"record_paid",null,paymentReference.trim());card.remove();await loadWithdrawalRequests();showNotif("Payment recorded as completed.","success")}
  catch(e){showNotif(e.message,"error");btn.disabled=false}
 }
 // --- Approve all concurrently ---
