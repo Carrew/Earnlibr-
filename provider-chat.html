@@ -375,6 +375,25 @@ header {
   }
   #backBtn { display:block; }
 }
+
+/* Keep the conversation list and message pane independently scrollable.
+   The composer stays anchored while switching between long conversations. */
+html{height:100%;overflow:hidden}
+body{height:100vh;height:100dvh;min-height:0;overflow:hidden}
+body>header{flex:0 0 auto}
+#mainContainer{flex:1 1 auto;min-height:0;height:0;overflow:hidden}
+#chatList{flex:0 0 350px;min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain}
+#searchBar{flex:0 0 auto}
+#chatContainer{flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden}
+#chatHeader{flex:0 0 auto;min-width:0}
+#messages{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#inputContainer{flex:0 0 auto;min-width:0;border-top:1px solid #1a2235}
+#messageInput{min-width:0}
+@media(max-width:768px){
+ #chatList{flex:1 1 auto;width:100%;min-width:0}
+ #chatContainer{height:100vh;height:100dvh;min-height:0;bottom:0}
+ #inputContainer{padding-bottom:max(15px,env(safe-area-inset-bottom))}
+}
 </style>
 </head>
 
