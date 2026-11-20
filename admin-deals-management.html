@@ -28,11 +28,14 @@ button.loading::after { content: ''; position: absolute; top: 50%; left: 50%; wi
 .card-notif button:hover { color: #4ade80; }
 .load-more { text-align: center; margin-top: 20px; }
 .load-more button { padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+
+/* Refined dashboard styling without changing settlement endpoints */
+body{background:#0a111b;color:#eef5fb;font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:1150px;margin:auto;padding:28px 20px 70px}h1{background:none;color:#f1f6fb;letter-spacing:-.04em;margin:9px 0}.deal-page-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;margin-bottom:25px}.deal-page-header p{color:#afc2d2;font-size:13px;margin:0}.deal-back{color:#a9c9e3;text-decoration:none;font-size:13px}.deal-review-link{display:inline-block;background:#1d3954;border:1px solid #416684;border-radius:11px;padding:12px 16px;color:#e9f3fa;text-decoration:none;font-size:13px;font-weight:750}.deal-card{background:#121f2e;border:1px solid #2c445a;border-radius:15px;padding:21px;box-shadow:none}.deal-card:hover{transform:none;border-color:#4e7595}.deal-info{line-height:1.8;color:#c4d4e1}.deal-actions{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}.deal-actions button{padding:11px 14px;border-radius:10px;margin:0}.complete{background:#275b4b;color:#e8f9f0;border:1px solid #3c856a}.cancel{background:#5b3037;border:1px solid #8a4b55}.timestamp{border-top:1px solid #2c4256;padding-top:12px;color:#91a9bd}.load-more button{background:#265c93;border:1px solid #427eb4;border-radius:10px}
 </style>
 </head>
 <body>
 
-<h1>Admin Deals Management</h1>
+<header class="deal-page-header"><div><a href="admin-dashboard.html" class="deal-back">← Admin dashboard</a><h1>Manage deals</h1><p>Review deals and use the separate cancellation review queue for disputed cancellations.</p></div><a href="admin-review.html" class="deal-review-link">Review cancelled deals →</a></header>
 <div id="notif" class="notif"></div>
 <div id="dealsContainer">Loading deals...</div>
 <div id="loadMoreContainer" class="load-more" style="display: none;">
