@@ -264,15 +264,8 @@ onAuthStateChanged(auth, async (user) => {
   
 // --- Load Wallet ---  
 async function loadWallet(promoterId) {  
-  const metaRef = doc(db, "promoter-earnings", promoterId, "metadata", "summary");  
-  const metaSnap = await getDoc(metaRef);  
-  
-  if (!metaSnap.exists()) {  
-    walletContainer.innerHTML = "<p>No active earnings found.</p>";  
-    return;  
-  }  
-  
-  const meta = metaSnap.data();  
+  const meta=await payoutGet("/v1/promoter/payouts/wallet").then(d=>d.wallet);
+  if(!meta||!Object.keys(meta.currentBalance||{}).length){walletContainer.textContent="No active earnings found.";return;}
   walletContainer.innerHTML = "";  
   
   for (const currency in meta.currentBalance) {  
@@ -389,51 +382,32 @@ async function loadWallet(promoterId) {
   }  
 }  
   
-// --- Real-time Withdrawal History ---  
-function loadHistory(promoterId) {  
-  const q = query(  
-    collection(db, "withdrawal-requests"),   
-    where("promoterId", "==", promoterId),  
-    orderBy("requestedAt", "desc")  
-  );  
-  
-  onSnapshot(q, (snapshot) => {  
-    historyBody.innerHTML = "";  
-    if (snapshot.empty) {  
-      historyBody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No requests found.</td></tr>";  
-      return;  
-    }  
-  
-    snapshot.forEach(docSnap => {  
-      const data = docSnap.data();  
-      const date = data.requestedAt ? new Date(data.requestedAt.seconds * 1000).toLocaleDateString() : "Pending...";  
-      const statusClass = `status-${data.status}`;  
-      const reason = data.rejectionReason ? `<br><small style="color:var(--danger)">Reason: ${data.rejectionReason}</small>` : "";  
-  
-      const row = document.createElement("tr");  
-      row.innerHTML = `  
-        <td>${date}</td>  
-        <td><strong>${data.amount.toFixed(2)} ${data.currency}</strong></td>  
-        <td><span class="status-pill ${statusClass}">${data.status}</span></td>  
-        <td>
-          ID: ...${data.withdrawalRequestId.slice(-6)}<br>
-          Name: ${data.recipientName || "N/A"}<br>
-          Number: ${data.recipientNumber || "N/A"}
-          ${reason}
-        </td>  
-      `;  
-      historyBody.appendChild(row);  
-    });  
-  });  
-}  
-  
+async function payoutGet(path){
+ const token=await auth.currentUser.getIdToken();
+ const res=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev"+path,{headers:{Authorization:"Bearer "+token}});
+ const data=await res.json().catch(()=>({}));if(!res.ok||!data.success)throw Error(data.error||"Unable to load payout records");return data;
+}
+async function loadHistory(promoterId){
+ try{
+ const data=await payoutGet("/v1/promoter/payouts/history");
+ historyBody.replaceChildren();
+ const records=(data.requests||[]).sort((a,b)=>new Date(b.requestedAt||0)-new Date(a.requestedAt||0));
+ if(!records.length){historyBody.innerHTML="<tr><td colspan='4'>No withdrawal requests yet.</td></tr>";return;}
+ for(const r of records){
+ const row=document.createElement("tr");
+ const cells=[r.requestedAt?new Date(r.requestedAt).toLocaleDateString():"—",Number(r.amount||0).toFixed(2)+" "+(r.currency||""),r.status||"unknown","ID: "+String(r.withdrawalRequestId||r.id).slice(-6)+" · "+(r.recipientName||"")];
+ for(const value of cells){const td=document.createElement("td");td.textContent=value;row.append(td)}
+ historyBody.append(row);
+ }
+ }catch(e){historyBody.textContent=e.message}
+}
 // --- Request Withdrawal (uses inline form data, no prompts) ---  
 async function requestWithdrawal(promoterId,currency,withdrawableAmount,recipientName,recipientNumber){
  const token=await auth.currentUser.getIdToken();
  const res=await fetch("https://earnlibr-core-api.www-sandicarrew.workers.dev/v1/promoter/payouts/request",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({currency,recipientName,recipientNumber})});
  const data=await res.json().catch(()=>({}));
  if(!res.ok||!data.success)throw Error(data.error||"Withdrawal request failed");
- await loadWallet(promoterId);
+ await Promise.all([loadWallet(promoterId),loadHistory(promoterId)]);
  return data;
 }
 </script>
