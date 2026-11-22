@@ -87,10 +87,9 @@ service cloud.firestore {
     // Only the promoter can view and save their own selected offers.
     match /promoter_offers/{promoterId}/offers/{offerId} {
       allow get, list: if admin() || owner(promoterId);
-      allow create: if owner(promoterId)
-                    && request.resource.data.keys().hasOnly(['offerId', 'savedAt', 'title', 'description', 'image', 'commission', 'providerId', 'status', 'category', 'price', 'currency', 'createdAt', 'offerTitle', 'offerImage', 'offerPrice', 'offerCurrency', 'offerCommission', 'clicks', 'views', 'sales', 'referrals', 'link'])
-                    && request.resource.data.keys().hasAll(['offerId'])
-                    && request.resource.data.offerId == offerId;
+      // Saved offer snapshots may contain commission/statistics fields;
+      // validate schema and migrate before permitting writes.
+      allow create: if false;
       // Stats, earnings and performance are server-owned.
       allow update, delete: if false;
     }
