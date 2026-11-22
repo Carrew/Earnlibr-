@@ -23,8 +23,6 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if owner(uid) || admin();
       allow list: if admin();
-      // Client signup currently creates users and referralCodes in a batch;
-      // do not enable broad create here without inspecting its schema.
       // Signup creates users/{uid} and referralCodes/{code} atomically.
       allow create: if owner(uid)
                     && request.resource.data.keys().hasOnly(['uid','name','email','role','country','phone','referralCode','referredBy','fcmTokens','lastLoginAt','updatedAt','createdAt'])
@@ -110,6 +108,8 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // NOTE: current frontend reads all offers then filters locally. This may expose
+    // pending/paused records. Migrate to a status-scoped query before publishing.
     // Promoters may browse approved active offers; publishing stays server-owned.
     match /offers_all/{offerId} {
       allow get, list: if signedIn();
@@ -158,7 +158,7 @@ service cloud.firestore {
       allow get, list: if admin() ||
         (signedIn() && (
           resource.data.providerId == request.auth.uid ||
-          resource.data.clientId == request.auth.uid
+          resource.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
         ));
       allow create, update, delete: if false;
 
@@ -223,7 +223,7 @@ service cloud.firestore {
       allow get, list: if admin() ||
         (signedIn() && (
           resource.data.providerId == request.auth.uid ||
-          resource.data.clientId == request.auth.uid
+          resource.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
         ));
       allow create, update, delete: if false;
 
