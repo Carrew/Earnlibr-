@@ -138,12 +138,20 @@ service cloud.firestore {
                     && request.resource.data.description == sourceOffer().get('description', '')
                     && request.resource.data.imageUrl == sourceOffer().get('imageUrl', '')
                     && request.resource.data.category == sourceOffer().get('category', '')
-                    && request.resource.data.currency == sourceOffer().get('currency', '
-      // Stats, earnings and performance are server-owned.
+                    && request.resource.data.currency == sourceOffer().get('currency', '$')
+                    && request.resource.data.price == sourceOffer().get('price', null)
+                    && request.resource.data.commissionValue == sourceOffer().get('commissionValue', 0)
+                    && request.resource.data.commissionType == sourceOffer().get('commissionType', 'flat')
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.clicks == 0
+                    && request.resource.data.lastClickAt == null
+                    && request.resource.data.createdAt is timestamp
+                    && request.resource.data.startedPromotingAt is timestamp
+                    && request.resource.data.lastShareAt is timestamp;
       allow update, delete: if false;
     }
 
-    // Provider deal queries MUST filter providerId == auth.uid.
+        // Provider deal queries MUST filter providerId == auth.uid.
     // Promoter/client reads must be similarly constrained by their identity.
     match /deals/{dealId} {
       allow get, list: if admin() ||
@@ -198,71 +206,6 @@ service cloud.firestore {
           && onlyChanged(['seen'])
           && request.resource.data.seen == true;
         // Message editing and previous-message locking need separate validated rules.
-      }
-    }
-
-    match /referralCodes/{code} {
-      allow get: if signedIn();
-      allow list: if false;
-      allow create: if signedIn()
-                    && request.resource.data.keys().hasOnly(['ownerUid'])
-                    && request.resource.data.ownerUid == request.auth.uid
-                    && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralCode == code;
-      allow update, delete: if false;
-    }
-
-    // Fail closed for every other document. NOT suitable for production
-    // until promoter/provider/signup workflows are mapped and tested.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-)
-                    && request.resource.data.price == sourceOffer().get('price', null)
-                    && request.resource.data.commissionValue == sourceOffer().get('commissionValue', 0)
-                    && request.resource.data.commissionType == sourceOffer().get('commissionType', 'flat')
-                    && request.resource.data.status == 'active'
-                    && request.resource.data.clicks == 0
-                    && request.resource.data.lastClickAt == null
-                    && request.resource.data.createdAt is timestamp
-                    && request.resource.data.startedPromotingAt is timestamp
-                    && request.resource.data.lastShareAt is timestamp;
-      // Stats, earnings and performance are server-owned.
-      allow update, delete: if false;
-    }
-
-    // Provider deal queries MUST filter providerId == auth.uid.
-    // Promoter/client reads must be similarly constrained by their identity.
-    match /deals/{dealId} {
-      allow get, list: if admin() ||
-        (signedIn() && (
-          resource.data.providerId == request.auth.uid ||
-          resource.data.promoterId == request.auth.uid ||
-          resource.data.get('clientAuthUid', '') == request.auth.uid
-        ));
-      allow create, update, delete: if false;
-    }
-
-    // Chat participants can read only their own chat, with constrained queries.
-    match /chats/{chatId} {
-      allow get, list: if admin() ||
-        (signedIn() && (
-          resource.data.providerId == request.auth.uid ||
-          resource.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
-        ));
-      allow create, update, delete: if false;
-
-      match /messages/{messageId} {
-        function chatAllowed() {
-          let chat = get(/databases/$(database)/documents/chats/$(chatId));
-          return admin() || (signedIn() && (
-            chat.data.providerId == request.auth.uid ||
-            chat.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
-          ));
-        }
-        allow get, list: if chatAllowed();
-        allow create, update, delete: if false;
       }
     }
 
