@@ -119,9 +119,24 @@ service cloud.firestore {
     // Only the promoter can view and save their own selected offers.
     match /promoter_offers/{promoterId}/offers/{offerId} {
       allow get, list: if admin() || owner(promoterId);
-      // Saved offer snapshots may contain commission/statistics fields;
-      // validate schema and migrate before permitting writes.
-      allow create: if false;
+      // Snapshot creation is permitted only if it exactly reflects an approved offer.
+      // Existing merge writes remain blocked: they can modify tracking/commission data.
+      function sourceOffer() {
+        return get(/databases/$(database)/documents/offers_all/$(offerId)).data;
+      }
+      allow create: if owner(promoterId)
+                    && exists(/databases/$(database)/documents/offers_all/$(offerId))
+                    && sourceOffer().get('status', '') == 'active'
+                    && sourceOffer().get('verified', false) == true
+                    && request.resource.data.keys().hasOnly(['offerId','promoterId','title','description','imageUrl','category','currency','price','commissionValue','commissionType','status','clicks','lastClickAt','createdAt','startedPromotingAt','lastShareAt'])
+                    && request.resource.data.keys().hasAll(['offerId','promoterId','title','description','imageUrl','category','currency','price','commissionValue','commissionType','status','clicks','lastClickAt','createdAt','startedPromotingAt','lastShareAt'])
+                    && request.resource.data.offerId == offerId
+                    && request.resource.data.promoterId == promoterId
+                    && request.resource.data.title == sourceOffer().get('title', 'Untitled Offer')
+                    && request.resource.data.description == sourceOffer().get('description', '')
+                    && request.resource.data.imageUrl == sourceOffer().get('imageUrl', '')
+                    && request.resource.data.category == sourceOffer().get('category', '')
+                    && request.resource.data.currency == sourceOffer().get('currency', '
       // Stats, earnings and performance are server-owned.
       allow update, delete: if false;
     }
@@ -133,7 +148,7 @@ service cloud.firestore {
         (signedIn() && (
           resource.data.providerId == request.auth.uid ||
           resource.data.promoterId == request.auth.uid ||
-          resource.data.clientId == request.auth.uid
+          resource.data.get('clientAuthUid', '') == request.auth.uid
         ));
       allow create, update, delete: if false;
     }
@@ -152,7 +167,72 @@ service cloud.firestore {
           let chat = get(/databases/$(database)/documents/chats/$(chatId));
           return admin() || (signedIn() && (
             chat.data.providerId == request.auth.uid ||
-            chat.data.clientId == request.auth.uid
+            chat.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
+          ));
+        }
+        allow get, list: if chatAllowed();
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /referralCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+                    && request.resource.data.keys().hasOnly(['ownerUid'])
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralCode == code;
+      allow update, delete: if false;
+    }
+
+    // Fail closed for every other document. NOT suitable for production
+    // until promoter/provider/signup workflows are mapped and tested.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+                    && request.resource.data.price == sourceOffer().get('price', null)
+                    && request.resource.data.commissionValue == sourceOffer().get('commissionValue', 0)
+                    && request.resource.data.commissionType == sourceOffer().get('commissionType', 'flat')
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.clicks == 0
+                    && request.resource.data.lastClickAt == null
+                    && request.resource.data.createdAt is timestamp
+                    && request.resource.data.startedPromotingAt is timestamp
+                    && request.resource.data.lastShareAt is timestamp;
+      // Stats, earnings and performance are server-owned.
+      allow update, delete: if false;
+    }
+
+    // Provider deal queries MUST filter providerId == auth.uid.
+    // Promoter/client reads must be similarly constrained by their identity.
+    match /deals/{dealId} {
+      allow get, list: if admin() ||
+        (signedIn() && (
+          resource.data.providerId == request.auth.uid ||
+          resource.data.promoterId == request.auth.uid ||
+          resource.data.get('clientAuthUid', '') == request.auth.uid
+        ));
+      allow create, update, delete: if false;
+    }
+
+    // Chat participants can read only their own chat, with constrained queries.
+    match /chats/{chatId} {
+      allow get, list: if admin() ||
+        (signedIn() && (
+          resource.data.providerId == request.auth.uid ||
+          resource.data.clientId == request.auth.uid
+        ));
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        function chatAllowed() {
+          let chat = get(/databases/$(database)/documents/chats/$(chatId));
+          return admin() || (signedIn() && (
+            chat.data.providerId == request.auth.uid ||
+            chat.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
           ));
         }
         allow get, list: if chatAllowed();
