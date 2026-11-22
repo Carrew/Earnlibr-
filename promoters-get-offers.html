@@ -486,7 +486,8 @@ async function loadOffers() {
 
   try {  
     const offersCol = collection(db, "offers_all");  
-    const snapshot = await getDocs(offersCol);  
+    // Restrict the Firestore query itself; client-side filtering is not access control.
+    const snapshot = await getDocs(query(offersCol, where("status", "==", "active")));  
     allOffers = snapshot.docs  
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))  
       .filter(o => o.verified !== false && !['rejected','deleted','draft','pending','processing','paused','inactive'].includes(String(o.status || 'active').toLowerCase()));  
