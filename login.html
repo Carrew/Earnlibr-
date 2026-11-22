@@ -115,9 +115,15 @@
         // ✅ NEW LOGIC: update lastLoginAt on every successful login
         // (update in whichever collection the user belongs to)
         const targetRef = doc(db, targetCollection, user.uid);
-        await updateDoc(targetRef, {
-          lastLoginAt: serverTimestamp()
-        });
+        // Login must not fail just because a security rule blocks a nonessential
+        // last-login timestamp write. The backend can record this separately.
+        try {
+          await updateDoc(targetRef, {
+            lastLoginAt: serverTimestamp()
+          });
+        } catch (timestampError) {
+          console.warn('Last-login timestamp not saved:', timestampError?.code || 'permission-denied');
+        }
 
         // (Optional) keep localStorage in sync immediately:
         // if you want the exact server timestamp, you'd re-fetch;
