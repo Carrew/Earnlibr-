@@ -16,8 +16,17 @@ service cloud.firestore {
       allow create, delete: if false;
       // Login compatibility only; cannot change roles or identity.
       allow update: if owner(uid)
-                    && onlyChanged(['lastLoginAt'])
-                    && request.resource.data.lastLoginAt == request.time;
+                    && ((onlyChanged(['lastLoginAt'])
+                         && request.resource.data.lastLoginAt == request.time)
+                        || (onlyChanged(['name','phone','country','updatedAt'])
+                            && request.resource.data.updatedAt == request.time
+                            && request.resource.data.name is string
+                            && request.resource.data.name.size() > 0
+                            && request.resource.data.name.size() <= 120
+                            && request.resource.data.phone is string
+                            && request.resource.data.phone.size() <= 40
+                            && request.resource.data.country is string
+                            && request.resource.data.country.size() <= 100));
     }
 
     match /users/{uid} {
@@ -39,10 +48,22 @@ service cloud.firestore {
                     && request.resource.data.lastLoginAt == request.time
                     && existsAfter(/databases/$(database)/documents/referralCodes/$(request.resource.data.referralCode))
                     && getAfter(/databases/$(database)/documents/referralCodes/$(request.resource.data.referralCode)).data.ownerUid == uid;
-      allow update: if admin()
-                    && onlyChanged(['disabled', 'role'])
-                    && (!request.resource.data.keys().hasAny(['role'])
-                        || request.resource.data.role in ['provider', 'freelancer', 'promoter']);
+      // Login timestamp and account-center profile edits use these exact fields.
+      allow update: if (owner(uid)
+                       && ((onlyChanged(['lastLoginAt'])
+                            && request.resource.data.lastLoginAt == request.time)
+                         || (onlyChanged(['name','phone','country','updatedAt'])
+                             && request.resource.data.updatedAt == request.time
+                             && request.resource.data.name is string
+                             && request.resource.data.name.size() > 0
+                             && request.resource.data.name.size() <= 120
+                             && request.resource.data.phone is string
+                             && request.resource.data.phone.size() <= 40
+                             && request.resource.data.country is string
+                             && request.resource.data.country.size() <= 100)))
+                    || (admin()
+                        && onlyChanged(['disabled', 'role'])
+                        && request.resource.data.role in ['provider', 'freelancer', 'promoter']);
       allow delete: if false;
     }
 
@@ -201,10 +222,27 @@ service cloud.firestore {
         // Marking received messages as seen is independent of sender identity.
         // Existing message text/media and sender cannot be changed by this path.
         allow update: if
-          ((providerParticipant() && resource.data.sender == 'client')
-            || (customerParticipant() && resource.data.sender == 'provider'))
-          && onlyChanged(['seen'])
-          && request.resource.data.seen == true;
+          (((providerParticipant() && resource.data.sender == 'client')
+             || (customerParticipant() && resource.data.sender == 'provider'))
+             && onlyChanged(['seen'])
+             && request.resource.data.seen == true)
+          || (ownsMessage()
+              && resource.data.get('editable', false) == true
+              && resource.data.get('deleted', false) != true
+              && onlyChanged(['text'])
+              && request.resource.data.text is string
+              && request.resource.data.text.size() > 0
+              && request.resource.data.text.size() <= 4000)
+          || (ownsMessage()
+              && resource.data.get('editable', false) == true
+              && onlyChanged(['editable'])
+              && request.resource.data.editable == false)
+          || (ownsMessage()
+              && resource.data.get('deleted', false) != true
+              && onlyChanged(['deleted','text','editable'])
+              && request.resource.data.deleted == true
+              && request.resource.data.text == '[Message deleted]'
+              && request.resource.data.editable == false);
         // Message editing and previous-message locking need separate validated rules.
       }
     }
