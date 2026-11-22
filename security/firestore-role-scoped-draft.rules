@@ -25,7 +25,22 @@ service cloud.firestore {
       allow list: if admin();
       // Client signup currently creates users and referralCodes in a batch;
       // do not enable broad create here without inspecting its schema.
-      allow create: if false;
+      // Signup creates users/{uid} and referralCodes/{code} atomically.
+      allow create: if owner(uid)
+                    && request.resource.data.keys().hasOnly(['uid','name','email','role','country','phone','referralCode','referredBy','fcmTokens','lastLoginAt','updatedAt','createdAt'])
+                    && request.resource.data.keys().hasAll(['uid','name','email','role','country','phone','referralCode','fcmTokens','lastLoginAt','updatedAt','createdAt'])
+                    && request.resource.data.uid == uid
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.role in ['provider','freelancer','promoter']
+                    && request.resource.data.referralCode is string
+                    && request.resource.data.referralCode.size() >= 4
+                    && request.resource.data.referralCode.size() <= 64
+                    && request.resource.data.fcmTokens == []
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time
+                    && request.resource.data.lastLoginAt == request.time
+                    && existsAfter(/databases/$(database)/documents/referralCodes/$(request.resource.data.referralCode))
+                    && getAfter(/databases/$(database)/documents/referralCodes/$(request.resource.data.referralCode)).data.ownerUid == uid;
       allow update: if admin()
                     && onlyChanged(['disabled', 'role'])
                     && (!request.resource.data.keys().hasAny(['role'])
@@ -75,7 +90,24 @@ service cloud.firestore {
     match /offers_pending/{offerId} {
       allow get: if admin() || (signedIn() && resource.data.providerId == request.auth.uid);
       allow list: if admin() || (signedIn() && resource.data.providerId == request.auth.uid);
-      allow create, update, delete: if false;
+      allow create: if signedIn()
+                    && request.resource.data.providerId == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['providerId','title','description','category','currency','price','commissionType','commissionValue','promotionBudget','totalProducts','imageTemp','status','createdAt'])
+                    && request.resource.data.keys().hasAll(['providerId','title','description','category','currency','price','commissionType','commissionValue','promotionBudget','totalProducts','status','createdAt'])
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 180
+                    && request.resource.data.price is number
+                    && request.resource.data.price >= 0
+                    && request.resource.data.commissionValue is number
+                    && request.resource.data.commissionValue >= 0
+                    && request.resource.data.promotionBudget is number
+                    && request.resource.data.promotionBudget >= 0
+                    && request.resource.data.totalProducts is int
+                    && request.resource.data.totalProducts >= 0;
+      allow update, delete: if false;
     }
 
     // Promoters may browse approved active offers; publishing stays server-owned.
@@ -131,7 +163,11 @@ service cloud.firestore {
     match /referralCodes/{code} {
       allow get: if signedIn();
       allow list: if false;
-      allow create, update, delete: if false;
+      allow create: if signedIn()
+                    && request.resource.data.keys().hasOnly(['ownerUid'])
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralCode == code;
+      allow update, delete: if false;
     }
 
     // Fail closed for every other document. NOT suitable for production
