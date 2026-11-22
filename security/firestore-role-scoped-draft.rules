@@ -112,7 +112,9 @@ service cloud.firestore {
     // pending/paused records. Migrate to a status-scoped query before publishing.
     // Promoters may browse approved active offers; publishing stays server-owned.
     match /offers_all/{offerId} {
-      allow get, list: if signedIn();
+      // Both direct document reads and collection queries require active status.
+      // Queries must include where('status', '==', 'active').
+      allow get, list: if signedIn() && resource.data.status == 'active';
       allow create, update, delete: if false;
     }
 
