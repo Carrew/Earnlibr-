@@ -155,25 +155,49 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Chat participants can read only their own chat, with constrained queries.
+    // Chat authorization uses verified Firebase identity, not browser localStorage IDs.
     match /chats/{chatId} {
-      allow get, list: if admin() ||
-        (signedIn() && (
-          resource.data.providerId == request.auth.uid ||
-          resource.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
-        ));
-      allow create, update, delete: if false;
+      function providerParticipant() {
+        return signedIn() && resource.data.providerId == request.auth.uid;
+      }
+      function customerParticipant() {
+        return signedIn() &&
+          resource.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid;
+      }
+      allow get, list: if admin() || providerParticipant() || customerParticipant();
+      allow create, delete: if false;
+      // Typing indicators cannot modify deal, identity, or message metadata.
+      // Sending still needs a coordinated, validated message + chat-head write.
+      allow update: if
+        (providerParticipant() && onlyChanged(['providerTyping'])
+          && request.resource.data.providerTyping is bool)
+        || (customerParticipant() && onlyChanged(['clientTyping'])
+          && request.resource.data.clientTyping is bool);
 
       match /messages/{messageId} {
-        function chatAllowed() {
-          let chat = get(/databases/$(database)/documents/chats/$(chatId));
-          return admin() || (signedIn() && (
-            chat.data.providerId == request.auth.uid ||
-            chat.data.get('participants', {}).get('clientAuthUid', '') == request.auth.uid
-          ));
+        function providerParticipant() {
+          return signedIn() &&
+            get(/databases/$(database)/documents/chats/$(chatId)).data.providerId == request.auth.uid;
         }
-        allow get, list: if chatAllowed();
-        allow create, update, delete: if false;
+        function customerParticipant() {
+          return signedIn() &&
+            get(/databases/$(database)/documents/chats/$(chatId)).data
+              .get('participants', {}).get('clientAuthUid', '') == request.auth.uid;
+        }
+        function ownsMessage() {
+          return (providerParticipant() && resource.data.sender == 'provider')
+              || (customerParticipant() && resource.data.sender == 'client');
+        }
+        allow get, list: if admin() || providerParticipant() || customerParticipant();
+        allow create, delete: if false;
+        // Marking received messages as seen is independent of sender identity.
+        // Existing message text/media and sender cannot be changed by this path.
+        allow update: if
+          ((providerParticipant() && resource.data.sender == 'client')
+            || (customerParticipant() && resource.data.sender == 'provider'))
+          && onlyChanged(['seen'])
+          && request.resource.data.seen == true;
+        // Message editing and previous-message locking need separate validated rules.
       }
     }
 
