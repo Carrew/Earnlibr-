@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    // Set this claim only with a trusted Firebase Admin SDK / privileged server.
+    // Existing admins/{uid} documents and users/{uid}.role are NOT authority.
+    function admin() { return signedIn() && request.auth.token.admin == true; }
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    match /admins/{uid} {
+      allow get: if owner(uid) || admin();
+      allow list: if admin();
+      allow create, delete: if false;
+      // Login compatibility only; cannot change roles or identity.
+      allow update: if owner(uid)
+                    && onlyChanged(['lastLoginAt'])
+                    && request.resource.data.lastLoginAt == request.time;
+    }
+
+    match /users/{uid} {
+      allow get: if owner(uid) || admin();
+      allow list: if admin();
+      // Client signup currently creates users and referralCodes in a batch;
+      // do not enable broad create here without inspecting its schema.
+      allow create: if false;
+      allow update: if admin()
+                    && onlyChanged(['disabled', 'role'])
+                    && (!request.resource.data.keys().hasAny(['role'])
+                        || request.resource.data.role in ['provider', 'freelancer', 'promoter']);
+      allow delete: if false;
+    }
+
+    match /admin_notifications/{notificationId} {
+      allow get, list: if admin();
+      allow update: if admin() && onlyChanged(['read'])
+                    && request.resource.data.read == true;
+      allow create, delete: if false;
+    }
+
+    match /platform-settings/{settingId} {
+      allow get, list: if admin();
+      // Commission configuration writes should migrate to verified backend.
+      allow create, update, delete: if false;
+    }
+
+    match /providers/{providerId}/offers/{offerId} {
+      allow get, list: if admin() || owner(providerId);
+      allow create, update, delete: if false;
+    }
+    match /completed-deals/{dealId} {
+      allow get, list: if admin();
+      allow create, update, delete: if false;
+    }
+    match /bills/{billId} {
+      allow get, list: if admin();
+      allow create, update, delete: if false;
+    }
+    match /providers/{providerId}/bills/{billId} {
+      allow get, list: if admin() || owner(providerId);
+      allow create, update, delete: if false;
+    }
+    match /notifications/{uid}/items/{notificationId} {
+      allow get, list: if admin() || owner(uid);
+      allow update: if owner(uid)
+                    && onlyChanged(['read'])
+                    && request.resource.data.read == true;
+      allow create, delete: if false;
+    }
+
+
+    // Provider pending offers: query MUST filter providerId == request.auth.uid.
+    match /offers_pending/{offerId} {
+      allow get: if admin() || (signedIn() && resource.data.providerId == request.auth.uid);
+      allow list: if admin() || (signedIn() && resource.data.providerId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Promoters may browse approved active offers; publishing stays server-owned.
+    match /offers_all/{offerId} {
+      allow get, list: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    // Only the promoter can view and save their own selected offers.
+    match /promoter_offers/{promoterId}/offers/{offerId} {
+      allow get, list: if admin() || owner(promoterId);
+      allow create: if owner(promoterId)
+                    && request.resource.data.keys().hasOnly(['offerId', 'savedAt', 'title', 'description', 'image', 'commission', 'providerId', 'status', 'category', 'price', 'currency', 'createdAt', 'offerTitle', 'offerImage', 'offerPrice', 'offerCurrency', 'offerCommission', 'clicks', 'views', 'sales', 'referrals', 'link'])
+                    && request.resource.data.keys().hasAll(['offerId'])
+                    && request.resource.data.offerId == offerId;
+      // Stats, earnings and performance are server-owned.
+      allow update, delete: if false;
+    }
+
+    // Provider deal queries MUST filter providerId == auth.uid.
+    // Promoter/client reads must be similarly constrained by their identity.
+    match /deals/{dealId} {
+      allow get, list: if admin() ||
+        (signedIn() && (
+          resource.data.providerId == request.auth.uid ||
+          resource.data.promoterId == request.auth.uid ||
+          resource.data.clientId == request.auth.uid
+        ));
+      allow create, update, delete: if false;
+    }
+
+    // Chat participants can read only their own chat, with constrained queries.
+    match /chats/{chatId} {
+      allow get, list: if admin() ||
+        (signedIn() && (
+          resource.data.providerId == request.auth.uid ||
+          resource.data.clientId == request.auth.uid
+        ));
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        function chatAllowed() {
+          let chat = get(/databases/$(database)/documents/chats/$(chatId));
+          return admin() || (signedIn() && (
+            chat.data.providerId == request.auth.uid ||
+            chat.data.clientId == request.auth.uid
+          ));
+        }
+        allow get, list: if chatAllowed();
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /referralCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Fail closed for every other document. NOT suitable for production
+    // until promoter/provider/signup workflows are mapped and tested.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
